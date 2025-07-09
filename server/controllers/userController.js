@@ -17,6 +17,7 @@ exports.getCurrentUser = async (req, res) => {
       id: user._id,
       username: user.username,
       createdAt: user.createdAt,
+      role: user.role,
       storageUsage: {
         used: user.usedStorage || 0,
         quota: user.storageQuota || 1024 * 1024 * 1024,
@@ -71,3 +72,31 @@ function formatBytes(bytes, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm) + ' ' + sizes[i]);
 }
+
+
+//debug
+// 删除所有用户（仅 admin）
+exports.deleteAllUsers = async (req, res) => {
+  try {
+    await User.deleteMany({});
+    res.json({ message: '所有用户已删除' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 重置当前用户已用空间为0
+exports.resetUsedStorage = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    user.usedStorage = 0;
+    await user.save();
+    res.json({ message: '已用空间已重置为0', usedStorage: user.usedStorage });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

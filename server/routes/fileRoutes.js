@@ -7,6 +7,7 @@ const { upload, cadUpload } = require('../utils/storage');
 // 常规文件上传
 router.post('/upload', 
   auth.authenticate, 
+  auth.requireRole('admin'),
   upload.single('file'), 
   fileController.uploadFile
 );
@@ -14,6 +15,7 @@ router.post('/upload',
 // CAD文件上传
 router.post('/upload-cad',
   auth.authenticate,
+  auth.requireRole('admin'),
   cadUpload.single('file'),
   fileController.uploadCadFile
 );
@@ -24,7 +26,9 @@ router.get('/', auth.authenticate, fileController.getUserFiles);
 // 下载文件
 router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 
-// 删除文件
-router.delete('/:id', auth.authenticate, fileController.deleteFile);
+// 删除所有云端文件（仅 admin）
+router.delete('/all', auth.authenticate, auth.requireRole('admin'), fileController.deleteAllFiles);
+// 删除单个文件
+router.delete('/:id', auth.authenticate, auth.requireRole('admin'), fileController.deleteFile);
 
 module.exports = router;

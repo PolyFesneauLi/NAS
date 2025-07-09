@@ -15,3 +15,10 @@ exports.authenticate = (req, res, next) => {
     res.status(400).json({ error: 'Invalid token.' });
   }
 };
+
+exports.requireRole = (role) => (req, res, next) => {
+  if (!req.user || req.user.role !== role) {
+    return res.status(403).json({ error: '权限不足' });
+  }
+  next();
+};

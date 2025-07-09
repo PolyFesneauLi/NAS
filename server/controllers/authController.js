@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 exports.register = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, role } = req.body;
     
     // 检查用户名是否已存在
     const existingUser = await User.findOne({ username });
@@ -16,17 +16,27 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // 只有第一个用户或已登录的 admin 可以指定 role，否则强制 normal
+    let userRole = 'normal';
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      userRole = role === 'admin' ? 'admin' : 'normal';
+    } else if (req.user && req.user.role === 'admin' && (role === 'admin' || role === 'normal')) {
+      userRole = role;
+    }
+
     // 创建新用户
     const user = new User({
       username,
       password: hashedPassword,
-      storageQuota: 1024 * 1024 * 1024 // 1GB
+      storageQuota: 1024 * 1024 * 1024, // 1GB
+      role: userRole
     });
 
     await user.save();
 
     // 生成 JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1h'
     });
 
@@ -35,7 +45,8 @@ exports.register = async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        storageQuota: user.storageQuota
+        storageQuota: user.storageQuota,
+        role: user.role
       }
     });
   } catch (error) {
@@ -60,7 +71,7 @@ exports.login = async (req, res) => {
     }
 
     // 生成 JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1h'
     });
 
@@ -71,7 +82,8 @@ exports.login = async (req, res) => {
         id: user._id,
         username: user.username,
         storageQuota: user.storageQuota,
-        usedStorage: user.usedStorage
+        usedStorage: user.usedStorage,
+        role: user.role
       }
     });
   } catch (error) {
