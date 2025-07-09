@@ -1,0 +1,30 @@
+const express = require('express');
+const router = express.Router();
+const fileController = require('../controllers/fileController');
+const auth = require('../utils/auth');
+const { upload, cadUpload } = require('../utils/storage');
+
+// 常规文件上传
+router.post('/upload', 
+  auth.authenticate, 
+  upload.single('file'), 
+  fileController.uploadFile
+);
+
+// CAD文件上传
+router.post('/upload-cad',
+  auth.authenticate,
+  cadUpload.single('file'),
+  fileController.uploadCadFile
+);
+
+// 获取用户文件
+router.get('/', auth.authenticate, fileController.getUserFiles);
+
+// 下载文件
+router.get('/download/:id', auth.authenticate, fileController.downloadFile);
+
+// 删除文件
+router.delete('/:id', auth.authenticate, fileController.deleteFile);
+
+module.exports = router;
