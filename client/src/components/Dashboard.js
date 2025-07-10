@@ -29,7 +29,7 @@ const Dashboard = ({ user }) => {
       setCurrentUser(safeUserData);
       setError('');
     } catch (err) {
-      setError('Failed to load user data');
+      setError('Failed to load user data'); // how to trigger this error?
       console.error('User data fetch error:', err);
     } finally {
       setLoading(false);

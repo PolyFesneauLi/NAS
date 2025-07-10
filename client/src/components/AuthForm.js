@@ -29,7 +29,7 @@ const AuthForm = ({ type, onSuccess }) => {
         : await register(formData);
       
       onSuccess(response.token, response.user);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'An error occurred');
     } finally {
@@ -40,7 +40,6 @@ const AuthForm = ({ type, onSuccess }) => {
   return (
     <div className="auth-form">
       <h2>{type === 'login' ? 'Login' : 'Register'}</h2>
-      {error && <div className="error-message">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Username</label>
@@ -65,6 +64,11 @@ const AuthForm = ({ type, onSuccess }) => {
         <button type="submit" disabled={loading}>
           {loading ? 'Processing...' : type === 'login' ? 'Login' : 'Register'}
         </button>
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
       </form>
     </div>
   );

@@ -9,7 +9,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
         <div className="nav-links">
           {isAuthenticated ? (
             <>
-              <Link to="/">Dashboard</Link>
+              <Link to="/dashboard">Dashboard</Link>
               <button onClick={onLogout}>Logout</button>
             </>
           ) : (

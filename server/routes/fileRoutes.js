@@ -31,4 +31,7 @@ router.delete('/all', auth.authenticate, auth.requireRole('admin'), fileControll
 // 删除单个文件
 router.delete('/:id', auth.authenticate, auth.requireRole('admin'), fileController.deleteFile);
 
+// 批量删除文件（仅 admin）
+router.post('/batch-delete', auth.authenticate, auth.requireRole('admin'), fileController.batchDeleteFiles);
+
 module.exports = router;

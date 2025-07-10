@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { setAuthToken, getCurrentUser } from './services/api';
 import AuthForm from './components/AuthForm';
@@ -10,6 +10,10 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [showIdleModal, setShowIdleModal] = useState(false);
+  const idleTimer = useRef(null);
+  const idleLimit = 10; // 秒
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -30,6 +34,31 @@ function App() {
 
     initializeAuth();
   }, []);
+
+  // 闲置检测
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let lastActivity = Date.now();
+    const resetIdle = () => {
+      lastActivity = Date.now();
+      setIdleSeconds(0);
+      setShowIdleModal(false);
+    };
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    events.forEach(evt => window.addEventListener(evt, resetIdle));
+    idleTimer.current = setInterval(() => {
+      const diff = Math.floor((Date.now() - lastActivity) / 1000);
+      setIdleSeconds(diff);
+      if (diff >= idleLimit) {
+        setShowIdleModal(true);
+        handleLogout();
+      }
+    }, 1000);
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, resetIdle));
+      clearInterval(idleTimer.current);
+    };
+  }, [isAuthenticated]);
 
   const handleLogin = (token, userData) => {
     localStorage.setItem('token', token);
@@ -52,6 +81,15 @@ function App() {
   return (
     <div className="App">
       <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+      {showIdleModal && (
+        <div className="idle-modal-overlay">
+          <div className="idle-modal">
+            <h3>您已{idleLimit}秒无操作</h3>
+            <p>请重新登录</p>
+            <button className="btn" onClick={() => setShowIdleModal(false)}>关闭</button>
+          </div>
+        </div>
+      )}
       <div className="container">
         <Routes>
           <Route
@@ -81,6 +119,16 @@ function App() {
                 <AuthForm type="register" onSuccess={handleLogin} />
               ) : (
                 <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              isAuthenticated ? (
+                <Dashboard user={user} />
+              ) : (
+                <Navigate to="/login" />
               )
             }
           />

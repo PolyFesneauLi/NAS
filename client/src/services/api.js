@@ -67,8 +67,15 @@ export const withUploadProgress = (callback) => ({
   }
 });
 
-export const getUserFiles = async () => {
-  const response = await api.get('/files');
+export const getUserFiles = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.type) queryParams.append('type', params.type);
+  if (params.sort) queryParams.append('sort', params.sort);
+  if (params.search) queryParams.append('search', params.search);
+  
+  const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const response = await api.get(url);
   return response.data;
 };
 
@@ -81,6 +88,11 @@ export const downloadFile = async (id) => {
 
 export const deleteFile = async (id) => {
   const response = await api.delete(`/files/${id}`);
+  return response.data;
+};
+
+export const batchDeleteFiles = async (ids) => {
+  const response = await api.post('/files/batch-delete', { ids });
   return response.data;
 };
 

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { uploadFile, uploadCadFile } from '../services/api';
 
 const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]); // 支持多文件
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState({}); // 每个文件单独进度
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
@@ -20,57 +20,49 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
     .join(',');
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      const fileExt = '.' + selectedFile.name.split('.').pop().toLowerCase();
-      
-      // 检查文件是否在任何允许的扩展名列表中
-      const isValidFile = Object.values(allAcceptedExtensions)
-        .flat()
-        .includes(fileExt);
-
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length === 0) return;
+    // 校验所有文件
+    const validFiles = [];
+    for (const f of selectedFiles) {
+      const fileExt = '.' + f.name.split('.').pop().toLowerCase();
+      const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
       if (!isValidFile) {
         setError(`不支持的文件格式: ${fileExt}`);
-        setFile(null);
+        setFiles([]);
         return;
       }
-
-      setFile(selectedFile);
-      setError('');
+      validFiles.push(f);
     }
+    setFiles(validFiles);
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return;
-    
-    try {
+    if (!files.length) return;
       setIsUploading(true);
       setError('');
-      setProgress(0);
-      
-      // 根据文件扩展名决定使用哪个API
+    setProgress({});
+    try {
+      // 并发上传所有文件
+      await Promise.all(files.map((file, idx) => {
       const fileExt = '.' + file.name.split('.').pop().toLowerCase();
       const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
-      
       const uploadApi = isCadFile ? uploadCadFile : uploadFile;
-      
       const config = {
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          setProgress(percentCompleted);
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
         }
       };
-      
-      await uploadApi(file, config);
+        return uploadApi(file, config);
+      }));
       onUploadSuccess();
-      setFile(null);
-      setProgress(0);
+      setFiles([]);
+      setProgress({});
     } catch (err) {
-      setError(err.response?.data?.error || 
-        `上传失败: ${err.message || '未知错误'}`);
+      setError(err.response?.data?.error || `上传失败: ${err.message || '未知错误'}`);
     } finally {
       setIsUploading(false);
     }
@@ -87,35 +79,37 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
           <label className="file-label">
-            {file ? file.name : '选择文件'}
+            {files.length ? files.map(f => f.name).join(', ') : '选择文件'}
             <input 
               type="file" 
               onChange={handleFileChange}
-              accept={unifiedAccept}  // 仍然显示所有支持的文件类型
+              accept={unifiedAccept}
+              multiple // 支持多选
               disabled={isUploading}
               className="file-input"
             />
           </label>
         </div>
-        
         {/* 只有选择了文件才显示文件信息和上传按钮 */}
-        {file && (
+        {files.length > 0 && (
           <>
             <div className="file-info">
-              <span>文件大小: <strong>{(file.size / 1024 / 1024).toFixed(2)} MB</strong></span>
-            </div>
-            
-            {progress > 0 && progress < 100 && (
+              {files.map(f => (
+                <div key={f.name} style={{marginBottom: 4}}>
+                  <span>{f.name} | <strong>{(f.size / 1024 / 1024).toFixed(2)} MB</strong></span>
+                  {progress[f.name] > 0 && progress[f.name] < 100 && (
               <div className="progress-bar">
                 <div 
                   className="progress-fill" 
-                  style={{ width: `${progress}%` }}
+                        style={{ width: `${progress[f.name]}%` }}
                 >
-                  {progress}%
+                        {progress[f.name]}%
                 </div>
               </div>
             )}
-            
+                </div>
+              ))}
+            </div>
             <button 
               type="submit" 
               disabled={isUploading}
