@@ -98,17 +98,10 @@ exports.getUserFiles = async (req, res) => {
     
     // 搜索功能 - 文件名部分匹配
     if (search) {
-      // 判断是否包含中文
-      const hasChinese = /[\u4e00-\u9fa5]/.test(search);
-      query.$or = hasChinese
-        ? [
-            { originalName: { $regex: search } },
-            { filename: { $regex: search } }
-          ]
-        : [
-            { originalName: { $regex: search, $options: 'i' } },
-            { filename: { $regex: search, $options: 'i' } }
-          ];
+      query.$or = [
+        { originalName: { $regex: search, $options: 'i' } },
+        { filename: { $regex: search, $options: 'i' } }
+      ];
       console.log('收到搜索参数:', search, 'MongoDB 查询:', JSON.stringify(query));
     }
     

@@ -39,7 +39,7 @@ const AuthForm = ({ type, onSuccess }) => {
 
   return (
     <div className="auth-form">
-      <h2>{type === 'login' ? 'Login' : 'Register'}</h2>
+      <h2>{type === 'login' ? '登陆' : '注册'}</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Username</label>
@@ -62,7 +62,7 @@ const AuthForm = ({ type, onSuccess }) => {
           />
         </div>
         <button type="submit" disabled={loading}>
-          {loading ? 'Processing...' : type === 'login' ? 'Login' : 'Register'}
+          {loading ? 'Processing...' : type === 'login' ? '登陆' : '注册'}
         </button>
         {error && (
           <div className="error-message">

@@ -75,7 +75,7 @@ const Dashboard = ({ user }) => {
     <div className="dashboard">
       <div className="user-info mb-6">
         <h2 className="text-xl font-semibold">
-          Welcome, {currentUser?.username || 'User'}!
+          欢迎使用, {currentUser?.username || 'User'}!
         </h2>
         {/* 只有 admin 用户显示空间百分比和进度条 */}
         {currentUser?.role === 'admin' && (

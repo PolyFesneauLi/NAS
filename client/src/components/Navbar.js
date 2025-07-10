@@ -5,17 +5,17 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
   return (
     <nav className="navbar">
       <div className="container">
-        <Link to="/" className="logo">NAS System</Link>
+        <Link to="/" className="logo">NAS 系统</Link>
         <div className="nav-links">
           {isAuthenticated ? (
             <>
-              <Link to="/dashboard">Dashboard</Link>
-              <button onClick={onLogout}>Logout</button>
+              <Link to="/dashboard" style={{ fontWeight: 'bold' }}>仪表盘</Link>
+              <button onClick={onLogout} style={{ fontWeight: 'bold' }}>登出</button>
             </>
           ) : (
             <>
-              <Link to="/login">Login</Link>
-              <Link to="/register">Register</Link>
+              <Link to="/login" style={{ fontWeight: 'bold' }}>登陆</Link>
+              <Link to="/register" style={{ fontWeight: 'bold' }}>注册</Link>
             </>
           )}
         </div>

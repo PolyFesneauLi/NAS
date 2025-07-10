@@ -70,11 +70,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
 
   return (
     <div className={`file-upload ${fileType}`}>
-      <h3>{{
-        regular: '上传文档/代码',
-        cad: '上传工程图纸',
-        code: '上传源代码'
-      }[fileType]}</h3>
+      <h3>上传文件</h3>
       
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
