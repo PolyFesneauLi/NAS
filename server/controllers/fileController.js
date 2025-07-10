@@ -120,14 +120,7 @@ exports.downloadFile = async (req, res) => {
       await File.deleteOne({ _id: file._id });
       return res.status(410).json({ error: '文件已丢失' });
     }
-    // 只设置 filename*，不设置 filename，最大化保证中文文件名下载不乱码
-    const filename = (file.originalName || file.filename).replace(/[\\/:*?"<>|]/g, '_');
-    const encoded = encodeURIComponent(filename);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename*=UTF-8''${encoded}`
-    );
-    res.download(filePath, filename);
+    res.download(filePath, file.originalName || file.filename);
   } catch (error) {
     res.status(500).json({ 
       error: '文件下载失败',
