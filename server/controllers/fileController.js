@@ -22,12 +22,12 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
 
     // 创建文件记录
     const file = new File({
-      filename: req.file.originalname, // 存原始文件名
+      filename: path.basename(req.file.path), // 使用实际存储的文件名
       path: req.file.path,
       size: fileSize,
       owner: req.user.id,
       fileType,  // 添加文件类型标识
-      originalName: req.file.originalname // 直接存原始文件名
+      originalName: decodeURIComponent(req.file.originalname) // 确保正确解码中文文件名
     });
 
     await file.save();
@@ -98,11 +98,12 @@ exports.getUserFiles = async (req, res) => {
     
     // 搜索功能 - 文件名部分匹配
     if (search) {
+      const decodedSearch = decodeURIComponent(search);
       query.$or = [
-        { originalName: { $regex: search, $options: 'i' } },
-        { filename: { $regex: search, $options: 'i' } }
+        { originalName: { $regex: decodedSearch, $options: 'i' } },
+        { path: { $regex: decodedSearch, $options: 'i' } }  // 使用 path 而不是 filename
       ];
-      console.log('收到搜索参数:', search, 'MongoDB 查询:', JSON.stringify(query));
+      console.log('收到搜索参数:', decodedSearch, 'MongoDB 查询:', JSON.stringify(query));
     }
     
     // 排序功能

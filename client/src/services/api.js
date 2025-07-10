@@ -72,7 +72,7 @@ export const getUserFiles = async (params = {}) => {
   
   if (params.type) queryParams.append('type', params.type);
   if (params.sort) queryParams.append('sort', params.sort);
-  if (params.search) queryParams.append('search', params.search);
+  if (params.search) queryParams.append('search', encodeURIComponent(params.search));
   
   const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   const response = await api.get(url);
