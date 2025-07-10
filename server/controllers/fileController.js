@@ -22,12 +22,12 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
 
     // 创建文件记录
     const file = new File({
-      filename: req.file.filename,
+      filename: req.file.originalname, // 存原始文件名
       path: req.file.path,
       size: fileSize,
       owner: req.user.id,
       fileType,  // 添加文件类型标识
-      originalName: req.file.originalname // 直接存储原始文件名
+      originalName: req.file.originalname // 直接存原始文件名
     });
 
     await file.save();

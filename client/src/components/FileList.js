@@ -294,13 +294,13 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
     setSortBy(e.target.value);
   };
 
+  // 搜索相关逻辑
   const handleSearchChange = (e) => {
     setSearchInput(e.target.value);
   };
-
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter') {
-      setSearchTerm(searchInput);
+      setSearchTerm(searchInput); // 直接用原始输入
     }
   };
 

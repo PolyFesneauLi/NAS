@@ -1,6 +1,8 @@
 const multer = require('multer');
 const path = require('path');
 const { STORAGE_PATH } = process.env;
+const fs = require('fs'); // Added for fs.existsSync
+// const iconv = require('iconv-lite'); // Removed as per edit hint
 
 // 配置存储
 const storage = multer.diskStorage({
@@ -8,8 +10,28 @@ const storage = multer.diskStorage({
     cb(null, STORAGE_PATH);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    let name = file.originalname;
+    // 检查是否为乱码（典型 UTF-8 字节流被当成 latin1 解析）
+    if (/^[\x00-\x7F]*$/.test(name) === false && /[^\u0000-\u00ff]/.test(name) === false) {
+      // 可能是 UTF-8 字节流
+      const buf = Buffer.from(name, 'latin1');
+      try {
+        name = buf.toString('utf8');
+      } catch (e) {
+        // 保底
+      }
+    }
+    let base = path.basename(name, path.extname(name));
+    const ext = path.extname(name);
+    let finalName = name;
+    let counter = 1;
+    let fsPath = path.join(STORAGE_PATH, finalName);
+    while (fs.existsSync(fsPath)) {
+      finalName = `${base}(${counter})${ext}`;
+      fsPath = path.join(STORAGE_PATH, finalName);
+      counter++;
+    }
+    cb(null, finalName);
   }
 });
 
