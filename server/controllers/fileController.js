@@ -3,6 +3,14 @@ const User = require('../models/User');
 const fs = require('fs');
 const path = require('path');
 const { STORAGE_PATH } = process.env;
+const config = require('../config');
+
+// 检查用户权限
+const checkAdminPermission = (user) => {
+  if (!user || user.role !== 'admin') {
+    throw new Error('Permission denied: Only admin can upload files');
+  }
+};
 
 // 通用文件上传处理
 const processFileUpload = async (req, res, fileType = 'regular') => {
@@ -56,16 +64,33 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
   }
 };
 
+// 检查用户存储空间
+const checkStorageQuota = async (user, fileSize) => {
+  if (!user) return true;
+  
+  // 获取用户已使用的存储空间
+  const usedStorage = user.usedStorage || 0;
+  
+  // 检查是否超过配额
+  if (usedStorage + fileSize > config.DEFAULT_STORAGE_QUOTA) {
+    throw new Error('Storage quota exceeded');
+  }
+  
+  return true;
+};
+
 // 常规文件上传
 exports.uploadFile = async (req, res) => {
   try {
+    // 检查管理员权限
+    checkAdminPermission(req.user);
+
     const result = await processFileUpload(req, res);
     res.status(201).json(result);
   } catch (error) {
-    res.status(500).json({ 
-      error: '文件上传失败',
-      details: error.message 
-    });
+    console.error('File upload error:', error);
+    res.status(error.message.includes('Permission denied') ? 403 : 500)
+       .json({ error: error.message });
   }
 };
 

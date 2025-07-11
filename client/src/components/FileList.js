@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { getUserFiles, downloadFile, deleteFile, batchDeleteFiles } from '../services/api';
 import { formatBytes } from '../utils';
 
@@ -127,7 +127,7 @@ const formatBeijingTime = (isoString) => {
   return `${MM}/${DD} ${HH}:${mm}`;
 };
 
-const FileList = ({ userRole, onDeleteSuccess }) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   console.log('FileList get userRole:', userRole);
 
   const [files, setFiles] = useState([]);
@@ -137,6 +137,11 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
   const [searchInput, setSearchInput] = useState(''); // 当前输入的搜索词
   const [searchTerm, setSearchTerm] = useState(''); // 实际用于搜索的词
   const [selectedIds, setSelectedIds] = useState([]);
+
+  // Expose fetchFiles to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: fetchFiles
+  }));
 
   // 全选/取消全选
   const handleSelectAll = (e) => {
@@ -245,11 +250,12 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
 
   const handleDownload = async (id, filename) => {
     try {
+      // 先获取文件数据
       const response = await downloadFile(id);
       
       // 从响应头中获取文件名（如果后端设置了的话）
       const contentDisposition = response.headers['content-disposition'];
-      let downloadFilename = filename;
+      let downloadFilename = fixEncoding(filename); // 使用修复编码后的原始文件名作为默认值
       
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -257,19 +263,30 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
           downloadFilename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // 处理中文文件名编码
-      const decodedFilename = fixEncoding(downloadFilename);
-      link.setAttribute('download', decodedFilename);
-      
-      document.body.appendChild(link);
-      link.click(); // 触发下载，浏览器会弹出另存为对话框
-      link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+
+      try {
+        // 使用 showSaveFilePicker API 让用户选择保存位置
+        const handle = await window.showSaveFilePicker({
+          suggestedName: downloadFilename,
+          types: [{
+            description: 'All Files',
+            accept: {'*/*': []}
+          }],
+        });
+
+        // 创建 FileSystemWritableFileStream 来写入文件
+        const writable = await handle.createWritable();
+        
+        // 写入文件内容
+        await writable.write(response.data);
+        await writable.close();
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // 用户取消了选择，不做任何处理
+          return;
+        }
+        throw err; // 其他错误则抛出
+      }
     } catch (err) {
       alert('下载失败: ' + (err.message || '未知错误'));
     }
@@ -395,6 +412,6 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
       )}
     </div>
   );
-};
+});
 
 export default FileList;

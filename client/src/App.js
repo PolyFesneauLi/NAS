@@ -4,6 +4,7 @@ import { setAuthToken, getCurrentUser } from './services/api';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
 import Navbar from './components/Navbar';
+import TeamMembers from './components/TeamMembers';
 import './App.css';
 
 function App() {
@@ -80,13 +81,17 @@ function App() {
 
   return (
     <div className="App">
-      <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+      <Navbar 
+        isAuthenticated={isAuthenticated} 
+        onLogout={handleLogout}
+        user={user}
+      />
       {showIdleModal && (
         <div className="idle-modal-overlay">
           <div className="idle-modal">
             <h3>您已{idleLimit}秒无操作</h3>
             <p>请重新登录</p>
-            <button className="btn" onClick={() => setShowIdleModal(false)}>关闭</button>
+            <button className="btn" onClick={() => setShowIdleModal(false)}>重新登录</button>
           </div>
         </div>
       )}
@@ -129,6 +134,16 @@ function App() {
                 <Dashboard user={user} />
               ) : (
                 <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/team"
+            element={
+              isAuthenticated && user?.role === 'admin' ? (
+                <TeamMembers />
+              ) : (
+                <Navigate to="/dashboard" />
               )
             }
           />
