@@ -1,28 +1,29 @@
 const User = require('../models/User');
 const File = require('../models/File');
+const fs = require('fs').promises;
+const path = require('path');
+const mongoose = require('mongoose');
+const config = require('../config');
 
 // 获取当前用户信息
 exports.getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password')
-      .lean(); // 转换为普通JS对象
-    
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // 确保返回storageUsage对象
+    // 返回用户信息，包括存储使用情况
     res.json({
       id: user._id,
       username: user.username,
-      createdAt: user.createdAt,
       role: user.role,
       storageUsage: {
         used: user.usedStorage || 0,
-        quota: user.storageQuota || 1024 * 1024 * 1024,
+        quota: config.DEFAULT_STORAGE_QUOTA,
         percentage: Math.round(
-          ((user.usedStorage || 0) / (user.storageQuota || 1024 * 1024 * 1024)) * 100)
+          ((user.usedStorage || 0) / config.DEFAULT_STORAGE_QUOTA) * 100
+        )
       }
     });
   } catch (error) {
@@ -30,58 +31,83 @@ exports.getCurrentUser = async (req, res) => {
   }
 };
 
-// 更新用户存储配额
-exports.updateStorageQuota = async (req, res) => {
-  try {
-    const { newQuota } = req.body;
-    
-    if (!newQuota || isNaN(newQuota) || newQuota <= 0) {
-      return res.status(400).json({ error: 'Invalid storage quota' });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // 新配额不能小于已使用空间
-    if (newQuota < user.usedStorage) {
-      return res.status(400).json({ 
-        error: `New quota must be at least ${formatBytes(user.usedStorage)}` 
-      });
-    }
-
-    user.storageQuota = newQuota;
-    await user.save();
-
-    res.json({ 
-      message: 'Storage quota updated successfully',
-      newQuota: user.storageQuota
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// 辅助函数：格式化字节大小
-function formatBytes(bytes, decimals = 2) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm) + ' ' + sizes[i]);
-}
-
-
-//debug
 // 删除所有用户（仅 admin）
 exports.deleteAllUsers = async (req, res) => {
+  const logs = [];
   try {
-    await User.deleteMany({});
-    res.json({ message: '所有用户已删除' });
+    // 0. 检查MongoDB连接
+    logs.push(`当前MongoDB URL: ${mongoose.connection.host}:${mongoose.connection.port}`);
+    logs.push(`数据库名称: ${mongoose.connection.name}`);
+    
+    // 1. 检查并删除MongoDB中的用户
+    const usersCollection = mongoose.connection.collection('users');
+    const beforeCount = await usersCollection.countDocuments();
+    logs.push(`删除前MongoDB用户数量: ${beforeCount}`);
+    
+    const result = await usersCollection.deleteMany({});
+    logs.push(`MongoDB删除结果: ${JSON.stringify(result)}`);
+    
+    const afterCount = await usersCollection.countDocuments();
+    logs.push(`删除后MongoDB用户数量: ${afterCount}`);
+
+    // 2. 检查并删除storage/users目录下的文件
+    const usersDir = path.join(__dirname, '../../storage/users');
+    try {
+      const files = await fs.readdir(usersDir);
+      logs.push(`找到users目录下的文件: ${files.join(', ')}`);
+      
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(usersDir, file);
+          try {
+            const fileContent = await fs.readFile(filePath, 'utf8');
+            logs.push(`准备删除文件 ${file}, 内容长度: ${fileContent.length}`);
+            
+            await fs.unlink(filePath);
+            logs.push(`成功删除文件: ${file}`);
+          } catch (fileError) {
+            logs.push(`删除文件 ${file} 失败: ${fileError.message}`);
+          }
+        }
+      }
+    } catch (dirError) {
+      logs.push(`读取users目录失败: ${dirError.message}`);
+    }
+
+    // 3. 检查并重置users.json
+    const usersJsonPath = path.join(__dirname, '../../storage/users.json');
+    try {
+      const exists = await fs.access(usersJsonPath).then(() => true).catch(() => false);
+      if (exists) {
+        const content = await fs.readFile(usersJsonPath, 'utf8');
+        logs.push(`当前users.json内容: ${content}`);
+        
+        await fs.writeFile(usersJsonPath, JSON.stringify({ users: [] }, null, 2));
+        logs.push('已重置users.json为空数组');
+      } else {
+        logs.push('users.json文件不存在');
+      }
+    } catch (jsonError) {
+      logs.push(`操作users.json失败: ${jsonError.message}`);
+    }
+
+    // 返回详细信息
+    res.json({ 
+      message: '删除操作完成',
+      mongoResult: result.deletedCount + '条MongoDB记录已删除',
+      logs: logs
+    });
+    
+    // 同时在服务器控制台打印日志
+    console.log('删除用户操作日志:\n' + logs.join('\n'));
+    
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logs.push(`操作失败: ${error.message}`);
+    console.error('删除用户错误:\n' + logs.join('\n'));
+    res.status(500).json({ 
+      error: error.message,
+      logs: logs 
+    });
   }
 };
 

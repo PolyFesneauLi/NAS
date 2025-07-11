@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { getUserFiles, downloadFile, deleteFile, batchDeleteFiles } from '../services/api';
 import { formatBytes } from '../utils';
 
@@ -127,7 +127,7 @@ const formatBeijingTime = (isoString) => {
   return `${MM}/${DD} ${HH}:${mm}`;
 };
 
-const FileList = ({ userRole, onDeleteSuccess }) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   console.log('FileList get userRole:', userRole);
 
   const [files, setFiles] = useState([]);
@@ -137,6 +137,11 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
   const [searchInput, setSearchInput] = useState(''); // 当前输入的搜索词
   const [searchTerm, setSearchTerm] = useState(''); // 实际用于搜索的词
   const [selectedIds, setSelectedIds] = useState([]);
+
+  // Expose fetchFiles to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: fetchFiles
+  }));
 
   // 全选/取消全选
   const handleSelectAll = (e) => {
@@ -395,6 +400,6 @@ const FileList = ({ userRole, onDeleteSuccess }) => {
       )}
     </div>
   );
-};
+});
 
 export default FileList;
