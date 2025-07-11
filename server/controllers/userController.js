@@ -31,6 +31,38 @@ exports.getCurrentUser = async (req, res) => {
   }
 };
 
+// 更新用户存储配额
+exports.updateStorageQuota = async (req, res) => {
+  try {
+    const { quota } = req.body;
+    
+    // 验证配额值
+    if (typeof quota !== 'number' || quota <= 0) {
+      return res.status(400).json({ error: '无效的配额值' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 更新配额
+    user.storageQuota = quota;
+    await user.save();
+
+    res.json({
+      message: '存储配额更新成功',
+      storageUsage: {
+        used: user.usedStorage || 0,
+        quota: user.storageQuota,
+        percentage: Math.round(((user.usedStorage || 0) / user.storageQuota) * 100)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 删除所有用户（仅 admin）
 exports.deleteAllUsers = async (req, res) => {
   const logs = [];
