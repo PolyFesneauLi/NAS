@@ -175,7 +175,7 @@ exports.getPendingUsers = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find()
-      .select('username status createdAt approvedAt')
+      .select('username status role createdAt approvedAt')
       .sort({ createdAt: -1 });
     
     res.json({ users });
@@ -263,6 +263,57 @@ exports.approveUser = async (req, res) => {
     res.json({ message: '审核通过成功', user });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// 修改用户权限
+exports.changeUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // 验证角色值
+    if (!['admin', 'normal'].includes(role)) {
+      return res.status(400).json({ error: '无效的角色值' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 不允许修改 admin 用户
+    if (user.username === 'admin') {
+      return res.status(403).json({ error: '不能修改超级管理员的权限' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    // 更新用户的本地文件
+    const userFilePath = path.join(__dirname, '../../storage/users', `${user.username}.json`);
+    try {
+      const userInfo = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        status: user.status,
+        usedStorage: user.usedStorage || 0,
+        createdAt: user.createdAt,
+        approvedAt: user.approvedAt
+      };
+      await fs.writeFile(userFilePath, JSON.stringify(userInfo, null, 2));
+    } catch (error) {
+      console.error('更新用户本地文件失败:', error);
+    }
+
+    res.json({ 
+      message: `用户权限已更新为${role === 'admin' ? '管理员' : '普通用户'}`,
+      user 
+    });
+  } catch (error) {
+    console.error('修改用户权限失败:', error);
+    res.status(500).json({ error: '修改用户权限失败: ' + error.message });
   }
 };
 

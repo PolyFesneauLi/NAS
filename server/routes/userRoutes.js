@@ -21,6 +21,9 @@ router.post('/:userId/approve', auth.authenticate, auth.requireRole('admin'), us
 // 拒绝用户注册（仅管理员）
 router.post('/:userId/reject', auth.authenticate, auth.requireRole('admin'), userController.rejectUser);
 
+// 修改用户权限（仅管理员）
+router.put('/:userId/role', auth.authenticate, auth.requireRole('admin'), userController.changeUserRole);
+
 // 更新用户存储配额
 router.put('/quota', auth.authenticate, userController.updateStorageQuota);
 

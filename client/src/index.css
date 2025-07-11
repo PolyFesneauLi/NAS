@@ -425,10 +425,10 @@ body {
 }
 
 .reject-button {
-  background-color: #f44336;
+  background-color: #8f8984c0;
   color: white;
 }
 
 .reject-button:hover {
-  background-color: #d32f2f;
+  background-color: #837e7a;
 }

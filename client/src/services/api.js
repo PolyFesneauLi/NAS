@@ -145,4 +145,10 @@ export const deleteUser = async (userId) => {
   return response.data;
 };
 
+// 修改用户权限
+export const changeUserRole = async (userId, newRole) => {
+  const response = await api.put(`/users/${userId}/role`, { role: newRole });
+  return response.data;
+};
+
 export default api;
