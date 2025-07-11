@@ -4,6 +4,7 @@ import { setAuthToken, getCurrentUser } from './services/api';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
 import Navbar from './components/Navbar';
+import TeamMembers from './components/TeamMembers';
 import './App.css';
 
 function App() {
@@ -80,7 +81,11 @@ function App() {
 
   return (
     <div className="App">
-      <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+      <Navbar 
+        isAuthenticated={isAuthenticated} 
+        onLogout={handleLogout}
+        user={user}
+      />
       {showIdleModal && (
         <div className="idle-modal-overlay">
           <div className="idle-modal">
@@ -129,6 +134,16 @@ function App() {
                 <Dashboard user={user} />
               ) : (
                 <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/team"
+            element={
+              isAuthenticated && user?.role === 'admin' ? (
+                <TeamMembers />
+              ) : (
+                <Navigate to="/dashboard" />
               )
             }
           />

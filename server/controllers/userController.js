@@ -158,3 +158,132 @@ exports.resetUsedStorage = async (req, res) => {
   }
 };
 
+// 获取待审核用户列表
+exports.getPendingUsers = async (req, res) => {
+  try {
+    const users = await User.find({ status: 'pending' })
+      .select('username createdAt')
+      .sort({ createdAt: -1 });
+    
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 获取所有用户
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select('username status createdAt approvedAt')
+      .sort({ createdAt: -1 });
+    
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 删除用户（拒绝注册）
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 确保用户目录存在
+    const usersDirPath = path.join(__dirname, '../../storage/users');
+    try {
+      await fs.access(usersDirPath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        await fs.mkdir(usersDirPath, { recursive: true });
+      }
+    }
+
+    // 删除用户的本地文件
+    const userFilePath = path.join(usersDirPath, `${user.username}.json`);
+    try {
+      const fileExists = await fs.access(userFilePath).then(() => true).catch(() => false);
+      if (fileExists) {
+        await fs.unlink(userFilePath);
+        console.log(`成功删除用户文件: ${userFilePath}`);
+      } else {
+        console.log(`用户文件不存在，跳过删除: ${userFilePath}`);
+      }
+    } catch (error) {
+      // 即使文件删除失败也继续删除用户
+      console.error('删除用户本地文件失败，但将继续删除用户:', error);
+    }
+
+    // 删除用户
+    await User.deleteOne({ _id: user._id });
+    console.log(`成功从数据库删除用户: ${user.username}`);
+    res.json({ message: '用户已删除' });
+  } catch (error) {
+    console.error('删除用户操作失败:', error);
+    res.status(500).json({ error: '删除用户失败: ' + error.message });
+  }
+};
+
+// 审核通过用户
+exports.approveUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+    
+    if (user.status !== 'pending') {
+      return res.status(400).json({ error: '该用户已经被审核过' });
+    }
+
+    user.status = 'approved';
+    user.approvedAt = new Date();
+    await user.save();
+
+    // 更新用户的本地文件
+    const userFilePath = path.join(__dirname, '../../storage/users', `${user.username}.json`);
+    try {
+      const userInfo = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        status: user.status,
+        usedStorage: user.usedStorage || 0,
+        createdAt: user.createdAt,
+        approvedAt: user.approvedAt
+      };
+      await fs.writeFile(userFilePath, JSON.stringify(userInfo, null, 2));
+    } catch (error) {
+      console.error('更新用户本地文件失败:', error);
+    }
+
+    res.json({ message: '审核通过成功', user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 拒绝用户注册
+exports.rejectUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+    
+    if (user.status !== 'pending') {
+      return res.status(400).json({ error: '该用户已经被审核过' });
+    }
+
+    user.status = 'rejected';
+    await user.save();
+
+    res.json({ message: '已拒绝该用户注册', user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

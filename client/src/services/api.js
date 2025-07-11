@@ -115,4 +115,34 @@ export const getCurrentUser = async () => {
   };
 };
 
+// 获取待审核用户列表
+export const getPendingUsers = async () => {
+  const response = await api.get('/users/pending');
+  return response.data;
+};
+
+// 审核通过用户
+export const approveUser = async (userId) => {
+  const response = await api.post(`/users/${userId}/approve`);
+  return response.data;
+};
+
+// 拒绝用户注册
+export const rejectUser = async (userId) => {
+  const response = await api.post(`/users/${userId}/reject`);
+  return response.data;
+};
+
+// 获取所有用户
+export const getAllUsers = async () => {
+  const response = await api.get('/users/all');
+  return response.data;
+};
+
+// 删除用户（拒绝注册）
+export const deleteUser = async (userId) => {
+  const response = await api.delete(`/users/${userId}`);
+  return response.data;
+};
+
 export default api;
