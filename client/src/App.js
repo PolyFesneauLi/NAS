@@ -86,7 +86,7 @@ function App() {
           <div className="idle-modal">
             <h3>您已{idleLimit}秒无操作</h3>
             <p>请重新登录</p>
-            <button className="btn" onClick={() => setShowIdleModal(false)}>关闭</button>
+            <button className="btn" onClick={() => setShowIdleModal(false)}>重新登录</button>
           </div>
         </div>
       )}

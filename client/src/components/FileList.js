@@ -250,11 +250,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
 
   const handleDownload = async (id, filename) => {
     try {
+      // 先获取文件数据
       const response = await downloadFile(id);
       
       // 从响应头中获取文件名（如果后端设置了的话）
       const contentDisposition = response.headers['content-disposition'];
-      let downloadFilename = filename;
+      let downloadFilename = fixEncoding(filename); // 使用修复编码后的原始文件名作为默认值
       
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -262,19 +263,30 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
           downloadFilename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // 处理中文文件名编码
-      const decodedFilename = fixEncoding(downloadFilename);
-      link.setAttribute('download', decodedFilename);
-      
-      document.body.appendChild(link);
-      link.click(); // 触发下载，浏览器会弹出另存为对话框
-      link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+
+      try {
+        // 使用 showSaveFilePicker API 让用户选择保存位置
+        const handle = await window.showSaveFilePicker({
+          suggestedName: downloadFilename,
+          types: [{
+            description: 'All Files',
+            accept: {'*/*': []}
+          }],
+        });
+
+        // 创建 FileSystemWritableFileStream 来写入文件
+        const writable = await handle.createWritable();
+        
+        // 写入文件内容
+        await writable.write(response.data);
+        await writable.close();
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // 用户取消了选择，不做任何处理
+          return;
+        }
+        throw err; // 其他错误则抛出
+      }
     } catch (err) {
       alert('下载失败: ' + (err.message || '未知错误'));
     }
