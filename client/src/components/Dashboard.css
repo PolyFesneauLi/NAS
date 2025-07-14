@@ -299,7 +299,7 @@
 
 .back-btn {
   padding: 6px 12px;
-  background-color: #4361ee;
+  background-color: #6f89fc;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -476,4 +476,91 @@ th {
   .sort-box {
     width: 100%;
   }
+} 
+
+/* 级联下拉菜单样式 */
+.cascading-container {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 200px;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+
+.cascading-option-wrapper {
+  position: relative;
+}
+
+.cascading-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.cascading-option:hover {
+  background-color: #f8fafc;
+  border-left-color: #4361ee;
+}
+
+.cascading-option.selected {
+  background-color: #eef2ff;
+  border-left-color: #4361ee;
+}
+
+.submenu-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cascading-submenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 200px;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 201;
+}
+
+.cascading-option-wrapper:hover > .cascading-submenu {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 自定义滚动条 */
+.cascading-container::-webkit-scrollbar,
+.cascading-submenu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cascading-container::-webkit-scrollbar-track,
+.cascading-submenu::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.cascading-container::-webkit-scrollbar-thumb,
+.cascading-submenu::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.cascading-container::-webkit-scrollbar-thumb:hover,
+.cascading-submenu::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 } 

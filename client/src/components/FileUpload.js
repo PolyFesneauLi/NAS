@@ -41,6 +41,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       const data = await getUserFiles({ folder: parentId });
       const foldersList = data.files.filter(f => f.isFolder);
       
+      // 按文件夹名称排序（使用originalName，如果没有则使用filename）
+      foldersList.sort((a, b) => {
+        const nameA = (a.originalName || a.filename).toLowerCase();
+        const nameB = (b.originalName || b.filename).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      
       const structure = await Promise.all(foldersList.map(async folder => {
         const currentPath = parentPath === 'Home' ? 
           `${parentPath}/${folder.originalName || folder.filename}` : 
@@ -89,20 +96,32 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   };
 
   // 递归生成文件夹选项
-  const renderFolderOptions = (folders, level = 0) => {
-    return folders.map(folder => (
-      <React.Fragment key={folder._id}>
+  const FolderOption = ({ folder, level = 0 }) => {
+    return (
+      <div className="cascading-option-wrapper">
         <div 
-          className={`custom-option ${selectedFolder === folder._id ? 'selected' : ''}`}
+          className={`cascading-option ${selectedFolder === folder._id ? 'selected' : ''}`}
           onClick={() => handleFolderSelect(folder._id, folderPaths.get(folder._id))}
-          style={{ paddingLeft: `${level * 20}px` }}
         >
           <span className="folder-icon">📁</span>
           <span className="folder-name">{folder.originalName || folder.filename}</span>
+          {folder.children && folder.children.length > 0 && (
+            <span className="submenu-arrow">▶</span>
+          )}
         </div>
-        {folder.children && renderFolderOptions(folder.children, level + 1)}
-      </React.Fragment>
-    ));
+        {folder.children && folder.children.length > 0 && (
+          <div className="cascading-submenu">
+            {folder.children.map(childFolder => (
+              <FolderOption 
+                key={childFolder._id} 
+                folder={childFolder} 
+                level={level + 1} 
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // 合并所有文件类型为统一的accept属性
@@ -181,15 +200,20 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             <span className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
           </div>
           {isDropdownOpen && (
-            <div className="options-container">
+            <div className="cascading-container">
               <div 
-                className={`custom-option ${!selectedFolder ? 'selected' : ''}`}
+                className="cascading-option"
                 onClick={() => handleFolderSelect(null, 'Home')}
               >
                 <span className="folder-icon">🏠</span>
                 <span className="folder-name">Home</span>
               </div>
-              {renderFolderOptions(folderStructure)}
+              {folderStructure.map(folder => (
+                <FolderOption 
+                  key={folder._id} 
+                  folder={folder}
+                />
+              ))}
             </div>
           )}
         </div>

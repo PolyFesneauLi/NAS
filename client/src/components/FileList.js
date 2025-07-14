@@ -174,43 +174,49 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      await batchDeleteFiles(selectedIds);
-      
-      // 更新文件列表
-      setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
-      
       // 检查是否删除了当前路径中的文件夹
       const deletedPathFolder = selectedFiles.find(file => 
         file.isFolder && folderPath.some(f => f._id === file._id)
       );
 
+      // 如果要删除的文件夹包含当前路径中的文件夹，先返回上一级
       if (deletedPathFolder) {
         const folderIndex = folderPath.findIndex(f => f._id === deletedPathFolder._id);
         if (folderIndex !== -1) {
-          // 如果删除的是当前文件夹，返回上一级
-          if (folderIndex === folderPath.length - 1) {
-            const parentFolder = folderPath[folderIndex - 1];
-            setCurrentFolder(parentFolder ? parentFolder._id : null);
-            setFolderPath(prev => prev.slice(0, folderIndex));
-            // 重新获取父文件夹的内容
-            const params = {
-              folder: parentFolder ? parentFolder._id : null,
-              sort: sortBy
-            };
-            const data = await getUserFiles(params);
-            const filesArray = Array.isArray(data.files) ? data.files : [];
-            setFiles(filesArray);
-          } else {
-            // 如果删除的是路径中的某个文件夹，更新路径
-            setFolderPath(prev => prev.filter(f => !selectedIds.includes(f._id)));
-          }
+          const parentFolder = folderPath[folderIndex - 1];
+          setCurrentFolder(parentFolder ? parentFolder._id : null);
+          setFolderPath(prev => prev.slice(0, folderIndex));
+          
+          // 先更新UI状态
+          setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+          setSelectedIds([]);
+          
+          // 执行删除操作
+          await batchDeleteFiles(selectedIds);
+          
+          // 重新获取父文件夹的内容
+          const params = {
+            folder: parentFolder ? parentFolder._id : null,
+            sort: sortBy
+          };
+          const data = await getUserFiles(params);
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          setFiles(filesArray);
         }
+      } else {
+        // 如果不涉及当前路径的文件夹，直接删除
+        await batchDeleteFiles(selectedIds);
+        setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+        setSelectedIds([]);
       }
 
-      setSelectedIds([]);
       if (onDeleteSuccess) onDeleteSuccess();
     } catch (err) {
-      alert('批量删除失败: ' + (err.message || '未知错误'));
+      console.error('批量删除错误:', err);
+      const errorMessage = err.response?.data?.error || err.message || '未知错误';
+      setError(`批量删除失败: ${errorMessage}`);
+      // 重新加载文件列表以确保状态一致
+      fetchFiles();
     }
   };
 
