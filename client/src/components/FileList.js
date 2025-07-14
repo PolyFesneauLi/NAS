@@ -1,6 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { getUserFiles, downloadFile, deleteFile, batchDeleteFiles, createFolder } from '../services/api';
 import { formatBytes } from '../utils';
+import '../components/Dashboard.css';
 
 // 修复编码问题的工具函数
 const fixEncoding = (str) => {
@@ -162,10 +163,50 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   // 批量删除
   const handleBatchDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`确定要删除选中的${selectedIds.length}个文件吗？`)) return;
+
+    // 检查选中的文件中是否包含文件夹
+    const selectedFiles = files.filter(file => selectedIds.includes(file._id));
+    const hasFolders = selectedFiles.some(file => file.isFolder);
+    const confirmMessage = hasFolders
+      ? `确定要删除选中的${selectedIds.length}个文件/文件夹吗？这将删除所有选中的文件夹及其内容。`
+      : `确定要删除选中的${selectedIds.length}个文件吗？`;
+
+    if (!window.confirm(confirmMessage)) return;
+
     try {
       await batchDeleteFiles(selectedIds);
+      
+      // 更新文件列表
       setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+      
+      // 检查是否删除了当前路径中的文件夹
+      const deletedPathFolder = selectedFiles.find(file => 
+        file.isFolder && folderPath.some(f => f._id === file._id)
+      );
+
+      if (deletedPathFolder) {
+        const folderIndex = folderPath.findIndex(f => f._id === deletedPathFolder._id);
+        if (folderIndex !== -1) {
+          // 如果删除的是当前文件夹，返回上一级
+          if (folderIndex === folderPath.length - 1) {
+            const parentFolder = folderPath[folderIndex - 1];
+            setCurrentFolder(parentFolder ? parentFolder._id : null);
+            setFolderPath(prev => prev.slice(0, folderIndex));
+            // 重新获取父文件夹的内容
+            const params = {
+              folder: parentFolder ? parentFolder._id : null,
+              sort: sortBy
+            };
+            const data = await getUserFiles(params);
+            const filesArray = Array.isArray(data.files) ? data.files : [];
+            setFiles(filesArray);
+          } else {
+            // 如果删除的是路径中的某个文件夹，更新路径
+            setFolderPath(prev => prev.filter(f => !selectedIds.includes(f._id)));
+          }
+        }
+      }
+
       setSelectedIds([]);
       if (onDeleteSuccess) onDeleteSuccess();
     } catch (err) {
@@ -493,10 +534,44 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('确定要删除这个文件吗？')) {
+    const fileToDelete = files.find(file => file._id === id);
+    if (!fileToDelete) return;
+
+    const confirmMessage = fileToDelete.isFolder ? 
+      '确定要删除这个文件夹及其所有内容吗？' : 
+      '确定要删除这个文件吗？';
+
+    if (window.confirm(confirmMessage)) {
       try {
         await deleteFile(id);
+        
+        // 更新文件列表
         setFiles(prevFiles => prevFiles.filter(file => file._id !== id));
+        
+        // 如果删除的是文件夹，且它是当前路径中的一个，需要返回上级目录
+        if (fileToDelete.isFolder) {
+          const folderIndex = folderPath.findIndex(f => f._id === id);
+          if (folderIndex !== -1) {
+            // 如果删除的是当前文件夹，返回上一级
+            if (folderIndex === folderPath.length - 1) {
+              const parentFolder = folderPath[folderIndex - 1];
+              setCurrentFolder(parentFolder ? parentFolder._id : null);
+              setFolderPath(prev => prev.slice(0, folderIndex));
+              // 重新获取父文件夹的内容
+              const params = {
+                folder: parentFolder ? parentFolder._id : null,
+                sort: sortBy
+              };
+              const data = await getUserFiles(params);
+              const filesArray = Array.isArray(data.files) ? data.files : [];
+              setFiles(filesArray);
+            } else {
+              // 如果删除的是路径中的某个文件夹，更新路径
+              setFolderPath(prev => prev.filter(f => f._id !== id));
+            }
+          }
+        }
+
         // 删除成功后通知父组件刷新空间数据
         if (onDeleteSuccess) {
           onDeleteSuccess();

@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
-import { uploadFile, uploadCadFile } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { uploadFile, uploadCadFile, getUserFiles } from '../services/api';
+import '../components/Dashboard.css';
 
 const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
   const [files, setFiles] = useState([]); // 支持多文件
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState({}); // 每个文件单独进度
+  const [folderStructure, setFolderStructure] = useState([]); // 文件夹树形结构
+  const [selectedFolder, setSelectedFolder] = useState(currentFolder); // 选中的文件夹
+  const [currentPath, setCurrentPath] = useState('Home');
+  const [folderPaths, setFolderPaths] = useState(new Map()); // 存储文件夹ID到完整路径的映射
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
@@ -14,7 +35,77 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
 
-  // 合并所有文件类型为统一的accept属性（保持文件选择对话框显示所有类型）
+  // 递归构建文件夹树形结构和路径映射
+  const buildFolderStructure = async (parentId = null, level = 0, parentPath = 'Home') => {
+    try {
+      const data = await getUserFiles({ folder: parentId });
+      const foldersList = data.files.filter(f => f.isFolder);
+      
+      const structure = await Promise.all(foldersList.map(async folder => {
+        const currentPath = parentPath === 'Home' ? 
+          `${parentPath}/${folder.originalName || folder.filename}` : 
+          `${parentPath}/${folder.originalName || folder.filename}`;
+        
+        // 更新路径映射
+        setFolderPaths(prev => new Map(prev).set(folder._id, currentPath));
+        
+        const children = await buildFolderStructure(folder._id, level + 1, currentPath);
+        return {
+          ...folder,
+          children,
+          level,
+          path: currentPath
+        };
+      }));
+
+      return structure;
+    } catch (err) {
+      console.error('获取文件夹结构失败:', err);
+      return [];
+    }
+  };
+
+  // 获取文件夹列表
+  const fetchFolders = async () => {
+    try {
+      // 重置路径映射
+      setFolderPaths(new Map().set(null, 'Home'));
+      const structure = await buildFolderStructure();
+      setFolderStructure(structure);
+    } catch (err) {
+      setError('获取文件夹列表失败: ' + (err.message || '未知错误'));
+    }
+  };
+
+  useEffect(() => {
+    fetchFolders();
+  }, []);
+
+  // 处理文件夹选择变化
+  const handleFolderSelect = (folderId, path) => {
+    setSelectedFolder(folderId);
+    setCurrentPath(path);
+    setIsDropdownOpen(false);
+  };
+
+  // 递归生成文件夹选项
+  const renderFolderOptions = (folders, level = 0) => {
+    return folders.map(folder => (
+      <React.Fragment key={folder._id}>
+        <div 
+          className={`custom-option ${selectedFolder === folder._id ? 'selected' : ''}`}
+          onClick={() => handleFolderSelect(folder._id, folderPaths.get(folder._id))}
+          style={{ paddingLeft: `${level * 20}px` }}
+        >
+          <span className="folder-icon">📁</span>
+          <span className="folder-name">{folder.originalName || folder.filename}</span>
+        </div>
+        {folder.children && renderFolderOptions(folder.children, level + 1)}
+      </React.Fragment>
+    ));
+  };
+
+  // 合并所有文件类型为统一的accept属性
   const unifiedAccept = Object.values(allAcceptedExtensions)
     .flat()
     .join(',');
@@ -41,27 +132,25 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!files.length) return;
-      setIsUploading(true);
-      setError('');
+    setIsUploading(true);
+    setError('');
     setProgress({});
     try {
-      // 并发上传所有文件
-      await Promise.all(files.map((file, idx) => {
-      const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-      const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
-      const uploadApi = isCadFile ? uploadCadFile : uploadFile;
-      const config = {
-        onUploadProgress: (progressEvent) => {
+      await Promise.all(files.map((file) => {
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
+        const uploadApi = isCadFile ? uploadCadFile : uploadFile;
+        const config = {
+          onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
-        }
-      };
+          }
+        };
 
-        // 创建FormData对象
         const formData = new FormData();
         formData.append('file', file);
-        if (currentFolder) {
-          formData.append('folderId', currentFolder);
+        if (selectedFolder) {
+          formData.append('folderId', selectedFolder);
         }
 
         return uploadApi(formData, config);
@@ -78,7 +167,33 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   return (
     <div className={`file-upload ${fileType}`}>
-      <h3>上传文件{currentFolder ? ' (当前文件夹)' : ''}</h3>
+      <h3>上传文件</h3>
+      
+      {/* 自定义文件夹选择器 */}
+      <div className="folder-controls" ref={dropdownRef}>
+        <label className="path-select-label">上传路径选择</label>
+        <div className="custom-select">
+          <div 
+            className="selected-value"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span className="current-path">{currentPath}</span>
+            <span className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
+          </div>
+          {isDropdownOpen && (
+            <div className="options-container">
+              <div 
+                className={`custom-option ${!selectedFolder ? 'selected' : ''}`}
+                onClick={() => handleFolderSelect(null, 'Home')}
+              >
+                <span className="folder-icon">🏠</span>
+                <span className="folder-name">Home</span>
+              </div>
+              {renderFolderOptions(folderStructure)}
+            </div>
+          )}
+        </div>
+      </div>
       
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
@@ -88,27 +203,25 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               type="file" 
               onChange={handleFileChange}
               accept={unifiedAccept}
-              multiple // 支持多选
+              multiple
               disabled={isUploading}
-              className="file-input"
+              style={{ display: 'none' }}
             />
           </label>
         </div>
-        {/* 只有选择了文件才显示文件信息和上传按钮 */}
+
         {files.length > 0 && (
           <>
             <div className="file-info">
               {files.map(f => (
-                <div key={f.name} style={{marginBottom: 4}}>
+                <div key={f.name} className="file-item">
                   <span>{f.name} | <strong>{(f.size / 1024 / 1024).toFixed(2)} MB</strong></span>
                   {progress[f.name] > 0 && progress[f.name] < 100 && (
-                    <div className="progress-bar">
+                    <div className="progress-bar-container">
                       <div 
-                        className="progress-fill" 
+                        className="progress-bar"
                         style={{ width: `${progress[f.name]}%` }}
-                      >
-                        {progress[f.name]}%
-                      </div>
+                      />
                     </div>
                   )}
                 </div>
@@ -124,16 +237,12 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </>
         )}
         
-        {error && <div className="error-message" style={{ marginTop: '16px' }}>{error}</div>}
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
       </form>
-      
-      {/* <div className="file-type-hint">
-        当前模式: {{
-          regular: '文档/代码',
-          cad: '工程图纸',
-          code: '源代码'
-        }[fileType]} | 支持格式: {allAcceptedExtensions[fileType].join(', ')}
-      </div> */}
     </div>
   );
 };

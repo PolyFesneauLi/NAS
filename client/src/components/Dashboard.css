@@ -1,0 +1,479 @@
+/* =========================================
+   Dashboard 整体布局
+   ========================================= */
+.dashboard {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* 用户信息区域 */
+.user-info {
+  margin-bottom: 24px;
+}
+
+/* 文件管理区域 */
+.file-management {
+  position: relative;
+}
+
+/* =========================================
+   文件上传组件 (FileUpload)
+   ========================================= */
+.file-upload {
+  position: relative;
+  z-index: 100; /* 确保上传组件在文件列表之上 */
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+/* 文件夹选择控件容器 */
+.folder-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 200; /* 确保控件在其他元素之上 */
+}
+
+/* 路径选择标签 */
+.path-select-label {
+  font-family: "楷体", "KaiTi", "STKaiti", serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0c1f49;
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px rgba(67, 97, 238, 0.1);
+  min-width: 120px;
+}
+
+/* 自定义下拉框容器 */
+.custom-select {
+  flex: 1;
+  position: relative;
+  font-family: "楷体", "KaiTi", "STKaiti", serif;
+}
+
+/* 选中值显示区域 */
+.selected-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  background-color: #fff;
+  cursor: pointer;
+  position: relative;
+  z-index: 201; /* 确保选中值显示在下拉选项之上 */
+  transition: all 0.2s ease;
+}
+
+.selected-value:hover {
+  border-color: #4361ee;
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+}
+
+/* 当前路径文本 */
+.current-path {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* 下拉箭头 */
+.dropdown-arrow {
+  font-size: 12px;
+  color: #4361ee;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* 选项容器 */
+.options-container {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 200; /* 确保选项容器在其他元素之上 */
+  animation: fadeIn 0.2s ease;
+}
+
+/* 选项样式 */
+.custom-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.custom-option:hover {
+  background-color: #f8fafc;
+  border-left-color: #4361ee;
+}
+
+.custom-option.selected {
+  background-color: #eef2ff;
+  border-left-color: #4361ee;
+}
+
+/* 文件夹图标 */
+.folder-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* 文件夹名称 */
+.folder-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* 文件信息样式 */
+.file-info {
+  margin-bottom: 15px;
+}
+
+.file-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+/* 进度条样式 */
+.progress-bar-container {
+  margin-top: 8px;
+  height: 4px;
+  background-color: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4361ee;
+  transition: width 0.3s ease;
+}
+
+/* 上传按钮样式 */
+.upload-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #4361ee;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.upload-button:hover {
+  background-color: #3651d4;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+}
+
+.upload-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* =========================================
+   文件列表组件 (FileList)
+   ========================================= */
+.file-list {
+  position: relative;
+  z-index: 1; /* 确保文件列表在最底层 */
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 文件列表标题 */
+.file-list h3 {
+  margin-bottom: 20px;
+  color: #0c1f49;
+  font-family: "楷体", "KaiTi", "STKaiti", serif;
+  font-size: 20px;
+}
+
+/* 排序和搜索控制栏 */
+.file-controls {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 15px;
+  position: relative;
+  z-index: 2; /* 确保控制栏在文件列表内容之上 */
+}
+
+/* 搜索框样式 */
+.search-box {
+  flex: 1;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+}
+
+/* 排序下拉框容器 */
+.sort-box {
+  position: relative;
+  min-width: 200px;
+}
+
+/* 排序下拉框 */
+.sort-select {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2c3e50;
+  background-color: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232c3e50' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.763L10.825 4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: all 0.2s ease;
+}
+
+.sort-select:hover {
+  border-color: #4361ee;
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+}
+
+/* 文件夹导航 */
+.folder-navigation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+}
+
+.back-btn {
+  padding: 6px 12px;
+  background-color: #4361ee;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background-color: #3651d4;
+}
+
+.folder-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: #64748b;
+}
+
+.folder-path-separator {
+  color: #94a3b8;
+}
+
+/* 表格样式 */
+.table-scroll-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+  background-color: #f8fafc;
+  font-weight: 700;
+  color: #0c1f49;
+}
+
+/* 文件夹行样式 */
+.folder-row {
+  background-color: #f8fafc;
+}
+
+.folder-row:hover {
+  background-color: #eef2ff;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #4361ee;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: #3651d4;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+}
+
+/* 错误消息样式 */
+.error-message {
+  margin-top: 16px;
+  padding: 10px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+
+/* 加载状态样式 */
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+/* 自定义滚动条 */
+.options-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.options-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.options-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.options-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlightFade {
+  0% {
+    background-color: rgba(67, 97, 238, 0.2);
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: rgba(67, 97, 238, 0.1);
+    transform: scale(1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .folder-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sort-select {
+    min-width: 160px;
+    font-size: 14px;
+  }
+
+  .file-controls {
+    flex-direction: column;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .sort-box {
+    width: 100%;
+  }
+} 
