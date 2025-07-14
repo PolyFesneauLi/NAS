@@ -21,6 +21,15 @@ const FileSchema = new mongoose.Schema({
     type: String,
     default: 'regular',
   },
+  isFolder: {
+    type: Boolean,
+    default: false
+  },
+  parentFolder: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'File',
+    default: null
+  },
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

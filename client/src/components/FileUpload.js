@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { uploadFile, uploadCadFile } from '../services/api';
 
-const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
+const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
   const [files, setFiles] = useState([]); // 支持多文件
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +56,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
             setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
         }
       };
-        return uploadApi(file, config);
+
+        // 创建FormData对象
+        const formData = new FormData();
+        formData.append('file', file);
+        if (currentFolder) {
+          formData.append('folderId', currentFolder);
+        }
+
+        return uploadApi(formData, config);
       }));
       onUploadSuccess();
       setFiles([]);
@@ -70,7 +78,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
 
   return (
     <div className={`file-upload ${fileType}`}>
-      <h3>上传文件</h3>
+      <h3>上传文件{currentFolder ? ' (当前文件夹)' : ''}</h3>
       
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
@@ -94,15 +102,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular' }) => {
                 <div key={f.name} style={{marginBottom: 4}}>
                   <span>{f.name} | <strong>{(f.size / 1024 / 1024).toFixed(2)} MB</strong></span>
                   {progress[f.name] > 0 && progress[f.name] < 100 && (
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
                         style={{ width: `${progress[f.name]}%` }}
-                >
+                      >
                         {progress[f.name]}%
-                </div>
-              </div>
-            )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

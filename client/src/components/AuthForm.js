@@ -58,8 +58,8 @@ const AuthForm = ({ type, onSuccess }) => {
           });
         } else if (response.user.status === 'approved') {
           console.log('用户状态为approved，跳转到仪表板'); // 添加调试日志
-          onSuccess(response.token, response.user);
-          navigate('/dashboard');
+      onSuccess(response.token, response.user);
+      navigate('/dashboard');
         }
       }
     } catch (err) {

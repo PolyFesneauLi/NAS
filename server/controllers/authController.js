@@ -12,7 +12,7 @@ exports.register = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
-
+    
     // 检查用户名是否已存在
     const existingUser = await User.findOne({ username });
     if (existingUser) {
@@ -116,7 +116,7 @@ exports.login = async (req, res) => {
 
     console.log(`用户 ${username} 登录成功，生成token`);
 
-    res.json({
+    res.json({ 
       token,
       user: {
         id: user._id,

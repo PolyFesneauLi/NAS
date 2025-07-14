@@ -30,10 +30,7 @@ export const register = async (userData) => {
 };
 
 // 文件操作 - 通用上传
-export const uploadFile = async (file, config = {}) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
+export const uploadFile = async (formData, config = {}) => {
   const response = await api.post('/files/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -44,10 +41,7 @@ export const uploadFile = async (file, config = {}) => {
 };
 
 // 文件操作 - CAD专用上传
-export const uploadCadFile = async (file, config = {}) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
+export const uploadCadFile = async (formData, config = {}) => {
   const response = await api.post('/files/upload-cad', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -73,6 +67,7 @@ export const getUserFiles = async (params = {}) => {
   if (params.type) queryParams.append('type', params.type);
   if (params.sort) queryParams.append('sort', params.sort);
   if (params.search) queryParams.append('search', encodeURIComponent(params.search));
+  if (params.folder) queryParams.append('folder', params.folder); // 添加文件夹参数
   
   const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   const response = await api.get(url);
@@ -100,6 +95,15 @@ export const deleteFile = async (id) => {
 
 export const batchDeleteFiles = async (ids) => {
   const response = await api.post('/files/batch-delete', { ids });
+  return response.data;
+};
+
+// 创建新文件夹
+export const createFolder = async (folderName, parentFolder = null) => {
+  const response = await api.post('/files/create-folder', { 
+    folderName,
+    parentFolder 
+  });
   return response.data;
 };
 

@@ -50,7 +50,7 @@ exports.updateStorageQuota = async (req, res) => {
     user.storageQuota = quota;
     await user.save();
 
-    res.json({
+    res.json({ 
       message: '存储配额更新成功',
       storageUsage: {
         used: user.usedStorage || 0,

@@ -34,4 +34,7 @@ router.delete('/:id', auth.authenticate, auth.requireRole('admin'), fileControll
 // 批量删除文件（仅 admin）
 router.post('/batch-delete', auth.authenticate, auth.requireRole('admin'), fileController.batchDeleteFiles);
 
+// 创建文件夹（仅 admin）
+router.post('/create-folder', auth.authenticate, auth.requireRole('admin'), fileController.createFolder);
+
 module.exports = router;

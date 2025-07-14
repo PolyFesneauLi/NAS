@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { getUserFiles, downloadFile, deleteFile, batchDeleteFiles } from '../services/api';
+import { getUserFiles, downloadFile, deleteFile, batchDeleteFiles, createFolder } from '../services/api';
 import { formatBytes } from '../utils';
 
 // 修复编码问题的工具函数
@@ -137,6 +137,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   const [searchInput, setSearchInput] = useState(''); // 当前输入的搜索词
   const [searchTerm, setSearchTerm] = useState(''); // 实际用于搜索的词
   const [selectedIds, setSelectedIds] = useState([]);
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [folderPath, setFolderPath] = useState([]);
+  const [showFolderInput, setShowFolderInput] = useState(false);
+  const [folderName, setFolderName] = useState('');
 
   // Expose fetchFiles to parent component
   useImperativeHandle(ref, () => ({
@@ -169,14 +173,211 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
     }
   };
 
+  const handleFolderClick = async (folder) => {
+    console.log('========== 开始处理文件夹点击 ==========');
+    console.log('点击的文件夹信息:', {
+      id: folder._id,
+      name: folder.originalName || folder.filename,
+      isFolder: folder.isFolder,
+      parentFolder: folder.parentFolder
+    });
+    
+    try {
+      console.log('1. 设置加载状态为 true');
+      setLoading(true);
+
+      // 先更新当前文件夹和路径
+      const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
+      console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
+      setFolderPath(newFolderPath);
+      setCurrentFolder(folder._id);
+      
+      console.log('4. 重置选择和搜索状态');
+      setSelectedIds([]);
+      setSearchInput('');
+      setSearchTerm('');
+      
+      // 获取子文件夹内容
+      console.log('5. 准备获取文件夹内容');
+      const params = {
+        folder: folder._id,
+        sort: sortBy
+      };
+      console.log('请求参数:', params);
+      
+      console.log('6. 调用 API 获取文件夹内容');
+      const data = await getUserFiles(params);
+      console.log('API 返回数据:', {
+        fileCount: data.files?.length || 0,
+        currentFolder: params.folder
+      });
+      
+      const filesArray = Array.isArray(data.files) ? data.files : [];
+      console.log('7. 处理返回的文件列表');
+      console.log('文件总数:', filesArray.length);
+      console.log('文件类型统计:', {
+        folders: filesArray.filter(f => f.isFolder).length,
+        files: filesArray.filter(f => !f.isFolder).length
+      });
+      
+      // 根据排序类型处理文件列表
+      console.log('8. 应用排序规则:', sortBy);
+      let sortedFiles = filesArray;
+      if (sortBy === 'name_asc') {
+        sortedFiles = sortFilesByName(filesArray, true);
+      } else if (sortBy === 'name_desc') {
+        sortedFiles = sortFilesByName(filesArray, false);
+      } else if (sortBy === 'extension_asc') {
+        sortedFiles = sortFilesByExtension(filesArray, true);
+      } else if (sortBy === 'extension_desc') {
+        sortedFiles = sortFilesByExtension(filesArray, false);
+      } else if (sortBy === 'size_asc') {
+        sortedFiles = sortFilesBySize(filesArray, true);
+      } else if (sortBy === 'size_desc') {
+        sortedFiles = sortFilesBySize(filesArray, false);
+      }
+      
+      console.log('9. 更新文件列表状态');
+      setFiles(sortedFiles);
+      console.log('文件列表更新完成');
+      
+    } catch (err) {
+      console.error('❌ 文件夹操作失败:', err);
+      console.error('错误详情:', {
+        message: err.message,
+        response: err.response?.data
+      });
+      setError('进入文件夹失败: ' + (err.message || '未知错误'));
+    } finally {
+      console.log('10. 设置加载状态为 false');
+      setLoading(false);
+      console.log('========== 文件夹处理完成 ==========\n');
+    }
+  };
+
+  const handlePathClick = async (index) => {
+    console.log('========== 开始处理导航路径点击 ==========');
+    console.log('点击的路径索引:', index);
+    console.log('当前完整路径:', folderPath.map(f => f.originalName || f.filename).join(' > '));
+    
+    try {
+      console.log('1. 设置加载状态为 true');
+      setLoading(true);
+      
+      let targetFolder = null;
+      let newPath = [];
+      
+      if (index === -1) {
+        // 返回 home 目录
+        console.log('2.1 返回 home 目录');
+        setCurrentFolder(null);
+        setFolderPath([]);
+      } else {
+        // 跳转到指定层级的文件夹
+        console.log('2.2 跳转到指定层级的文件夹');
+        targetFolder = folderPath[index];
+        newPath = folderPath.slice(0, index + 1);
+        console.log('目标文件夹:', {
+          id: targetFolder._id,
+          name: targetFolder.originalName || targetFolder.filename,
+          path: newPath.map(f => f.originalName || f.filename).join('/')
+        });
+        setCurrentFolder(targetFolder._id);
+        setFolderPath(newPath);
+      }
+      
+      console.log('3. 重置选择和搜索状态');
+      setSelectedIds([]);
+      setSearchInput('');
+      setSearchTerm('');
+      
+      // 获取目标文件夹的内容
+      console.log('4. 准备获取文件夹内容');
+      const params = {
+        folder: targetFolder ? targetFolder._id : null,
+        sort: sortBy
+      };
+      console.log('请求参数:', params);
+      
+      console.log('5. 调用 API 获取文件夹内容');
+      const data = await getUserFiles(params);
+      console.log('API 返回数据:', {
+        fileCount: data.files?.length || 0,
+        currentFolder: params.folder
+      });
+      
+      const filesArray = Array.isArray(data.files) ? data.files : [];
+      console.log('7. 处理返回的文件列表');
+      console.log('文件总数:', filesArray.length);
+      console.log('文件类型统计:', {
+        folders: filesArray.filter(f => f.isFolder).length,
+        files: filesArray.filter(f => !f.isFolder).length
+      });
+      
+      // 根据排序类型处理文件列表
+      console.log('8. 应用排序规则:', sortBy);
+      let sortedFiles = filesArray;
+      if (sortBy === 'name_asc') {
+        sortedFiles = sortFilesByName(filesArray, true);
+      } else if (sortBy === 'name_desc') {
+        sortedFiles = sortFilesByName(filesArray, false);
+      } else if (sortBy === 'extension_asc') {
+        sortedFiles = sortFilesByExtension(filesArray, true);
+      } else if (sortBy === 'extension_desc') {
+        sortedFiles = sortFilesByExtension(filesArray, false);
+      } else if (sortBy === 'size_asc') {
+        sortedFiles = sortFilesBySize(filesArray, true);
+      } else if (sortBy === 'size_desc') {
+        sortedFiles = sortFilesBySize(filesArray, false);
+      }
+      
+      console.log('9. 更新文件列表状态');
+      setFiles(sortedFiles);
+      console.log('文件列表更新完成');
+      
+    } catch (err) {
+      console.error('❌ 导航操作失败:', err);
+      console.error('错误详情:', {
+        message: err.message,
+        response: err.response?.data
+      });
+      setError('切换文件夹失败: ' + (err.message || '未知错误'));
+    } finally {
+      console.log('10. 设置加载状态为 false');
+      setLoading(false);
+      console.log('========== 导航处理完成 ==========\n');
+    }
+  };
+
+  const handleCreateFolder = async (e) => {
+    e.preventDefault();
+    if (!folderName.trim()) {
+      setError('文件夹名称不能为空');
+      return;
+    }
+    try {
+      await createFolder(folderName, currentFolder);
+      setFolderName('');
+      setShowFolderInput(false);
+      setError('');
+      fetchFiles(); // 刷新文件列表
+    } catch (err) {
+      setError(err.response?.data?.error || `创建文件夹失败: ${err.message || '未知错误'}`);
+    }
+  };
+
   const fetchFiles = async () => {
     try {
       setLoading(true);
+      setError('');
       const params = {};
       if (sortBy) params.sort = sortBy;
       if (searchTerm) params.search = searchTerm;
+      if (currentFolder) params.folder = currentFolder;
       
+      console.log('Fetching files with params:', params);
       const data = await getUserFiles(params);
+      
       const filesArray = Array.isArray(data.files) ? data.files : [];
       
       // 根据排序类型处理文件列表
@@ -195,11 +396,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
       } else if (sortBy === 'size_desc') {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
-      // 时间排序由后端处理
       
       setFiles(sortedFiles);
     } catch (err) {
-      setError('Failed to load files');
+      setError('获取文件列表失败: ' + (err.message || '未知错误'));
       setFiles([]);
     } finally {
       setLoading(false);
@@ -208,7 +408,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
 
   useEffect(() => {
     fetchFiles();
-  }, [sortBy, searchTerm]);
+  }, [sortBy, searchTerm]); // 移除 currentFolder，因为我们在 handleFolderClick 和 handlePathClick 中手动调用 fetchFiles
 
   // 搜索或排序后自动滚动到顶部
   useEffect(() => {
@@ -325,8 +525,44 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   if (error) return <div className="error-message">{error}</div>;
 
   return (
-    <div className="file-list">
+    <div className={`file-list`}>
       <h3>云端文件</h3>
+      
+      {/* 文件夹导航 */}
+      <div className="folder-navigation">
+        <button 
+          onClick={() => handlePathClick(-1)} 
+          className="back-btn"
+          style={{ visibility: currentFolder ? 'visible' : 'hidden' }}
+        >
+          返回上级
+        </button>
+        <div className="folder-path">
+          <span
+            onClick={() => handlePathClick(-1)}
+            style={{ 
+              cursor: 'pointer',
+              color: !currentFolder ? 'inherit' : '#4361ee'
+            }}
+          >
+            Home
+          </span>
+          {folderPath.map((folder, index) => (
+            <React.Fragment key={folder._id}>
+              <span className="folder-path-separator">/</span>
+              <span
+                onClick={() => handlePathClick(index)}
+                style={{ 
+                  cursor: 'pointer',
+                  color: index === folderPath.length - 1 ? 'inherit' : '#4361ee'
+                }}
+              >
+                {folder.originalName || folder.filename}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
       
       {/* 搜索和排序控制栏 */}
       <div className="file-controls">
@@ -352,12 +588,50 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
             <option value="extension_desc">文件后缀（Z-A）</option>
           </select>
         </div>
-        {userRole === 'admin' && selectedIds.length > 0 && (
-          <button className="btn btn-danger" style={{marginLeft: 16}} onClick={handleBatchDelete}>
-            批量删除({selectedIds.length})
-          </button>
+        {userRole === 'admin' && (
+          <div className="admin-controls">
+            {selectedIds.length > 0 && (
+              <button className="btn btn-danger" onClick={handleBatchDelete}>
+                批量删除({selectedIds.length})
+              </button>
+            )}
+            {!showFolderInput ? (
+              <button 
+                type="button"
+                onClick={() => setShowFolderInput(true)}
+                className="create-folder-btn"
+              >
+                新建文件夹
+              </button>
+            ) : (
+              <form onSubmit={handleCreateFolder} className="folder-form">
+                <input
+                  type="text"
+                  value={folderName}
+                  onChange={(e) => setFolderName(e.target.value)}
+                  placeholder="输入文件夹名称"
+                  className="folder-input"
+                  autoFocus
+                />
+                <button type="submit" className="confirm-folder-btn">确认</button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowFolderInput(false);
+                    setFolderName('');
+                    setError('');
+                  }}
+                  className="cancel-folder-btn"
+                >
+                  取消
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
+
+      {error && <div className="error-message">{error}</div>}
 
       {files.length === 0 ? (
         <p>暂无上传文件</p>
@@ -368,10 +642,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
               <tr>
                 {userRole === 'admin' && (
                   <th>
-                    <input type="checkbox" checked={selectedIds.length === files.length && files.length > 0} onChange={handleSelectAll} />
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === files.length && files.length > 0} 
+                      onChange={handleSelectAll}
+                    />
                   </th>
                 )}
-                <th>文件名</th>
+                <th>名称</th>
+                <th>类型</th>
                 <th>大小</th>
                 {userRole === 'admin' && <th>上传时间</th>}
                 <th>操作</th>
@@ -379,25 +658,46 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
             </thead>
             <tbody>
               {files.map(file => (
-                <tr key={file._id}>
+                <tr key={file._id} className={file.isFolder ? 'folder-row' : ''}>
                   {userRole === 'admin' && (
                     <td>
-                      <input type="checkbox" checked={selectedIds.includes(file._id)} onChange={() => handleSelect(file._id)} />
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(file._id)} 
+                        onChange={() => handleSelect(file._id)}
+                      />
                     </td>
                   )}
-                  <td>{fixEncoding(file.originalName || file.filename)}</td>
-                  <td>{formatBytes(file.size)}</td>
+                  <td>
+                    {file.isFolder ? (
+                      <button 
+                        className="folder-name-btn"
+                        onClick={() => handleFolderClick(file)}
+                      >
+                        <span className="folder-icon">📁</span>
+                        {fixEncoding(file.originalName || file.filename)}
+                      </button>
+                    ) : (
+                      <span style={{ marginLeft: '28px' }}>
+                        {fixEncoding(file.originalName || file.filename)}
+                      </span>
+                    )}
+                  </td>
+                  <td>{file.isFolder ? '文件夹' : getFileExtension(file.originalName || file.filename)}</td>
+                  <td>{file.isFolder ? '-' : formatBytes(file.size)}</td>
                   {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>}
                   <td className="action-buttons">
-                    <button 
-                      className="download-btn"
-                      onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                    >
-                      下载
-                    </button>
+                    {!file.isFolder && (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                      >
+                        下载
+                      </button>
+                    )}
                     {userRole === 'admin' && (
                       <button 
-                        className="delete-btn"
+                        className="btn btn-danger"
                         onClick={() => handleDelete(file._id)}
                       >
                         删除

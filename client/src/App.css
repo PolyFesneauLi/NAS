@@ -359,16 +359,25 @@
 /* 文件控制栏样式 */
 .file-controls {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
   gap: 16px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .search-box {
   flex: 1;
   min-width: 200px;
+}
+
+.sort-box {
+  min-width: 150px;
+}
+
+.admin-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .search-input {
@@ -385,10 +394,6 @@
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-}
-
-.sort-box {
-  min-width: 200px;
 }
 
 .sort-select {
@@ -746,4 +751,331 @@
 }
 .idle-modal .btn {
   min-width: 80px;
+}
+
+/* 文件夹创建相关样式 */
+.folder-controls {
+  margin-bottom: 16px;
+}
+
+.folder-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.folder-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.confirm-folder-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.cancel-folder-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.confirm-folder-btn:hover {
+  background-color: #45a049;
+}
+
+.cancel-folder-btn:hover {
+  background-color: #da190b;
+}
+
+/* 文件夹相关样式 */
+.folder-row {
+  background-color: #f8f9fa;
+}
+
+.folder-name-btn {
+  background: none;
+  border: none;
+  color: #0066cc;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.folder-name-btn:hover {
+  text-decoration: underline;
+}
+
+/* 文件夹导航样式 */
+.folder-navigation {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-btn {
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: #4b5563;
+}
+
+.back-btn:hover {
+  background-color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.back-btn::before {
+  content: "⬅️";
+  font-size: 16px;
+}
+
+.folder-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  padding: 8px;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  border: 2px solid #e2e8f0;
+}
+
+.folder-path-separator {
+  color: #9ca3af;
+}
+
+/* 文件夹行样式 */
+.folder-row {
+  background-color: #f8fafc !important;
+  transition: all 0.2s ease;
+}
+
+.folder-row:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.folder-name-btn {
+  background: none;
+  border: none;
+  color: #4361ee;
+  cursor: pointer;
+  padding: 8px;
+  font-size: inherit;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.folder-name-btn:hover {
+  color: #3730a3;
+  background-color: rgba(67, 97, 238, 0.1);
+}
+
+.folder-icon {
+  font-size: 18px;
+  color: #4361ee;
+}
+
+/* 表格样式优化 */
+.table-scroll-container {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+th {
+  background-color: #f8fafc;
+  color: #4b5563;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1f2937;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 通用按钮样式 */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background-color: #4361ee;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3730a3;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+  transform: translateY(-1px);
+}
+
+/* 文件夹按钮样式 */
+.create-folder-btn {
+  background-color: #4361ee;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.create-folder-btn:hover {
+  background-color: #3730a3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.create-folder-btn::before {
+  content: "📁";
+  font-size: 16px;
+}
+
+.folder-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background-color: #f8fafc;
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.folder-input {
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.folder-input:focus {
+  border-color: #4361ee;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.confirm-folder-btn {
+  background-color: #4361ee;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.cancel-folder-btn {
+  background-color: #ef4444;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.confirm-folder-btn:hover {
+  background-color: #3730a3;
+  transform: translateY(-1px);
+}
+
+.cancel-folder-btn:hover {
+  background-color: #dc2626;
+  transform: translateY(-1px);
 }

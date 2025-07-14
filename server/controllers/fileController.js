@@ -21,6 +21,7 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
 
     const user = await User.findById(req.user.id);
     const fileSize = req.file.size;
+    const folderId = req.body.folderId;
     
     // 检查存储空间
     if (user.usedStorage + fileSize > user.storageQuota) {
@@ -28,14 +29,51 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
       return res.status(400).json({ error: '存储空间不足' });
     }
 
+    // 如果没有指定文件夹，使用home目录
+    let targetFolder = null;
+    if (!folderId) {
+      targetFolder = await File.findOne({ 
+        isFolder: true, 
+        parentFolder: null,
+        filename: "home"
+      });
+      
+      if (!targetFolder) {
+        fs.unlinkSync(req.file.path);
+        return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+      }
+    } else {
+      targetFolder = await File.findOne({ _id: folderId, isFolder: true });
+      if (!targetFolder) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: '目标文件夹不存在' });
+      }
+    }
+
+    // 移动文件到目标位置
+    let filePath = req.file.path;
+    if (targetFolder.filename === "home") {
+      // 如果是home目录，文件放在 uploads/home 目录下
+      filePath = path.join(STORAGE_PATH, "home", path.basename(req.file.path));
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.renameSync(req.file.path, filePath);
+    } else {
+      // 否则放在目标文件夹下
+      const newPath = path.join(path.dirname(req.file.path), targetFolder.filename, path.basename(req.file.path));
+      fs.mkdirSync(path.dirname(newPath), { recursive: true });
+      fs.renameSync(req.file.path, newPath);
+      filePath = newPath;
+    }
+
     // 创建文件记录
     const file = new File({
-      filename: path.basename(req.file.path), // 使用实际存储的文件名
-      path: req.file.path,
+      filename: path.basename(filePath),
+      path: filePath,
       size: fileSize,
       owner: req.user.id,
-      fileType,  // 添加文件类型标识
-      originalName: decodeURIComponent(req.file.originalname) // 确保正确解码中文文件名
+      fileType,
+      originalName: decodeURIComponent(req.file.originalname),
+      parentFolder: targetFolder._id
     });
 
     await file.save();
@@ -53,10 +91,10 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
         size: file.size,
         type: file.fileType,
         createdAt: file.createdAt,
+        parentFolder: file.parentFolder
       }
     };
   } catch (error) {
-    // 上传失败时删除已存储的文件
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
@@ -113,12 +151,28 @@ exports.uploadCadFile = async (req, res) => {
 // 获取所有文件列表（支持按类型筛选、排序和搜索）
 exports.getUserFiles = async (req, res) => {
   try {
-    const { type, sort, search } = req.query;
+    const { type, sort, search, folder } = req.query;
     const query = {};
     
     // 按类型筛选
     if (type) {
       query.fileType = type;
+    }
+
+    // 如果没有指定文件夹，默认显示home目录内容
+    if (!folder) {
+      const homeFolder = await File.findOne({ 
+        isFolder: true, 
+        filename: "home",
+        parentFolder: null 
+      });
+      if (homeFolder) {
+        query.parentFolder = homeFolder._id;
+      } else {
+        return res.status(500).json({ error: 'Home目录不存在' });
+      }
+    } else {
+      query.parentFolder = folder;
     }
     
     // 搜索功能 - 文件名部分匹配
@@ -126,63 +180,67 @@ exports.getUserFiles = async (req, res) => {
       const decodedSearch = decodeURIComponent(search);
       query.$or = [
         { originalName: { $regex: decodedSearch, $options: 'i' } },
-        { path: { $regex: decodedSearch, $options: 'i' } }  // 使用 path 而不是 filename
+        { path: { $regex: decodedSearch, $options: 'i' } }
       ];
-      console.log('收到搜索参数:', decodedSearch, 'MongoDB 查询:', JSON.stringify(query));
     }
     
     // 排序功能
-    let sortOption = { createdAt: -1 }; // 默认按上传时间倒序
+    let sortOption = { isFolder: -1, createdAt: -1 }; // 默认文件夹在前，按上传时间倒序
     
     if (sort) {
       switch (sort) {
         case 'time_asc':
-          sortOption = { createdAt: 1 }; // 上传时间正序
+          sortOption = { isFolder: -1, createdAt: 1 };
           break;
         case 'time_desc':
-          sortOption = { createdAt: -1 }; // 上传时间倒序
+          sortOption = { isFolder: -1, createdAt: -1 };
           break;
         case 'size_asc':
-          sortOption = { size: 1 }; // 文件大小正序（字节）
+          sortOption = { isFolder: -1, size: 1 };
           break;
         case 'size_desc':
-          sortOption = { size: -1 }; // 文件大小倒序（字节）
+          sortOption = { isFolder: -1, size: -1 };
           break;
         case 'name_asc':
-          sortOption = { originalName: 1 }; // 文件名正序
+          sortOption = { isFolder: -1, originalName: 1 };
           break;
         case 'name_desc':
-          sortOption = { originalName: -1 }; // 文件名倒序
+          sortOption = { isFolder: -1, originalName: -1 };
           break;
         case 'extension_asc':
-          // 按文件扩展名排序，需要在前端处理
-          sortOption = { originalName: 1 };
+          sortOption = { isFolder: -1, originalName: 1 };
           break;
         case 'extension_desc':
-          // 按文件扩展名排序倒序，需要在前端处理
-          sortOption = { originalName: -1 };
+          sortOption = { isFolder: -1, originalName: -1 };
           break;
         default:
-          sortOption = { createdAt: -1 };
+          sortOption = { isFolder: -1, createdAt: -1 };
       }
     }
-    
-    let files;
-    
-    // 如果是文件大小排序，确保在前端处理
-    if (sort === 'size_asc' || sort === 'size_desc') {
-      files = await File.find(query)
-        .select('filename originalName size fileType createdAt');
+
+    let files = await File.find(query)
+      .collation({ locale: 'zh' })
+      .select('filename originalName size fileType createdAt isFolder parentFolder')
+      .sort(sortOption);
+
+    // 获取当前文件夹信息
+    let currentFolder = null;
+    if (folder) {
+      currentFolder = await File.findById(folder)
+        .select('filename originalName parentFolder');
     } else {
-      files = await File.find(query)
-        .collation({ locale: 'zh' })
-      .select('filename originalName size fileType createdAt')
-        .sort(sortOption);
+      // 如果在根目录，返回home文件夹信息
+      currentFolder = await File.findOne({ 
+        isFolder: true, 
+        filename: "home",
+        parentFolder: null 
+      }).select('filename originalName parentFolder');
     }
-      
+
     res.json({
       count: files.length,
-      files
+      files,
+      currentFolder
     });
   } catch (error) {
     res.status(500).json({ 
@@ -350,3 +408,89 @@ exports.batchDeleteFiles = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 创建文件夹
+exports.createFolder = async (req, res) => {
+  try {
+    const { folderName } = req.body;
+    const parentFolderId = req.body.parentFolder;
+    
+    if (!folderName || !folderName.trim()) {
+      return res.status(400).json({ error: '文件夹名称不能为空' });
+    }
+
+    // 如果没有指定父文件夹，则使用home目录作为父文件夹
+    let parentFolder = null;
+    if (!parentFolderId) {
+      parentFolder = await File.findOne({ 
+        isFolder: true, 
+        parentFolder: null,
+        filename: "home"
+      });
+      
+      if (!parentFolder) {
+        return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+      }
+    } else {
+      parentFolder = await File.findOne({ _id: parentFolderId, isFolder: true });
+      if (!parentFolder) {
+        return res.status(404).json({ error: '父文件夹不存在' });
+      }
+    }
+
+    // 检查同级目录下是否已存在同名文件夹
+    const existingFolder = await File.findOne({
+      originalName: folderName,
+      parentFolder: parentFolder._id,
+      isFolder: true
+    });
+
+    if (existingFolder) {
+      return res.status(400).json({ error: '同名文件夹已存在' });
+    }
+
+    // 构建物理路径
+    let folderPath;
+    if (parentFolder.filename === "home") {
+      // 如果父文件夹是home目录，在 uploads/home 下创建
+      folderPath = path.join(STORAGE_PATH, "home", folderName);
+    } else {
+      // 否则在父文件夹下创建
+      folderPath = path.join(STORAGE_PATH, parentFolder.filename, folderName);
+    }
+
+    // 创建物理文件夹
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    // 创建文件夹记录
+    const folder = new File({
+      filename: folderName,
+      path: folderPath,
+      size: 0,
+      owner: req.user.id,
+      isFolder: true,
+      originalName: folderName,
+      parentFolder: parentFolder._id
+    });
+
+    await folder.save();
+
+    res.status(201).json({
+      message: '文件夹创建成功',
+      folder: {
+        id: folder._id,
+        name: folder.filename,
+        createdAt: folder.createdAt,
+        parentFolder: folder.parentFolder
+      }
+    });
+  } catch (error) {
+    console.error('Create folder error:', error);
+    res.status(500).json({ 
+      error: '创建文件夹失败',
+      details: error.message 
+    });
+  }
+};
+
+module.exports = exports;
