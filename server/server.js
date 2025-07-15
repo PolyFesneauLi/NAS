@@ -13,7 +13,20 @@ const PORT = process.env.PORT || 5000;
 
 // 中间件
 app.use(cors());
-app.use(express.json());
+
+// 增加请求大小限制
+app.use(express.json({ limit: '20gb' }));
+app.use(express.urlencoded({ limit: '20gb', extended: true }));
+
+// 设置超时时间为1小时
+app.use((req, res, next) => {
+  res.setTimeout(3600000, () => {
+    console.log('请求超时');
+    res.status(408).send('Request timeout');
+  });
+  next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, '../storage/uploads')));
 
 // 连接 MongoDB

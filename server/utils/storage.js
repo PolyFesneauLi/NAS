@@ -2,6 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const { STORAGE_PATH } = process.env;
 const fs = require('fs'); // Added for fs.existsSync
+const config = require('../config');
 // const iconv = require('iconv-lite'); // Removed as per edit hint
 
 // 配置存储
@@ -123,7 +124,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: { 
-    fileSize: 1024 * 1024 * 100, // 默认100MB限制
+    fileSize: config.UPLOAD_MAX_SIZE, // 使用配置文件中的限制 (20GB)
     files: 10 // 每次最多10个文件
   }
 });
@@ -133,7 +134,7 @@ const cadUpload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 1024 * 1024 * 500, // CAD文件500MB限制
+    fileSize: config.UPLOAD_MAX_SIZE, // 使用相同的限制
     files: 5
   }
 });
