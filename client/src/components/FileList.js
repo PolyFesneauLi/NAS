@@ -129,7 +129,7 @@ const formatBeijingTime = (isoString) => {
 };
 
 const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
-  console.log('FileList get userRole:', userRole);
+  // console.log('FileList get userRole:', userRole);
 
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -730,11 +730,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
                     />
                   </th>
                 )}
-                <th>名称</th>
-                <th>类型</th>
-                <th>大小</th>
-                {userRole === 'admin' && <th>上传时间</th>}
-                <th>操作</th>
+                <th style={{ textAlign: 'center' }}>名称</th>
+                <th style={{ textAlign: 'center' }}>类型</th>
+                <th style={{ textAlign: 'center' }}>大小</th>
+                {userRole === 'admin' && <th style={{ textAlign: 'center' }}>上传时间</th>}
+                <th style={{ textAlign: 'center' }}>操作</th>
               </tr>
             </thead>
             <tbody>

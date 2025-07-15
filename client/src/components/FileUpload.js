@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { uploadFile, uploadCadFile, getUserFiles } from '../services/api';
+import { formatBytes } from '../utils';
 import '../components/Dashboard.css';
 
-const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
+const FileUpload = ({
+  onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
   const [files, setFiles] = useState([]); // 支持多文件
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
@@ -132,18 +134,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
+    console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
     // 校验所有文件
     const validFiles = [];
     for (const f of selectedFiles) {
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
+      console.log(`[UPLOAD] 检查文件 ${f.name} (${formatBytes(f.size)}) 的格式: ${fileExt}`);
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
       if (!isValidFile) {
+        console.log(`[UPLOAD] ❌ 文件 ${f.name} 格式不支持`);
         setError(`不支持的文件格式: ${fileExt}`);
         setFiles([]);
         return;
       }
+      console.log(`[UPLOAD] ✅ 文件 ${f.name} 验证通过`);
       validFiles.push(f);
     }
+    console.log('[UPLOAD] 所有文件验证完成，有效文件数量:', validFiles.length);
     setFiles(validFiles);
     setError('');
   };
@@ -151,17 +158,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!files.length) return;
+    console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
+    console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
     setIsUploading(true);
     setError('');
     setProgress({});
     try {
-      await Promise.all(files.map((file) => {
+      await Promise.all(files.map(async (file) => {
+        console.log(`[UPLOAD] 开始处理文件: ${file.name}`);
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
         const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
+        console.log(`[UPLOAD] 文件类型: ${isCadFile ? 'CAD文件' : '普通文件'}`);
         const uploadApi = isCadFile ? uploadCadFile : uploadFile;
+        
         const config = {
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
             setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
           }
         };
@@ -170,16 +183,74 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         formData.append('file', file);
         if (selectedFolder) {
           formData.append('folderId', selectedFolder);
+          console.log(`[UPLOAD] 文件 ${file.name} 将上传到文件夹: ${selectedFolder}`);
         }
 
-        return uploadApi(formData, config);
+        console.log(`[UPLOAD] 开始上传文件 ${file.name} 到服务器...`);
+        try {
+          console.log(`[UPLOAD] 正在准备上传请求...`);
+          console.log(`[UPLOAD] DEBUG: 即将调用 ${isCadFile ? 'uploadCadFile' : 'uploadFile'} API`);
+          console.log(`[UPLOAD] DEBUG: FormData内容:`, {
+            file: file.name,
+            size: formatBytes(file.size),
+            folderId: selectedFolder || 'Home'
+          });
+          
+          const response = await uploadApi(formData, {
+            ...config,
+            timeout: 0, // 禁用超时
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
+              if (percentCompleted === 100) {
+                console.log(`[UPLOAD] ${file.name} 文件已完全上传，等待服务器处理...`);
+                console.log(`[UPLOAD] DEBUG: 已发送全部数据，等待服务器响应...`);
+              }
+              setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
+            }
+          });
+          
+          console.log(`[UPLOAD] DEBUG: 收到服务器响应:`, {
+            status: response?.status,
+            statusText: response?.statusText,
+            data: response?.data
+          });
+          console.log(`[UPLOAD] ✅ 文件 ${file.name} 上传成功! 服务器响应:`, response);
+          return response;
+        } catch (error) {
+          console.log(`[UPLOAD] ❌ 文件 ${file.name} 上传失败:`, error);
+          console.log(`[UPLOAD] DEBUG: 错误详情:`, {
+            name: error.name,
+            message: error.message,
+            response: {
+              status: error.response?.status,
+              statusText: error.response?.statusText,
+              data: error.response?.data
+            },
+            request: {
+              method: error.config?.method,
+              url: error.config?.url,
+              headers: error.config?.headers
+            }
+          });
+          throw error;
+        }
       }));
+      
+      console.log('[UPLOAD] 🎉 所有文件上传完成!');
       onUploadSuccess();
       setFiles([]);
       setProgress({});
     } catch (err) {
+      console.log('[UPLOAD] ❌ 上传过程中发生错误:', err);
+      console.log('[UPLOAD] 错误详情:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
       setError(err.response?.data?.error || `上传失败: ${err.message || '未知错误'}`);
     } finally {
+      console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
     }
   };
