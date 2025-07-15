@@ -21,7 +21,7 @@ app.use(express.urlencoded({ limit: '20gb', extended: true }));
 // 设置超时时间为1小时
 app.use((req, res, next) => {
   res.setTimeout(3600000, () => {
-    console.log('请求超时');
+    // console.log('请求超时');
     res.status(408).send('Request timeout');
   });
   next();
@@ -35,7 +35,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   useUnifiedTopology: true,
 })
 .then(async () => {
-  console.log('✅ MongoDB connected');
+  // console.log('✅ MongoDB connected');
   // 初始化根目录
   await initRootFolder();
 })
@@ -48,5 +48,5 @@ app.use('/api/users', userRoutes);
 
 // 启动服务器
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  // console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

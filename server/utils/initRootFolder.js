@@ -33,9 +33,9 @@ async function initRootFolder() {
       });
       
       await newRootFolder.save();
-      console.log('✅ Root folder record created successfully');
+      // console.log('✅ Root folder record created successfully');
     } else {
-      console.log('ℹ️ Root folder record already exists');
+      // console.log('ℹ️ Root folder record already exists');
     }
   } catch (error) {
     console.error('❌ Error initializing root folder:', error);

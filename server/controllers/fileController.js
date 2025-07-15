@@ -15,32 +15,32 @@ const checkAdminPermission = (user) => {
 // 通用文件上传处理
 const processFileUpload = async (req, res, fileType = 'regular') => {
   try {
-    console.log('[SERVER] 开始处理文件上传请求');
+    // console.log('[SERVER] 开始处理文件上传请求');
     if (!req.file) {
-      console.log('[SERVER] 错误: 未找到上传的文件');
+      // console.log('[SERVER] 错误: 未找到上传的文件');
       return res.status(400).json({ error: '未上传文件' });
     }
-    console.log('[SERVER] 文件信息:', {
-      originalName: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      path: req.file.path
-    });
+    // console.log('[SERVER] 文件信息:', {
+    //   originalName: req.file.originalname,
+    //   size: req.file.size,
+    //   mimetype: req.file.mimetype,
+    //   path: req.file.path
+    // });
 
     const user = await User.findById(req.user.id);
-    console.log('[SERVER] 用户信息:', {
-      id: user._id,
-      usedStorage: user.usedStorage,
-      storageQuota: user.storageQuota
-    });
+    // console.log('[SERVER] 用户信息:', {
+    //   id: user._id,
+    //   usedStorage: user.usedStorage,
+    //   storageQuota: user.storageQuota
+    // });
 
     const fileSize = req.file.size;
     const folderId = req.body.folderId;
-    console.log('[SERVER] 目标文件夹ID:', folderId || 'home');
+    // console.log('[SERVER] 目标文件夹ID:', folderId || 'home');
     
     // 检查存储空间
     if (user.usedStorage + fileSize > user.storageQuota) {
-      console.log('[SERVER] 错误: 存储空间不足');
+      // console.log('[SERVER] 错误: 存储空间不足');
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: '存储空间不足' });
     }
@@ -48,7 +48,7 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     // 如果没有指定文件夹，使用home目录
     let targetFolder = null;
     if (!folderId) {
-      console.log('[SERVER] 未指定目标文件夹，使用home目录');
+      // console.log('[SERVER] 未指定目标文件夹，使用home目录');
       targetFolder = await File.findOne({ 
         isFolder: true, 
         parentFolder: null,
@@ -56,42 +56,42 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
       });
       
       if (!targetFolder) {
-        console.log('[SERVER] 错误: Home目录不存在');
+        // console.log('[SERVER] 错误: Home目录不存在');
         fs.unlinkSync(req.file.path);
         return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
       }
     } else {
-      console.log('[SERVER] 查找目标文件夹:', folderId);
+      // console.log('[SERVER] 查找目标文件夹:', folderId);
       targetFolder = await File.findOne({ _id: folderId, isFolder: true });
       if (!targetFolder) {
-        console.log('[SERVER] 错误: 目标文件夹不存在');
+        // console.log('[SERVER] 错误: 目标文件夹不存在');
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: '目标文件夹不存在' });
       }
     }
-    console.log('[SERVER] 目标文件夹信息:', {
-      id: targetFolder._id,
-      name: targetFolder.filename,
-      path: targetFolder.path
-    });
+    // console.log('[SERVER] 目标文件夹信息:', {
+    //   id: targetFolder._id,
+    //   name: targetFolder.filename,
+    //   path: targetFolder.path
+    // });
 
     // 移动文件到目标位置
     let filePath = req.file.path;
-    console.log('[SERVER] 原始文件路径:', filePath);
+    // console.log('[SERVER] 原始文件路径:', filePath);
     
     if (targetFolder.filename === "home") {
-      console.log('[SERVER] 移动文件到home目录');
+      // console.log('[SERVER] 移动文件到home目录');
       filePath = path.join(STORAGE_PATH, "home", path.basename(req.file.path));
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.renameSync(req.file.path, filePath);
     } else {
-      console.log('[SERVER] 移动文件到目标文件夹');
+      // console.log('[SERVER] 移动文件到目标文件夹');
       const newPath = path.join(path.dirname(req.file.path), targetFolder.filename, path.basename(req.file.path));
       fs.mkdirSync(path.dirname(newPath), { recursive: true });
       fs.renameSync(req.file.path, newPath);
       filePath = newPath;
     }
-    console.log('[SERVER] 最终文件路径:', filePath);
+    // console.log('[SERVER] 最终文件路径:', filePath);
 
     // 创建文件记录
     const file = new File({
@@ -104,24 +104,24 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
       parentFolder: targetFolder._id
     });
 
-    console.log('[SERVER] 保存文件记录到数据库');
+    // console.log('[SERVER] 保存文件记录到数据库');
     await file.save();
-    console.log('[SERVER] 文件记录已保存:', {
-      id: file._id,
-      filename: file.filename,
-      size: file.size
-    });
+    // console.log('[SERVER] 文件记录已保存:', {
+    //   id: file._id,
+    //   filename: file.filename,
+    //   size: file.size
+    // });
     
     // 更新用户存储使用情况
     user.usedStorage += fileSize;
-    console.log('[SERVER] 更新用户存储使用情况:', {
-      oldUsed: user.usedStorage - fileSize,
-      newUsed: user.usedStorage,
-      quota: user.storageQuota
-    });
+    // console.log('[SERVER] 更新用户存储使用情况:', {
+    //   oldUsed: user.usedStorage - fileSize,
+    //   newUsed: user.usedStorage,
+    //   quota: user.storageQuota
+    // });
     await user.save();
 
-    console.log('[SERVER] 文件上传处理完成，准备返回响应');
+    // console.log('[SERVER] 文件上传处理完成，准备返回响应');
     return {
       message: '文件上传成功',
       file: {
@@ -135,10 +135,10 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
       }
     };
   } catch (error) {
-    console.log('[SERVER] 处理文件上传时发生错误:', {
-      message: error.message,
-      stack: error.stack
-    });
+    // console.log('[SERVER] 处理文件上传时发生错误:', {
+    //   message: error.message,
+    //   stack: error.stack
+    // });
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }

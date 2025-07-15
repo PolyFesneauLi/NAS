@@ -209,7 +209,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setIsDropdownOpen(newState);
     
     if (newState) {
-      console.log('[FOLDER] 刷新文件夹结构');
+      // console.log('[FOLDER] 刷新文件夹结构');
       await fetchFolders();
     }
   };
@@ -251,23 +251,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
-    console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
+    // console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
     
     const validFiles = [];
     for (const f of selectedFiles) {
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
-      console.log(`[UPLOAD] 检查文件 ${f.name} (${formatBytes(f.size)}) 的格式: ${fileExt}`);
+      // console.log(`[UPLOAD] 检查文件 ${f.name} (${formatBytes(f.size)}) 的格式: ${fileExt}`);
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
       if (!isValidFile) {
-        console.log(`[UPLOAD] ❌ 文件 ${f.name} 格式不支持`);
+        // console.log(`[UPLOAD] ❌ 文件 ${f.name} 格式不支持`);
         setError(`不支持的文件格式: ${fileExt}`);
         setFiles([]);
         return;
       }
-      console.log(`[UPLOAD] ✅ 文件 ${f.name} 验证通过`);
+      // console.log(`[UPLOAD] ✅ 文件 ${f.name} 验证通过`);
       validFiles.push(f);
     }
-    console.log('[UPLOAD] 所有文件验证完成，有效文件数量:', validFiles.length);
+    // console.log('[UPLOAD] 所有文件验证完成，有效文件数量:', validFiles.length);
     setFiles(validFiles);
     setError('');
   };
@@ -275,23 +275,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!files.length) return;
-    console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
-    console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
+    // console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
+    // console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
     setIsUploading(true);
     setError('');
     setProgress({});
     try {
       await Promise.all(files.map(async (file) => {
-        console.log(`[UPLOAD] 开始处理文件: ${file.name}`);
+        // console.log(`[UPLOAD] 开始处理文件: ${file.name}`);
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
         const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
-        console.log(`[UPLOAD] 文件类型: ${isCadFile ? 'CAD文件' : '普通文件'}`);
+        // console.log(`[UPLOAD] 文件类型: ${isCadFile ? 'CAD文件' : '普通文件'}`);
         const uploadApi = isCadFile ? uploadCadFile : uploadFile;
         
         const config = {
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
+            // console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
             setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
           }
         };
@@ -300,51 +300,51 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         formData.append('file', file);
         if (selectedFolder) {
           formData.append('folderId', selectedFolder);
-          console.log(`[UPLOAD] 文件 ${file.name} 将上传到文件夹: ${selectedFolder}`);
+          // console.log(`[UPLOAD] 文件 ${file.name} 将上传到文件夹: ${selectedFolder}`);
         }
 
-        console.log(`[UPLOAD] 开始上传文件 ${file.name} 到服务器...`);
+        // console.log(`[UPLOAD] 开始上传文件 ${file.name} 到服务器...`);
         try {
-          console.log(`[UPLOAD] 正在准备上传请求...`);
+          // console.log(`[UPLOAD] 正在准备上传请求...`);
           const response = await uploadApi(formData, {
             ...config,
             timeout: 0,
             onUploadProgress: (progressEvent) => {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
+              // console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
               if (percentCompleted === 100) {
-                console.log(`[UPLOAD] ${file.name} 文件已完全上传，等待服务器处理...`);
+                // console.log(`[UPLOAD] ${file.name} 文件已完全上传，等待服务器处理...`);
               }
               setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
             }
           });
-          console.log(`[UPLOAD] ✅ 文件 ${file.name} 上传成功! 服务器响应:`, response);
+          // console.log(`[UPLOAD] ✅ 文件 ${file.name} 上传成功! 服务器响应:`, response);
           return response;
         } catch (error) {
-          console.log(`[UPLOAD] ❌ 文件 ${file.name} 上传失败:`, error);
-          console.log(`[UPLOAD] 错误详情:`, {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-          });
+          // console.log(`[UPLOAD] ❌ 文件 ${file.name} 上传失败:`, error);
+          // console.log(`[UPLOAD] 错误详情:`, {
+          //   message: error.message,
+          //   response: error.response?.data,
+          //   status: error.response?.status
+          // });
           throw error;
         }
       }));
       
-      console.log('[UPLOAD] 🎉 所有文件上传完成!');
+      // console.log('[UPLOAD] 🎉 所有文件上传完成!');
       onUploadSuccess();
       setFiles([]);
       setProgress({});
     } catch (err) {
-      console.log('[UPLOAD] ❌ 上传过程中发生错误:', err);
-      console.log('[UPLOAD] 错误详情:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status
-      });
+      // console.log('[UPLOAD] ❌ 上传过程中发生错误:', err);
+      // console.log('[UPLOAD] 错误详情:', {
+      //   message: err.message,
+      //   response: err.response?.data,
+      //   status: err.response?.status
+      // });
       setError(err.response?.data?.error || `上传失败: ${err.message || '未知错误'}`);
     } finally {
-      console.log('[UPLOAD] 上传流程结束，重置上传状态');
+      // console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
     }
   };
@@ -517,51 +517,51 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   };
 
   const handleFolderClick = async (folder) => {
-    console.log('========== 开始处理文件夹点击 ==========');
-    console.log('点击的文件夹信息:', {
-      id: folder._id,
-      name: folder.originalName || folder.filename,
-      isFolder: folder.isFolder,
-      parentFolder: folder.parentFolder
-    });
+    // console.log('========== 开始处理文件夹点击 ==========');
+    // console.log('点击的文件夹信息:', {
+    //   id: folder._id,
+    //   name: folder.originalName || folder.filename,
+    //   isFolder: folder.isFolder,
+    //   parentFolder: folder.parentFolder
+    // });
     
     try {
-      console.log('1. 设置加载状态为 true');
+      // console.log('1. 设置加载状态为 true');
       setLoading(true);
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
-      console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
+      // console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
       setFolderPath(newFolderPath);
       setCurrentFolder(folder._id);
       
-      console.log('4. 重置选择和搜索状态');
+      // console.log('4. 重置选择和搜索状态');
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
       
-      console.log('5. 准备获取文件夹内容');
+      // console.log('5. 准备获取文件夹内容');
       const params = {
         folder: folder._id,
         sort: sortBy
       };
-      console.log('请求参数:', params);
+      // console.log('请求参数:', params);
       
-      console.log('6. 调用 API 获取文件夹内容');
+      // console.log('6. 调用 API 获取文件夹内容');
       const data = await getUserFiles(params);
-      console.log('API 返回数据:', {
-        fileCount: data.files?.length || 0,
-        currentFolder: params.folder
-      });
+      // console.log('API 返回数据:', {
+      //   fileCount: data.files?.length || 0,
+      //   currentFolder: params.folder
+      // });
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
-      console.log('7. 处理返回的文件列表');
-      console.log('文件总数:', filesArray.length);
-      console.log('文件类型统计:', {
-        folders: filesArray.filter(f => f.isFolder).length,
-        files: filesArray.filter(f => !f.isFolder).length
-      });
+      // console.log('7. 处理返回的文件列表');
+      // console.log('文件总数:', filesArray.length);
+      // console.log('文件类型统计:', {
+      //   folders: filesArray.filter(f => f.isFolder).length,
+      //   files: filesArray.filter(f => !f.isFolder).length
+      // });
       
-      console.log('8. 应用排序规则:', sortBy);
+      // console.log('8. 应用排序规则:', sortBy);
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
         sortedFiles = sortFilesByName(filesArray, true);
@@ -577,81 +577,81 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
       
-      console.log('9. 更新文件列表状态');
+      // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
-      console.log('文件列表更新完成');
+      // console.log('文件列表更新完成');
       
     } catch (err) {
-      console.error('❌ 文件夹操作失败:', err);
-      console.error('错误详情:', {
-        message: err.message,
-        response: err.response?.data
-      });
+      // console.error('❌ 文件夹操作失败:', err);
+      // console.error('错误详情:', {
+      //   message: err.message,
+      //   response: err.response?.data
+      // });
       setError('进入文件夹失败: ' + (err.message || '未知错误'));
     } finally {
-      console.log('10. 设置加载状态为 false');
+      // console.log('10. 设置加载状态为 false');
       setLoading(false);
-      console.log('========== 文件夹处理完成 ==========\n');
+      // console.log('========== 文件夹处理完成 ==========\n');
     }
   };
 
   const handlePathClick = async (index) => {
-    console.log('========== 开始处理导航路径点击 ==========');
-    console.log('点击的路径索引:', index);
-    console.log('当前完整路径:', folderPath.map(f => f.originalName || f.filename).join(' > '));
+    // console.log('========== 开始处理导航路径点击 ==========');
+    // console.log('点击的路径索引:', index);
+    // console.log('当前完整路径:', folderPath.map(f => f.originalName || f.filename).join(' > '));
     
     try {
-      console.log('1. 设置加载状态为 true');
+      // console.log('1. 设置加载状态为 true');
       setLoading(true);
       
       let targetFolder = null;
       let newPath = [];
       
       if (index === -1) {
-        console.log('2.1 返回 home 目录');
+        // console.log('2.1 返回 home 目录');
         setCurrentFolder(null);
         setFolderPath([]);
       } else {
-        console.log('2.2 跳转到指定层级的文件夹');
+        // console.log('2.2 跳转到指定层级的文件夹');
         targetFolder = folderPath[index];
         newPath = folderPath.slice(0, index + 1);
-        console.log('目标文件夹:', {
-          id: targetFolder._id,
-          name: targetFolder.originalName || targetFolder.filename,
-          path: newPath.map(f => f.originalName || f.filename).join('/')
-        });
+        // console.log('目标文件夹:', {
+        //   id: targetFolder._id,
+        //   name: targetFolder.originalName || targetFolder.filename,
+        //   path: newPath.map(f => f.originalName || f.filename).join('/')
+        // });
         setCurrentFolder(targetFolder._id);
         setFolderPath(newPath);
       }
       
-      console.log('3. 重置选择和搜索状态');
+      // console.log('3. 重置选择和搜索状态');
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
       
-      console.log('4. 准备获取文件夹内容');
+      // console.log('4. 准备获取文件夹内容');
       const params = {
         folder: targetFolder ? targetFolder._id : null,
         sort: sortBy
       };
-      console.log('请求参数:', params);
+      // console.log('请求参数:', params);
       
-      console.log('5. 调用 API 获取文件夹内容');
+      // console.log('5. 调用 API 获取文件夹内容');
       const data = await getUserFiles(params);
-      console.log('API 返回数据:', {
-        fileCount: data.files?.length || 0,
-        currentFolder: params.folder
-      });
+      // console.log('API 返回数据:', {
+      //   fileCount: data.files?.length || 0,
+      //   currentFolder: params.folder
+      // });
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
-      console.log('7. 处理返回的文件列表');
-      console.log('文件总数:', filesArray.length);
-      console.log('文件类型统计:', {
-        folders: filesArray.filter(f => f.isFolder).length,
-        files: filesArray.filter(f => !f.isFolder).length
-      });
+      // console.log('7. 处理返回的文件列表');
+      // console.log('文件总数:', filesArray.length);
+      // console.log('文件类型统计:', {
+      //   folders: filesArray.filter(f => f.isFolder).length,
+      //   files: filesArray.filter(f => !f.isFolder).length
+      // });
       
-      console.log('8. 应用排序规则:', sortBy);
+      // console.log('8. 应用排序规则:', sortBy);
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
         sortedFiles = sortFilesByName(filesArray, true);
@@ -667,21 +667,21 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
       
-      console.log('9. 更新文件列表状态');
+      // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
-      console.log('文件列表更新完成');
+      // console.log('文件列表更新完成');
       
     } catch (err) {
-      console.error('❌ 导航操作失败:', err);
-      console.error('错误详情:', {
-        message: err.message,
-        response: err.response?.data
-      });
+      // console.error('❌ 导航操作失败:', err);
+      // console.error('错误详情:', {
+      //   message: err.message,
+      //   response: err.response?.data
+      // });
       setError('切换文件夹失败: ' + (err.message || '未知错误'));
     } finally {
-      console.log('10. 设置加载状态为 false');
+      // console.log('10. 设置加载状态为 false');
       setLoading(false);
-      console.log('========== 导航处理完成 ==========\n');
+      // console.log('========== 导航处理完成 ==========\n');
     }
   };
 
@@ -711,7 +711,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
       if (searchTerm) params.search = searchTerm;
       if (currentFolder) params.folder = currentFolder;
       
-      console.log('Fetching files with params:', params);
+      // console.log('Fetching files with params:', params);
       const data = await getUserFiles(params);
       
       const filesArray = Array.isArray(data.files) ? data.files : [];

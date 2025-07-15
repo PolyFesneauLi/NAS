@@ -131,7 +131,7 @@ exports.deleteAllUsers = async (req, res) => {
     });
     
     // 同时在服务器控制台打印日志
-    console.log('删除用户操作日志:\n' + logs.join('\n'));
+          // console.log('删除用户操作日志:\n' + logs.join('\n'));
     
   } catch (error) {
     logs.push(`操作失败: ${error.message}`);
@@ -208,9 +208,9 @@ exports.deleteUser = async (req, res) => {
       const fileExists = await fs.access(userFilePath).then(() => true).catch(() => false);
       if (fileExists) {
         await fs.unlink(userFilePath);
-        console.log(`成功删除用户文件: ${userFilePath}`);
+        // console.log(`成功删除用户文件: ${userFilePath}`);
       } else {
-        console.log(`用户文件不存在，跳过删除: ${userFilePath}`);
+                  // console.log(`用户文件不存在，跳过删除: ${userFilePath}`);
       }
     } catch (error) {
       // 即使文件删除失败也继续删除用户
@@ -219,7 +219,7 @@ exports.deleteUser = async (req, res) => {
 
     // 删除用户
     await User.deleteOne({ _id: user._id });
-    console.log(`成功从数据库删除用户: ${user.username}`);
+          // console.log(`成功从数据库删除用户: ${user.username}`);
     res.json({ message: '用户已删除' });
   } catch (error) {
     console.error('删除用户操作失败:', error);

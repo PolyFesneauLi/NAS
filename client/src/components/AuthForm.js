@@ -45,10 +45,10 @@ const AuthForm = ({ type, onSuccess }) => {
       } else {
         // 注册流程
         const response = await register(submitData);
-        console.log('注册响应:', response); // 添加调试日志
+        // console.log('注册响应:', response); // 添加调试日志
 
         if (response.user.status === 'pending') {
-          console.log('用户状态为pending，显示等待审核信息'); // 添加调试日志
+          // console.log('用户状态为pending，显示等待审核信息'); // 添加调试日志
           setRegistrationStatus('pending');
           // 清空表单
           setFormData({
@@ -57,7 +57,7 @@ const AuthForm = ({ type, onSuccess }) => {
             confirmPassword: ''
           });
         } else if (response.user.status === 'approved') {
-          console.log('用户状态为approved，跳转到仪表板'); // 添加调试日志
+          // console.log('用户状态为approved，跳转到仪表板'); // 添加调试日志
       onSuccess(response.token, response.user);
       navigate('/dashboard');
         }
@@ -72,7 +72,7 @@ const AuthForm = ({ type, onSuccess }) => {
 
   // 如果是注册页面且状态为pending，显示等待审核信息
   if (type === 'register' && registrationStatus === 'pending') {
-    console.log('渲染等待审核界面'); // 添加调试日志
+    // console.log('渲染等待审核界面'); // 添加调试日志
     return (
       <div className="auth-form">
         <div className="registration-pending">
