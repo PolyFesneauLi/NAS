@@ -203,6 +203,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setIsDropdownOpen(false);
   };
 
+  // 处理下拉框点击
+  const handleDropdownClick = async () => {
+    const newState = !isDropdownOpen;
+    setIsDropdownOpen(newState);
+    
+    if (newState) {
+      console.log('[FOLDER] 刷新文件夹结构');
+      await fetchFolders();
+    }
+  };
+
   // 递归生成文件夹选项
   const FolderOption = ({ folder, level = 0 }) => {
     return (
@@ -347,7 +358,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         <div className="custom-select">
           <div 
             className="selected-value"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            onClick={handleDropdownClick}
           >
             <span className="current-path">{currentPath}</span>
             <span className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
@@ -1059,7 +1070,6 @@ const Dashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0); // 添加刷新状态
   const fileListRef = useRef(null);
 
   useEffect(() => {
@@ -1075,10 +1085,10 @@ const Dashboard = () => {
     };
 
     fetchUserData();
-  }, [refreshKey]); // 添加 refreshKey 依赖
+  }, []);
 
   const handleUploadSuccess = () => {
-    setRefreshKey(prevKey => prevKey + 1); // 触发整个组件刷新
+    getCurrentUser().then(setCurrentUser);
     fileListRef.current?.refresh();
   };
 
@@ -1108,17 +1118,15 @@ const Dashboard = () => {
         {isAdmin && (
           <FileUpload 
             onUploadSuccess={handleUploadSuccess}
-            key={refreshKey} // 添加 key 属性以强制重新渲染
           />
         )}
         <FileList 
           ref={fileListRef}
           userRole={currentUser?.role}
           onDeleteSuccess={() => {
-            setRefreshKey(prevKey => prevKey + 1); // 触发整个组件刷新
+            getCurrentUser().then(setCurrentUser);
             fileListRef.current?.refresh();
           }}
-          key={refreshKey} // 添加 key 属性以强制重新渲染
         />
       </div>
     </div>
