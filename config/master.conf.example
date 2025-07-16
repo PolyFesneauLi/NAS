@@ -1,0 +1,62 @@
+# 分布式NAS主控节点配置文件
+# 复制此文件为 master.conf 并修改相应配置
+
+[Master]
+# 节点角色
+role=master
+# 监听端口
+port=5000
+# MongoDB连接URI
+mongodb_uri=mongodb://localhost:27017/nas_master
+# JWT密钥（建议使用强密码）
+jwt_secret=your_super_secret_key_here_change_this
+# 集群密钥（用于节点间通信认证）
+cluster_secret=your_cluster_secret_key_here
+
+[Security]
+# 启用SSL/TLS
+ssl_enabled=false
+# SSL证书路径
+ssl_cert_path=./certs/server.crt
+# SSL私钥路径
+ssl_key_path=./certs/server.key
+# CORS允许的源
+cors_origin=*
+# 启用请求限制
+rate_limit_enabled=true
+# 每分钟最大请求数
+rate_limit_max=100
+
+[Cluster]
+# 心跳检测间隔（秒）
+heartbeat_interval=30
+# 节点超时时间（秒）
+node_timeout=300
+# 最大重试次数
+max_retries=3
+# 数据同步间隔（秒）
+sync_interval=60
+
+[Storage]
+# 默认存储配额（字节）
+default_quota=107374182400
+# 最大文件大小（字节）
+max_file_size=21474836480
+# 支持的文件类型（*表示所有类型）
+allowed_types=*
+
+[Logs]
+# 日志级别（debug, info, warn, error）
+log_level=info
+# 日志文件路径
+log_file=../logs/master.log
+# 日志保留天数
+log_retention_days=30
+
+[Performance]
+# 最大并发连接数
+max_connections=1000
+# 请求超时时间（毫秒）
+request_timeout=300000
+# 启用压缩
+compression_enabled=true 

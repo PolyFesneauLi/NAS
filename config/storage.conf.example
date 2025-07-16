@@ -1,0 +1,66 @@
+# 分布式NAS存储节点配置文件
+# 复制此文件为 storage.conf 并修改相应配置
+
+[Storage]
+# 节点角色
+role=storage
+# 监听端口
+port=5001
+# 存储根路径
+storage_path=./storage/files
+# 缓存路径
+cache_path=./storage/cache
+# 临时文件路径
+temp_path=./storage/temp
+# 主控节点地址
+master_host=localhost:5000
+
+[Capacity]
+# 最大存储容量（支持单位：B,KB,MB,GB,TB）
+max_storage=500GB
+# 缓存大小
+cache_size=50GB
+# 清理阈值（存储使用率达到此值时开始清理）
+cleanup_threshold=90
+# 预留空间（百分比）
+reserved_space=5
+
+[Replication]
+# 数据副本数量
+replication_factor=2
+# 备份节点列表（逗号分隔）
+backup_nodes=192.168.1.101:5001,192.168.1.102:5001
+# 同步间隔（秒）
+sync_interval=300
+# 启用自动故障转移
+auto_failover=true
+
+[Performance]
+# 最大并发传输数
+max_concurrent_transfers=10
+# 传输缓冲区大小（字节）
+transfer_buffer_size=1048576
+# 启用数据压缩
+compression_enabled=true
+# 压缩级别（1-9）
+compression_level=6
+
+[Security]
+# 启用SSL
+ssl_enabled=false
+# 数据加密密钥
+encryption_key=your_encryption_key_here
+# 启用文件完整性检查
+integrity_check=true
+# 检查间隔（小时）
+integrity_check_interval=24
+
+[Monitoring]
+# 启用性能监控
+monitoring_enabled=true
+# 监控数据保留天数
+monitoring_retention_days=7
+# 告警阈值
+alert_disk_usage=85
+alert_memory_usage=90
+alert_cpu_usage=80 

@@ -1,0 +1,104 @@
+# 分布式NAS混合节点配置文件（主控+存储+缓存）
+# 复制此文件为 hybrid.conf 并修改相应配置
+
+[Hybrid]
+# 节点角色
+role=hybrid
+# 主控服务端口
+master_port=5000
+# 存储服务端口
+storage_port=5001
+# 缓存服务端口
+cache_port=5002
+# 节点ID（唯一标识）
+node_id=hybrid-node-001
+
+[Master]
+# MongoDB连接URI
+mongodb_uri=mongodb://localhost:27017/nas_hybrid
+# JWT密钥
+jwt_secret=your_hybrid_secret_key_here
+# 集群密钥
+cluster_secret=your_cluster_secret_here
+
+[Storage]
+# 存储根路径
+storage_path=./storage/files
+# 最大存储容量
+max_storage=1TB
+# 数据副本数
+replication_factor=1
+# 启用本地缓存
+local_cache_enabled=true
+
+[Cache]
+# 缓存路径
+cache_path=./storage/cache
+# 缓存大小
+cache_size=200GB
+# 缓存TTL（秒）
+cache_ttl=3600
+# 启用Redis
+redis_enabled=true
+# Redis连接地址
+redis_host=localhost:6379
+# Redis密码
+redis_password=
+
+[Performance]
+# 最大并发连接数
+max_connections=500
+# 最大并发传输数
+max_concurrent_transfers=20
+# 内存缓存大小（MB）
+memory_cache_size=1024
+# 启用预读取
+prefetch_enabled=true
+# 预读取大小（MB）
+prefetch_size=100
+
+[Security]
+# 启用HTTPS
+https_enabled=false
+# SSL证书路径
+ssl_cert_path=./certs/server.crt
+# SSL私钥路径
+ssl_key_path=./certs/server.key
+# 启用访问控制
+access_control_enabled=true
+# 允许的IP段（CIDR格式，逗号分隔）
+allowed_networks=192.168.0.0/16,10.0.0.0/8
+
+[Monitoring]
+# 启用监控
+monitoring_enabled=true
+# 监控端口
+monitoring_port=9090
+# 性能数据收集间隔（秒）
+metrics_interval=60
+# 健康检查间隔（秒）
+health_check_interval=30
+
+[Backup]
+# 启用自动备份
+auto_backup_enabled=true
+# 备份间隔（小时）
+backup_interval=24
+# 备份保留天数
+backup_retention_days=7
+# 备份存储路径
+backup_path=./backup
+
+[Logs]
+# 日志级别
+log_level=info
+# 主控日志文件
+master_log_file=../logs/hybrid-master.log
+# 存储日志文件
+storage_log_file=../logs/hybrid-storage.log
+# 缓存日志文件
+cache_log_file=../logs/hybrid-cache.log
+# 日志轮转大小（MB）
+log_rotation_size=100
+# 日志保留文件数
+log_retention_count=10 
