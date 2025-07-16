@@ -35,7 +35,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   useUnifiedTopology: true,
 })
 .then(async () => {
-  // console.log('✅ MongoDB connected');
+  console.log('✅ MongoDB connected');
   // 初始化根目录
   await initRootFolder();
 })
@@ -48,5 +48,5 @@ app.use('/api/users', userRoutes);
 
 // 启动服务器
 app.listen(PORT, () => {
-  // console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
