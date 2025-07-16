@@ -436,7 +436,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 };
 
 // FileList 组件
-const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list' }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -759,27 +759,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
     }
   }, [files, loading, searchTerm, sortBy]);
 
-  const [needScroll, setNeedScroll] = useState(false);
-  
-  useEffect(() => {
-    const checkScrollNeed = () => {
-      const fileListElement = document.querySelector('.file-list');
-      if (fileListElement) {
-        const containerHeight = fileListElement.offsetHeight;
-        const viewportHeight = window.innerHeight;
-        const navbarHeight = 80;
-        const availableHeight = viewportHeight - navbarHeight - 100;
-        
-        setNeedScroll(containerHeight > availableHeight);
-      }
-    };
-    
-    checkScrollNeed();
-    window.addEventListener('resize', checkScrollNeed);
-    
-    return () => window.removeEventListener('resize', checkScrollNeed);
-  }, [files]);
-
   const handleDownload = async (id, filename) => {
     try {
       const response = await downloadFile(id);
@@ -878,7 +857,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
   if (error) return <div className="error-message">{error}</div>;
 
   return (
-    <div className={`file-list`}>
+    <div className={className}>
       <h3>云端文件</h3>
       
       <div className="folder-navigation">
@@ -984,83 +963,86 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess }, ref) => {
 
       {error && <div className="error-message">{error}</div>}
 
-      {files.length === 0 ? (
-        <p>暂无上传文件</p>
-      ) : (
-        <div className={needScroll ? 'table-scroll-container' : ''}>
-          <table>
-            <thead>
-              <tr>
-                {userRole === 'admin' && (
-                  <th>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedIds.length === files.length && files.length > 0} 
-                      onChange={handleSelectAll}
-                    />
-                  </th>
-                )}
-                <th style={{ textAlign: 'center' }}>名称</th>
-                <th style={{ textAlign: 'center' }}>类型</th>
-                <th style={{ textAlign: 'center' }}>大小</th>
-                {userRole === 'admin' && <th style={{ textAlign: 'center' }}>上传时间</th>}
-                <th style={{ textAlign: 'center' }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map(file => (
-                <tr key={file._id} className={file.isFolder ? 'folder-row' : ''}>
+      {/* 表格容器 - 可滚动区域 */}
+      <div className="table-container">
+        {files.length === 0 ? (
+          <p>暂无上传文件</p>
+        ) : (
+          <div className="table-scroll-container">
+            <table>
+              <thead>
+                <tr>
                   {userRole === 'admin' && (
-                    <td>
+                    <th>
                       <input 
                         type="checkbox" 
-                        checked={selectedIds.includes(file._id)} 
-                        onChange={() => handleSelect(file._id)}
+                        checked={selectedIds.length === files.length && files.length > 0} 
+                        onChange={handleSelectAll}
                       />
-                    </td>
+                    </th>
                   )}
-                  <td>
-                    {file.isFolder ? (
-                      <button 
-                        className="folder-name-btn"
-                        onClick={() => handleFolderClick(file)}
-                      >
-                        <span className="folder-icon">📁</span>
-                        {fixEncoding(file.originalName || file.filename)}
-                      </button>
-                    ) : (
-                      <span style={{ marginLeft: '28px' }}>
-                        {fixEncoding(file.originalName || file.filename)}
-                      </span>
-                    )}
-                  </td>
-                  <td>{file.isFolder ? '文件夹' : getFileExtension(file.originalName || file.filename)}</td>
-                  <td>{file.isFolder ? '-' : formatBytes(file.size)}</td>
-                  {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>}
-                  <td className="action-buttons">
-                    {!file.isFolder && (
-                      <button 
-                        className="btn btn-primary"
-                        onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                      >
-                        下载
-                      </button>
-                    )}
-                    {userRole === 'admin' && (
-                      <button 
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(file._id)}
-                      >
-                        删除
-                      </button>
-                    )}
-                  </td>
+                  <th style={{ textAlign: 'center' }}>名称</th>
+                  <th style={{ textAlign: 'center' }}>类型</th>
+                  <th style={{ textAlign: 'center' }}>大小</th>
+                  {userRole === 'admin' && <th style={{ textAlign: 'center' }}>上传时间</th>}
+                  <th style={{ textAlign: 'center' }}>操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {files.map(file => (
+                  <tr key={file._id} className={file.isFolder ? 'folder-row' : ''}>
+                    {userRole === 'admin' && (
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(file._id)} 
+                          onChange={() => handleSelect(file._id)}
+                        />
+                      </td>
+                    )}
+                    <td>
+                      {file.isFolder ? (
+                        <button 
+                          className="folder-name-btn"
+                          onClick={() => handleFolderClick(file)}
+                        >
+                          <span className="folder-icon">📁</span>
+                          {fixEncoding(file.originalName || file.filename)}
+                        </button>
+                      ) : (
+                        <span style={{ marginLeft: '28px' }}>
+                          {fixEncoding(file.originalName || file.filename)}
+                        </span>
+                      )}
+                    </td>
+                    <td>{file.isFolder ? '文件夹' : getFileExtension(file.originalName || file.filename)}</td>
+                    <td>{file.isFolder ? '-' : formatBytes(file.size)}</td>
+                    {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>}
+                    <td className="action-buttons">
+                      {!file.isFolder && (
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                        >
+                          下载
+                        </button>
+                      )}
+                      {userRole === 'admin' && (
+                        <button 
+                          className="btn btn-danger"
+                          onClick={() => handleDelete(file._id)}
+                        >
+                          删除
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 });
@@ -1070,6 +1052,7 @@ const Dashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showUserInfo, setShowUserInfo] = useState(false);
   const fileListRef = useRef(null);
 
   useEffect(() => {
@@ -1077,6 +1060,18 @@ const Dashboard = () => {
       try {
         const response = await getCurrentUser();
         setCurrentUser(response);
+        
+        // 获取服务器配置中的显示用户信息开关
+        try {
+          const configResponse = await fetch('/api/config');
+          if (configResponse.ok) {
+            const config = await configResponse.json();
+            setShowUserInfo(config.showUserInfo || false);
+          }
+        } catch (configErr) {
+          console.log('获取配置失败，使用默认设置');
+          setShowUserInfo(false);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -1099,27 +1094,26 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <div className="user-info mb-6">
-        <h2 className="text-xl font-semibold">
-          欢迎使用, {currentUser?.username || 'User'}!
-        </h2>
-        {isAdmin && (
-          <div className="storage-info">
-            <StorageMeter 
-              used={currentUser?.storageUsage?.used || 0}
-              total={currentUser?.storageUsage?.quota || 0}
-              percentage={currentUser?.storageUsage?.percentage || 0}
-            />
-          </div>
-        )}
-      </div>
+      {/* 用户信息区域 - 根据配置显示/隐藏 */}
+      {showUserInfo && (
+        <div className="user-info mb-6">
+          <h2 className="text-xl font-semibold">
+            欢迎使用, {currentUser?.username || 'User'}!
+          </h2>
+          {isAdmin && (
+            <div className="storage-info">
+              <StorageMeter 
+                used={currentUser?.storageUsage?.used || 0}
+                total={currentUser?.storageUsage?.quota || 0}
+                percentage={currentUser?.storageUsage?.percentage || 0}
+              />
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="file-management">
-        {isAdmin && (
-          <FileUpload 
-            onUploadSuccess={handleUploadSuccess}
-          />
-        )}
+        {/* 文件列表组件 */}
         <FileList 
           ref={fileListRef}
           userRole={currentUser?.role}
@@ -1127,7 +1121,15 @@ const Dashboard = () => {
             getCurrentUser().then(setCurrentUser);
             fileListRef.current?.refresh();
           }}
+          className={currentUser?.role === 'admin' ? 'file-list' : 'file-list user-normal'}
         />
+        
+        {/* 上传文件组件 - 移到文件列表下方 */}
+        {isAdmin && (
+          <FileUpload 
+            onUploadSuccess={handleUploadSuccess}
+          />
+        )}
       </div>
     </div>
   );

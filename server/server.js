@@ -6,6 +6,7 @@ const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const userRoutes = require('./routes/userRoutes');
+const apiRoutes = require('./routes/api');
 const initRootFolder = require('./utils/initRootFolder');
 
 const app = express();
@@ -45,6 +46,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api', apiRoutes);
 
 // 启动服务器
 app.listen(PORT, () => {

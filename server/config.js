@@ -8,5 +8,8 @@ module.exports = {
   
   // 上传文件配置
   UPLOAD_MAX_SIZE: 1024 * 1024 * 1024*20, // 单个文件最大20GB
-  ALLOWED_FILE_TYPES: ['*'] // 允许所有文件类型
+  ALLOWED_FILE_TYPES: ['*'], // 允许所有文件类型
+  
+  // 界面显示配置
+  SHOW_USER_INFO: process.env.SHOW_USER_INFO === 'true' || false, // 是否显示用户信息框
 }; 
