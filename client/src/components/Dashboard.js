@@ -857,7 +857,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   if (error) return <div className="error-message">{error}</div>;
 
   return (
-    <div className={className}>
+    <div className="file-list">
       <h3>云端文件</h3>
       
       <div className="folder-navigation">
