@@ -1,159 +1,170 @@
 @echo off
-chcp 65001
-title 分布式NAS系统启动
+chcp 65001 >nul
+title NAS System Startup
 
 echo =====================================
-echo     分布式NAS系统启动程序
+echo      NAS System Startup
 echo =====================================
 echo.
 
-:: 检查程序是否已经运行
-echo [1/4] 检查程序状态...
+:: Check if programs are already running
+echo [1/4] Checking program status...
 netstat -an | findstr ":5000" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [✓] 服务端已在运行 (端口 5000)
+    echo [OK] Server already running (port 5000)
     set SERVER_RUNNING=1
 ) else (
-    echo [⚠] 服务端未运行
+    echo [WARN] Server not running
     set SERVER_RUNNING=0
 )
 
 netstat -an | findstr ":3000" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [✓] 客户端已在运行 (端口 3000)
+    echo [OK] Client already running (port 3000)
     set CLIENT_RUNNING=1
 ) else (
-    echo [⚠] 客户端未运行
+    echo [WARN] Client not running
     set CLIENT_RUNNING=0
 )
 
-:: 如果程序已经运行，直接打开浏览器
+:: If programs are already running, just open browser
 if %SERVER_RUNNING% equ 1 if %CLIENT_RUNNING% equ 1 (
     echo.
     echo =====================================
-    echo        ✅ 程序已在运行
+    echo        Program Already Running
     echo.
-    echo 正在打开Web界面...
+    echo Opening web interface...
     start http://localhost:3000
     echo.
-    echo 如需重新启动，请先运行 stop.bat
+    echo To restart, please run stop.bat first
     echo =====================================
     timeout /t 3 /nobreak >nul
     exit
 )
 
-:: 如果部分运行，先停止所有服务
+:: If partially running, stop all services first
 if %SERVER_RUNNING% equ 1 (
-    echo 停止现有服务端...
+    echo Stopping existing server...
     taskkill /f /im node.exe >nul 2>&1
     timeout /t 2 /nobreak >nul
 )
 
 if %CLIENT_RUNNING% equ 1 (
-    echo 停止现有客户端...
+    echo Stopping existing client...
     taskkill /f /im node.exe >nul 2>&1
     timeout /t 2 /nobreak >nul
 )
 
-:: 检查必要文件
-echo [2/4] 检查必要文件...
+:: Check necessary files
+echo [2/4] Checking necessary files...
 if not exist "server\server.js" (
-    echo [错误] 服务器文件不存在
+    echo [ERROR] Server file not found
     pause
     exit /b 1
 )
 
 if not exist "client\package.json" (
-    echo [错误] 客户端文件不存在
+    echo [ERROR] Client file not found
     pause
     exit /b 1
 )
 
-:: 创建.env文件
+:: Create .env file
 if not exist ".env" (
-    echo 创建默认.env文件...
+    echo Creating default .env file...
     echo MONGODB_URI=mongodb://localhost:27017/nas_system > .env
     echo JWT_SECRET=your-secret-key-change-this >> .env
     echo PORT=5000 >> .env
-    echo [✓] 已创建默认.env文件
+    echo [OK] Default .env file created
 )
 
-:: 检查端口占用
-echo [3/4] 检查端口占用...
+:: Check port availability
+echo [3/4] Checking port availability...
 set SERVER_PORT=5000
 set CLIENT_PORT=3000
 
 :check_server_port
 netstat -an | findstr ":%SERVER_PORT%" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo 端口 %SERVER_PORT% 被占用，尝试下一个端口...
+    echo Port %SERVER_PORT% is occupied, trying next port...
     set /a SERVER_PORT+=1
     if %SERVER_PORT% gtr 5010 (
-        echo [错误] 无法找到可用端口
+        echo [ERROR] Cannot find available port
         pause
         exit /b 1
     )
     goto check_server_port
 ) else (
-    echo [✓] 服务端使用端口: %SERVER_PORT%
+    echo [OK] Server using port: %SERVER_PORT%
 )
 
 :check_client_port
 netstat -an | findstr ":%CLIENT_PORT%" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo 端口 %CLIENT_PORT% 被占用，尝试下一个端口...
+    echo Port %CLIENT_PORT% is occupied, trying next port...
     set /a CLIENT_PORT+=1
     if %CLIENT_PORT% gtr 3010 (
-        echo [错误] 无法找到可用端口
+        echo [ERROR] Cannot find available port
         pause
         exit /b 1
     )
     goto check_client_port
 ) else (
-    echo [✓] 客户端使用端口: %CLIENT_PORT%
+    echo [OK] Client using port: %CLIENT_PORT%
 )
 
-:: 启动服务端
-echo [4/4] 启动服务端...
+:: Start server
+echo [4/4] Starting server...
 cd server
 set PORT=%SERVER_PORT%
-start "NAS服务端" cmd /c "node server.js"
+start "NAS Server" cmd /c "node server.js %SERVER_PORT%"
 cd ..
 
-:: 等待服务端启动
-echo 等待服务端启动...
+:: Wait for server to start
+echo Waiting for server to start...
 timeout /t 8 /nobreak >nul
 
-:: 启动客户端
-echo 启动客户端...
+:: Start client
+echo Starting client...
 cd client
 set PORT=%CLIENT_PORT%
 set BROWSER=none
-start "NAS客户端" cmd /c "npm start"
+set REACT_APP_SERVER_PORT=%SERVER_PORT%
+set REACT_APP_CLIENT_PORT=%CLIENT_PORT%
+
+:: Create temporary environment file
+echo REACT_APP_SERVER_PORT=%SERVER_PORT% > .env.local
+echo REACT_APP_CLIENT_PORT=%CLIENT_PORT% >> .env.local
+
+start "NAS Client" cmd /c "npm start"
 cd ..
 
-:: 等待客户端启动
-echo 等待客户端启动...
+:: Wait for client to start
+echo Waiting for client to start...
 timeout /t 12 /nobreak >nul
 
-:: 打开浏览器
-echo 打开Web界面...
+:: Open browser
+echo Opening web interface...
 start http://localhost:%CLIENT_PORT%
 
 echo.
 echo =====================================
-echo        ✅ 启动完成
+echo        Startup Complete
 echo.
-echo 服务状态:
-echo   • 服务端: 运行中 (端口 %SERVER_PORT%)
-echo   • 客户端: 运行中 (端口 %CLIENT_PORT%)
-echo   • Web界面: 已打开
+echo Service Status:
+echo   • Server: Running (port %SERVER_PORT%)
+echo   • Client: Running (port %CLIENT_PORT%)
+echo   • Web Interface: Opened
 echo.
-echo 如需停止服务，请运行 stop.bat
+echo Port configuration saved to .ports file
+echo To stop services, run stop.bat
 echo =====================================
 
-:: 保存端口信息
+:: Save port information
 echo SERVER_PORT=%SERVER_PORT% > .ports
 echo CLIENT_PORT=%CLIENT_PORT% >> .ports
+
+:: Create port info file for frontend
+echo {"serverPort": %SERVER_PORT%, "clientPort": %CLIENT_PORT%} > .port-config.json
 
 timeout /t 3 /nobreak >nul 
