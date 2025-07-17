@@ -1011,7 +1011,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       {/* 表格容器 - 可滚动区域 */}
       <div className="table-container">
         {files.length === 0 ? (
-          <p>暂无上传文件</p>
+          <p style={{ textAlign: 'center', color: '#64748b' }}>暂无上传文件</p>
         ) : (
           <div className="table-scroll-container">
             <table>

@@ -34,6 +34,12 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     //   storageQuota: user.storageQuota
     // });
 
+    // 检查权限 - 只有管理员可以上传文件
+    if (user.role !== 'admin') {
+      fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: '只有管理员可以上传文件' });
+    }
+
     const fileSize = req.file.size;
     const folderId = req.body.folderId;
     // console.log('[SERVER] 目标文件夹ID:', folderId || 'home');
@@ -210,9 +216,9 @@ const deleteFile = async (req, res) => {
       return res.status(404).json({ error: '文件不存在' });
     }
 
-    // 检查权限
-    if (!file.owner.equals(req.user.id) && req.user.role !== 'admin') {
-      return res.status(403).json({ error: '无权删除此文件' });
+    // 检查权限 - 只有管理员可以删除文件
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以删除文件' });
     }
 
     let storageFreed = 0;
@@ -301,6 +307,11 @@ const batchDeleteFiles = async (req, res) => {
       return res.status(404).json({ error: '未找到要删除的文件' });
     }
 
+    // 检查权限 - 只有管理员可以批量删除文件
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以删除文件' });
+    }
+
     const userStorageMap = {};
     let deletedCount = 0;
     let totalFreed = 0;
@@ -350,6 +361,11 @@ const createFolder = async (req, res) => {
     
     if (!folderName || !folderName.trim()) {
       return res.status(400).json({ error: '文件夹名称不能为空' });
+    }
+
+    // 检查权限 - 只有管理员可以创建文件夹
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以创建文件夹' });
     }
 
     // 如果没有指定父文件夹，则使用home目录作为父文件夹
@@ -514,10 +530,8 @@ const downloadFile = async (req, res) => {
       return res.status(404).json({ error: '文件不存在' });
     }
 
-    // 检查权限
-    if (!file.owner.equals(req.user.id) && req.user.role !== 'admin') {
-      return res.status(403).json({ error: '无权下载此文件' });
-    }
+    // 检查权限 - 所有用户都可以下载所有文件
+    // 无需权限检查，所有用户都可以下载任何文件
 
     if (!file.path || !fs.existsSync(file.path)) {
       return res.status(404).json({ error: '文件不存在或已被删除' });
