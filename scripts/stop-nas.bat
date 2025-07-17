@@ -3,10 +3,10 @@ chcp 65001 >nul
 echo Stopping NAS File Management System...
 
 :: Read port information
-if exist ".ports" (
+if exist "..\.ports" (
     echo Reading port configuration...
-    for /f "tokens=2 delims==" %%a in ('findstr "SERVER_PORT" .ports') do set SERVER_PORT=%%a
-    for /f "tokens=2 delims==" %%a in ('findstr "CLIENT_PORT" .ports') do set CLIENT_PORT=%%a
+    for /f "tokens=2 delims==" %%a in ('findstr "SERVER_PORT" ..\.ports') do set SERVER_PORT=%%a
+    for /f "tokens=2 delims==" %%a in ('findstr "CLIENT_PORT" ..\.ports') do set CLIENT_PORT=%%a
     echo Detected ports: Server=%SERVER_PORT%, Client=%CLIENT_PORT%
 ) else (
     echo Port configuration file not found, using default ports...

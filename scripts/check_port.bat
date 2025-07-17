@@ -8,10 +8,10 @@ echo =====================================
 echo.
 
 :: Read port configuration
-if exist ".ports" (
+if exist "..\.ports" (
     echo [Configuration Info]
-    for /f "tokens=2 delims==" %%a in ('findstr "SERVER_PORT" .ports') do set SERVER_PORT=%%a
-    for /f "tokens=2 delims==" %%a in ('findstr "CLIENT_PORT" .ports') do set CLIENT_PORT=%%a
+    for /f "tokens=2 delims==" %%a in ('findstr "SERVER_PORT" ..\.ports') do set SERVER_PORT=%%a
+    for /f "tokens=2 delims==" %%a in ('findstr "CLIENT_PORT" ..\.ports') do set CLIENT_PORT=%%a
     echo   Server Port: %SERVER_PORT%
     echo   Client Port: %CLIENT_PORT%
     echo.
@@ -99,7 +99,7 @@ for /L %%i in (3000,1,3010) do (
 :: Health check
 echo.
 echo [Health Check]
-if exist ".ports" (
+if exist "..\.ports" (
     echo   Trying to connect to server health endpoint...
     powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:%SERVER_PORT%/health' -TimeoutSec 5; Write-Host '  ✓ Server responding normally' } catch { Write-Host '  ✗ Server not responding' }" 2>nul
 ) else (
@@ -112,7 +112,7 @@ echo Check Complete
 echo =====================================
 echo.
 echo If problems found:
-echo   • Run stop.bat to stop all services
+echo   • Run stop-nas.bat to stop all services
 echo   • Run start-nas.bat to restart
 echo   • Check if MongoDB is running
 echo.

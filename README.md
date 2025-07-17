@@ -34,7 +34,7 @@
 
 ```bash
 # 首次使用，创建桌面快捷方式
-create-desktop-shortcuts.bat
+scripts\create-desktop-shortcuts.bat
 
 # 然后双击桌面上的"启动NAS系统"图标即可
 # 系统会自动启动并在任务栏显示两个图标
@@ -44,7 +44,7 @@ create-desktop-shortcuts.bat
 
 ```bash
 # Windows环境
-start.bat
+scripts\start-nas.bat
 
 # Linux/macOS环境
 ./start.sh
@@ -54,7 +54,7 @@ start.bat
 
 ```bash
 # Windows环境
-stop.bat
+scripts\stop-nas.bat
 
 # Linux/macOS环境
 ./stop.sh
@@ -67,19 +67,19 @@ stop.bat
 #### 端口检查
 ```bash
 # 检查当前端口状态
-check_port.bat
+scripts\check_port.bat
 ```
 
 #### 快速重启
 ```bash
 # 当遇到端口冲突时快速重启
-scripts/quick-restart.bat
+scripts\quick-restart.bat
 ```
 
 #### MongoDB连接测试
 ```bash
 # 测试数据库连接
-scripts/test-mongodb.bat
+scripts\test-mongodb.bat
 ```
 
 ### 端口配置说明

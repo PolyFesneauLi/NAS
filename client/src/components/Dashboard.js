@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, deleteFile, batchDeleteFiles, createFolder } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
@@ -147,7 +147,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   };
 
   // 递归构建文件夹树形结构和路径映射
-  const buildFolderStructure = async (parentId = null, level = 0, parentPath = 'Home') => {
+  const buildFolderStructure = useCallback(async (parentId = null, level = 0, parentPath = 'Home') => {
     try {
       const data = await getUserFiles({ folder: parentId });
       const foldersList = data.files.filter(f => f.isFolder);
@@ -179,7 +179,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       console.error('获取文件夹结构失败:', err);
       return [];
     }
-  };
+  }, []);
 
 
 
@@ -194,7 +194,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       }
     };
     fetchFoldersData();
-  }, []);
+  }, [buildFolderStructure]);
 
   // 处理文件夹选择变化
   const handleFolderSelect = (folderId, path) => {

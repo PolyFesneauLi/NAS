@@ -7,7 +7,21 @@ echo      NAS System Startup
 echo =====================================
 echo.
 
-:: Check if programs are already running
+REM Get script directory and project root
+set "SCRIPT_DIR=%~dp0"  
+set "PROJECT_ROOT=%SCRIPT_DIR%.." ::this is scripts/..
+
+echo Script directory: %SCRIPT_DIR%
+echo Project root: %PROJECT_ROOT%
+echo Current working directory: %CD%
+echo.
+
+REM Change to project root directory
+cd /d "%PROJECT_ROOT%"
+echo Changed to project root: %CD%
+echo.
+
+REM Check if programs are already running
 echo [1/4] Checking program status...
 netstat -an | findstr ":5000" >nul 2>&1
 if %errorlevel% equ 0 (
@@ -27,7 +41,7 @@ if %errorlevel% equ 0 (
     set CLIENT_RUNNING=0
 )
 
-:: If programs are already running, just open browser
+REM If programs are already running, just open browser
 if %SERVER_RUNNING% equ 1 if %CLIENT_RUNNING% equ 1 (
     echo.
     echo =====================================
@@ -36,13 +50,13 @@ if %SERVER_RUNNING% equ 1 if %CLIENT_RUNNING% equ 1 (
     echo Opening web interface...
     start http://localhost:3000
     echo.
-    echo To restart, please run stop.bat first
+    echo To restart, please run stop-nas.bat first
     echo =====================================
     timeout /t 3 /nobreak >nul
     exit
 )
 
-:: If partially running, stop all services first
+REM If partially running, stop all services first
 if %SERVER_RUNNING% equ 1 (
     echo Stopping existing server...
     taskkill /f /im node.exe >nul 2>&1
@@ -55,21 +69,26 @@ if %CLIENT_RUNNING% equ 1 (
     timeout /t 2 /nobreak >nul
 )
 
-:: Check necessary files
+REM Check necessary files
 echo [2/4] Checking necessary files...
 if not exist "server\server.js" (
-    echo [ERROR] Server file not found
+    echo [ERROR] Server file not found: %CD%\server\server.js
+    echo Please ensure you are running from the correct directory
     pause
     exit /b 1
 )
 
 if not exist "client\package.json" (
-    echo [ERROR] Client file not found
+    echo [ERROR] Client file not found: %CD%\client\package.json
+    echo Please ensure you are running from the correct directory
     pause
     exit /b 1
 )
 
-:: Create .env file
+echo [OK] All necessary files found
+echo.
+
+REM Create .env file
 if not exist ".env" (
     echo Creating default .env file...
     echo MONGODB_URI=mongodb://localhost:27017/nas_system > .env
@@ -78,7 +97,7 @@ if not exist ".env" (
     echo [OK] Default .env file created
 )
 
-:: Check port availability
+REM Check port availability
 echo [3/4] Checking port availability...
 set SERVER_PORT=5000
 set CLIENT_PORT=3000
@@ -113,18 +132,18 @@ if %errorlevel% equ 0 (
     echo [OK] Client using port: %CLIENT_PORT%
 )
 
-:: Start server
+REM Start server
 echo [4/4] Starting server...
 cd server
 set PORT=%SERVER_PORT%
 start "NAS Server" cmd /c "node server.js %SERVER_PORT%"
 cd ..
 
-:: Wait for server to start
+REM Wait for server to start
 echo Waiting for server to start...
 timeout /t 8 /nobreak >nul
 
-:: Start client
+REM Start client
 echo Starting client...
 cd client
 set PORT=%CLIENT_PORT%
@@ -132,18 +151,18 @@ set BROWSER=none
 set REACT_APP_SERVER_PORT=%SERVER_PORT%
 set REACT_APP_CLIENT_PORT=%CLIENT_PORT%
 
-:: Create temporary environment file
+REM Create temporary environment file
 echo REACT_APP_SERVER_PORT=%SERVER_PORT% > .env.local
 echo REACT_APP_CLIENT_PORT=%CLIENT_PORT% >> .env.local
 
 start "NAS Client" cmd /c "npm start"
 cd ..
 
-:: Wait for client to start
+REM Wait for client to start
 echo Waiting for client to start...
 timeout /t 12 /nobreak >nul
 
-:: Open browser
+REM Open browser
 echo Opening web interface...
 start http://localhost:%CLIENT_PORT%
 
@@ -157,14 +176,14 @@ echo   • Client: Running (port %CLIENT_PORT%)
 echo   • Web Interface: Opened
 echo.
 echo Port configuration saved to .ports file
-echo To stop services, run stop.bat
+echo To stop services, run scripts\stop-nas.bat
 echo =====================================
 
-:: Save port information
+REM Save port information
 echo SERVER_PORT=%SERVER_PORT% > .ports
 echo CLIENT_PORT=%CLIENT_PORT% >> .ports
 
-:: Create port info file for frontend
+REM Create port info file for frontend
 echo {"serverPort": %SERVER_PORT%, "clientPort": %CLIENT_PORT%} > .port-config.json
 
 timeout /t 3 /nobreak >nul 
