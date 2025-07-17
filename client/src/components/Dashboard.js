@@ -181,19 +181,19 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     }
   };
 
-  // 获取文件夹列表
-  const fetchFolders = async () => {
-    try {
-      setFolderPaths(new Map().set(null, 'Home'));
-      const structure = await buildFolderStructure();
-      setFolderStructure(structure);
-    } catch (err) {
-      setError('获取文件夹列表失败: ' + (err.message || '未知错误'));
-    }
-  };
+
 
   useEffect(() => {
-    fetchFolders();
+    const fetchFoldersData = async () => {
+      try {
+        setFolderPaths(new Map().set(null, 'Home'));
+        const structure = await buildFolderStructure();
+        setFolderStructure(structure);
+      } catch (err) {
+        setError('获取文件夹列表失败: ' + (err.message || '未知错误'));
+      }
+    };
+    fetchFoldersData();
   }, []);
 
   // 处理文件夹选择变化
@@ -210,7 +210,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     if (newState) {
       // console.log('[FOLDER] 刷新文件夹结构');
-      await fetchFolders();
+      try {
+        setFolderPaths(new Map().set(null, 'Home'));
+        const structure = await buildFolderStructure();
+        setFolderStructure(structure);
+      } catch (err) {
+        setError('获取文件夹列表失败: ' + (err.message || '未知错误'));
+      }
     }
   };
 
@@ -449,8 +455,46 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [folderName, setFolderName] = useState('');
 
+  const refreshFiles = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const params = {};
+      if (sortBy) params.sort = sortBy;
+      if (searchTerm) params.search = searchTerm;
+      if (currentFolder) params.folder = currentFolder;
+      
+      const data = await getUserFiles(params);
+      
+      const filesArray = Array.isArray(data.files) ? data.files : [];
+      
+      let sortedFiles = filesArray;
+      
+      if (sortBy === 'name_asc') {
+        sortedFiles = sortFilesByName(filesArray, true);
+      } else if (sortBy === 'name_desc') {
+        sortedFiles = sortFilesByName(filesArray, false);
+      } else if (sortBy === 'extension_asc') {
+        sortedFiles = sortFilesByExtension(filesArray, true);
+      } else if (sortBy === 'extension_desc') {
+        sortedFiles = sortFilesByExtension(filesArray, false);
+      } else if (sortBy === 'size_asc') {
+        sortedFiles = sortFilesBySize(filesArray, true);
+      } else if (sortBy === 'size_desc') {
+        sortedFiles = sortFilesBySize(filesArray, false);
+      }
+      
+      setFiles(sortedFiles);
+    } catch (err) {
+      setError('获取文件列表失败: ' + (err.message || '未知错误'));
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
-    refresh: fetchFiles
+    refresh: refreshFiles
   }));
 
   const handleSelectAll = (e) => {
@@ -512,7 +556,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       console.error('批量删除错误:', err);
       const errorMessage = err.response?.data?.error || err.message || '未知错误';
       setError(`批量删除失败: ${errorMessage}`);
-      fetchFiles();
+      refreshFiles();
     }
   };
 
@@ -696,54 +740,55 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setFolderName('');
       setShowFolderInput(false);
       setError('');
-      fetchFiles();
+      refreshFiles();
     } catch (err) {
       setError(err.response?.data?.error || `创建文件夹失败: ${err.message || '未知错误'}`);
     }
   };
 
-  const fetchFiles = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const params = {};
-      if (sortBy) params.sort = sortBy;
-      if (searchTerm) params.search = searchTerm;
-      if (currentFolder) params.folder = currentFolder;
-      
-      // console.log('Fetching files with params:', params);
-      const data = await getUserFiles(params);
-      
-      const filesArray = Array.isArray(data.files) ? data.files : [];
-      
-      let sortedFiles = filesArray;
-      
-      if (sortBy === 'name_asc') {
-        sortedFiles = sortFilesByName(filesArray, true);
-      } else if (sortBy === 'name_desc') {
-        sortedFiles = sortFilesByName(filesArray, false);
-      } else if (sortBy === 'extension_asc') {
-        sortedFiles = sortFilesByExtension(filesArray, true);
-      } else if (sortBy === 'extension_desc') {
-        sortedFiles = sortFilesByExtension(filesArray, false);
-      } else if (sortBy === 'size_asc') {
-        sortedFiles = sortFilesBySize(filesArray, true);
-      } else if (sortBy === 'size_desc') {
-        sortedFiles = sortFilesBySize(filesArray, false);
-      }
-      
-      setFiles(sortedFiles);
-    } catch (err) {
-      setError('获取文件列表失败: ' + (err.message || '未知错误'));
-      setFiles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   useEffect(() => {
-    fetchFiles();
-  }, [sortBy, searchTerm]);
+    const fetchFilesData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const params = {};
+        if (sortBy) params.sort = sortBy;
+        if (searchTerm) params.search = searchTerm;
+        if (currentFolder) params.folder = currentFolder;
+        
+        // console.log('Fetching files with params:', params);
+        const data = await getUserFiles(params);
+        
+        const filesArray = Array.isArray(data.files) ? data.files : [];
+        
+        let sortedFiles = filesArray;
+        
+        if (sortBy === 'name_asc') {
+          sortedFiles = sortFilesByName(filesArray, true);
+        } else if (sortBy === 'name_desc') {
+          sortedFiles = sortFilesByName(filesArray, false);
+        } else if (sortBy === 'extension_asc') {
+          sortedFiles = sortFilesByExtension(filesArray, true);
+        } else if (sortBy === 'extension_desc') {
+          sortedFiles = sortFilesByExtension(filesArray, false);
+        } else if (sortBy === 'size_asc') {
+          sortedFiles = sortFilesBySize(filesArray, true);
+        } else if (sortBy === 'size_desc') {
+          sortedFiles = sortFilesBySize(filesArray, false);
+        }
+        
+        setFiles(sortedFiles);
+      } catch (err) {
+        setError('获取文件列表失败: ' + (err.message || '未知错误'));
+        setFiles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFilesData();
+  }, [sortBy, searchTerm, currentFolder]);
 
   useEffect(() => {
     if (!loading && (searchTerm || sortBy !== 'time_desc')) {

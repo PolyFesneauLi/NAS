@@ -431,7 +431,13 @@ const getUserFiles = async (req, res) => {
   try {
     const folderId = req.query.folder;
     const { sort, search } = req.query;
-    const query = { owner: req.user.id };
+    const query = {};
+
+    // // 普通用户可以看到所有文件，管理员只能看到自己的文件
+    // if (req.user.role === 'admin') {
+    //   query.owner = req.user.id;
+    // }
+    // // 普通用户不限制owner，可以看到所有文件
 
     if (folderId) {
       query.parentFolder = folderId;
