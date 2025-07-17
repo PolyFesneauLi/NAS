@@ -659,8 +659,8 @@
 //         </div>
 //         <div className="sort-box">
 //           <select value={sortBy} onChange={handleSortChange} className="sort-select">
-//             <option value="time_desc">上传时间（最新）</option>
-//             <option value="time_asc">上传时间（最早）</option>
+//             <option value="time_desc">更新时间（最新）</option>
+//             <option value="time_asc">更新时间（最早）</option>
 //             <option value="size_desc">文件大小（从大到小）</option>
 //             <option value="size_asc">文件大小（从小到大）</option>
 //             <option value="name_asc">文件名（A-Z）</option>
@@ -733,7 +733,7 @@
 //                 <th style={{ textAlign: 'center' }}>名称</th>
 //                 <th style={{ textAlign: 'center' }}>类型</th>
 //                 <th style={{ textAlign: 'center' }}>大小</th>
-//                 {userRole === 'admin' && <th style={{ textAlign: 'center' }}>上传时间</th>}
+//                 {userRole === 'admin' && <th style={{ textAlign: 'center' }}>更新时间</th>}
 //                 <th style={{ textAlign: 'center' }}>操作</th>
 //               </tr>
 //             </thead>

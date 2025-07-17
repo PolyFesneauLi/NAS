@@ -5,6 +5,27 @@ const path = require('path');
 const { STORAGE_PATH } = process.env;
 const config = require('../config');
 
+// 递归更新父文件夹的更新时间
+const updateParentFoldersTimestamp = async (folderId) => {
+  try {
+    let currentFolderId = folderId;
+    
+    while (currentFolderId) {
+      const folder = await File.findById(currentFolderId);
+      if (!folder) break;
+      
+      // 更新文件夹的更新时间
+      folder.updatedAt = new Date();
+      await folder.save();
+      
+      // 继续向上查找父文件夹
+      currentFolderId = folder.parentFolder;
+    }
+  } catch (error) {
+    console.error('更新父文件夹时间戳失败:', error);
+  }
+};
+
 // 检查用户权限
 const checkAdminPermission = (user) => {
   if (!user || user.role !== 'admin') {
@@ -127,6 +148,9 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     // });
     await user.save();
 
+    // 递归更新父文件夹的更新时间
+    await updateParentFoldersTimestamp(targetFolder._id);
+
     // console.log('[SERVER] 文件上传处理完成，准备返回响应');
     return {
       message: '文件上传成功',
@@ -137,6 +161,7 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
         size: file.size,
         type: file.fileType,
         createdAt: file.createdAt,
+        updatedAt: file.updatedAt,
         parentFolder: file.parentFolder
       }
     };
@@ -246,6 +271,11 @@ const deleteFile = async (req, res) => {
       }
     }
 
+    // 递归更新父文件夹的更新时间
+    if (file.parentFolder) {
+      await updateParentFoldersTimestamp(file.parentFolder);
+    }
+
     res.json({ 
       message: `${file.isFolder ? '文件夹' : '文件'}删除成功`,
       storageFreed,
@@ -315,6 +345,7 @@ const batchDeleteFiles = async (req, res) => {
     const userStorageMap = {};
     let deletedCount = 0;
     let totalFreed = 0;
+    const affectedParentFolders = new Set(); // 记录受影响的父文件夹
 
     for (const file of files) {
       if (file.isFolder) {
@@ -331,6 +362,12 @@ const batchDeleteFiles = async (req, res) => {
         }
         await File.deleteOne({ _id: file._id });
       }
+      
+      // 记录受影响的父文件夹
+      if (file.parentFolder) {
+        affectedParentFolders.add(file.parentFolder.toString());
+      }
+      
       deletedCount++;
     }
 
@@ -341,6 +378,11 @@ const batchDeleteFiles = async (req, res) => {
         user.usedStorage = Math.max(0, user.usedStorage - freed);
         await user.save();
       }
+    }
+
+    // 递归更新所有受影响的父文件夹的更新时间
+    for (const parentFolderId of affectedParentFolders) {
+      await updateParentFoldersTimestamp(parentFolderId);
     }
 
     res.json({ 
@@ -424,12 +466,16 @@ const createFolder = async (req, res) => {
 
     await folder.save();
 
+    // 递归更新父文件夹的更新时间
+    await updateParentFoldersTimestamp(parentFolder._id);
+
     res.status(201).json({
       message: '文件夹创建成功',
       folder: {
         id: folder._id,
         name: folder.filename,
         createdAt: folder.createdAt,
+        updatedAt: folder.updatedAt,
         parentFolder: folder.parentFolder
       }
     });
@@ -485,10 +531,10 @@ const getUserFiles = async (req, res) => {
     if (sort) {
       switch (sort) {
         case 'time_asc':
-          sortOption = { isFolder: -1, createdAt: 1 };
+          sortOption = { isFolder: -1, updatedAt: 1 };
           break;
         case 'time_desc':
-          sortOption = { isFolder: -1, createdAt: -1 };
+          sortOption = { isFolder: -1, updatedAt: -1 };
           break;
         case 'size_asc':
           sortOption = { isFolder: -1, size: 1 };
@@ -515,7 +561,8 @@ const getUserFiles = async (req, res) => {
 
     const files = await File.find(query)
       .collation({ locale: 'zh' })
-      .sort(sortOption);
+      .sort(sortOption)
+      .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt');
     res.json({ files });
   } catch (error) {
     res.status(500).json({ error: error.message });
