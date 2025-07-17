@@ -430,8 +430,9 @@ const createFolder = async (req, res) => {
 const getUserFiles = async (req, res) => {
   try {
     const folderId = req.query.folder;
+    const { sort, search } = req.query;
     const query = { owner: req.user.id };
-    
+
     if (folderId) {
       query.parentFolder = folderId;
     } else {
@@ -441,14 +442,58 @@ const getUserFiles = async (req, res) => {
         parentFolder: null,
         filename: "home"
       });
-      
       if (!homeFolder) {
         return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
       }
       query.parentFolder = homeFolder._id;
     }
 
-    const files = await File.find(query).sort({ isFolder: -1, filename: 1 });
+    // 搜索功能 - 文件名部分匹配（支持文件夹和文件）
+    if (search) {
+      const decodedSearch = decodeURIComponent(search);
+      query.$or = [
+        { originalName: { $regex: decodedSearch, $options: 'i' } },
+        { filename: { $regex: decodedSearch, $options: 'i' } }
+      ];
+      // console.log('收到搜索参数:', decodedSearch, 'MongoDB 查询:', JSON.stringify(query));
+    }
+
+    // 排序功能
+    let sortOption = { isFolder: -1, filename: 1 }; // 默认文件夹在前，按名称排序
+    if (sort) {
+      switch (sort) {
+        case 'time_asc':
+          sortOption = { isFolder: -1, createdAt: 1 };
+          break;
+        case 'time_desc':
+          sortOption = { isFolder: -1, createdAt: -1 };
+          break;
+        case 'size_asc':
+          sortOption = { isFolder: -1, size: 1 };
+          break;
+        case 'size_desc':
+          sortOption = { isFolder: -1, size: -1 };
+          break;
+        case 'name_asc':
+          sortOption = { isFolder: -1, originalName: 1 };
+          break;
+        case 'name_desc':
+          sortOption = { isFolder: -1, originalName: -1 };
+          break;
+        case 'extension_asc':
+          sortOption = { isFolder: -1, originalName: 1 };
+          break;
+        case 'extension_desc':
+          sortOption = { isFolder: -1, originalName: -1 };
+          break;
+        default:
+          sortOption = { isFolder: -1, filename: 1 };
+      }
+    }
+
+    const files = await File.find(query)
+      .collation({ locale: 'zh' })
+      .sort(sortOption);
     res.json({ files });
   } catch (error) {
     res.status(500).json({ error: error.message });
