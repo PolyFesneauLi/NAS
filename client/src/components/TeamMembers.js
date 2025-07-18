@@ -109,27 +109,27 @@ const TeamMembers = () => {
         <table>
           <thead>
             <tr>
-              <th>用户名</th>
-              <th>用户状态</th>
-              <th>用户权限</th>
-              <th>申请时间</th>
+              <th style={{ textAlign: 'center' }}>用户名</th>
+              <th style={{ textAlign: 'center' }}>用户状态</th>
+              <th style={{ textAlign: 'center' }}>用户权限</th>
+              <th style={{ textAlign: 'center' }}>申请时间</th>
               {/* <th>批准时间</th> */}
-              <th>操作</th>
+              <th style={{ textAlign: 'center' }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {users.map(user => (
               <tr key={user._id}>
-                <td>{user.username}</td>
-                <td>
+                <td style={{ textAlign: 'center' }}>{user.username}</td>
+                <td style={{ textAlign: 'center' }}>
                   <span className={`status-badge ${user.status}`}>
                     {getStatusText(user.status)}
                   </span>
                 </td>
-                <td>{getRoleText(user.role)}</td>
-                <td>{formatDate(user.createdAt)}</td>
+                <td style={{ textAlign: 'center' }}>{getRoleText(user.role)}</td>
+                <td style={{ textAlign: 'center' }}>{formatDate(user.createdAt)}</td>
                 {/* <td>{user.approvedAt ? formatDate(user.approvedAt) : '-'}</td> */}
-                <td>
+                <td style={{ textAlign: 'center' }}>
                   {user.status === 'pending' ? (
                     <div className="action-buttons">
                       <button

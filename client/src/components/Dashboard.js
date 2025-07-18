@@ -309,7 +309,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
 // ------------------------------------------------------------
 // FileUpload 组件
 // ------------------------------------------------------------
-const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
+const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null, folderPath = [], onFolderChange }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
@@ -322,6 +322,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [uploadComplete, setUploadComplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const dropdownRef = useRef(null);
+
+  // 同步当前文件夹和路径
+  useEffect(() => {
+    setSelectedFolder(currentFolder);
+    if (folderPath && folderPath.length > 0) {
+      const pathString = 'Home/' + folderPath.map(f => f.originalName || f.filename).join('/');
+      setCurrentPath(pathString);
+    } else {
+      setCurrentPath('Home');
+    }
+  }, [currentFolder, folderPath]);
 
   // 点击外部关闭下拉框
   useEffect(() => {
@@ -694,7 +705,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list' }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -702,8 +713,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
-  const [currentFolder, setCurrentFolder] = useState(null);
-  const [folderPath, setFolderPath] = useState([]);
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
@@ -783,8 +792,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         const folderIndex = folderPath.findIndex(f => f._id === deletedPathFolder._id);
         if (folderIndex !== -1) {
           const parentFolder = folderPath[folderIndex - 1];
-          setCurrentFolder(parentFolder ? parentFolder._id : null);
-          setFolderPath(prev => prev.slice(0, folderIndex));
+          onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
           
           setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
           setSelectedIds([]);
@@ -829,8 +837,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
       // console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
-      setFolderPath(newFolderPath);
-      setCurrentFolder(folder._id);
+      
+      // 通知父组件状态变化
+      onFolderChange(folder._id, newFolderPath);
       
       // console.log('4. 重置选择和搜索状态');
       setSelectedIds([]);
@@ -907,8 +916,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
       if (index === -1) {
         // console.log('2.1 返回 home 目录');
-        setCurrentFolder(null);
-        setFolderPath([]);
+        onFolderChange(null, []);
       } else {
         // console.log('2.2 跳转到指定层级的文件夹');
         targetFolder = folderPath[index];
@@ -918,8 +926,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         //   name: targetFolder.originalName || targetFolder.filename,
         //   path: newPath.map(f => f.originalName || f.filename).join('/')
         // });
-        setCurrentFolder(targetFolder._id);
-        setFolderPath(newPath);
+        onFolderChange(targetFolder._id, newPath);
       }
       
       // console.log('3. 重置选择和搜索状态');
@@ -1123,8 +1130,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           if (folderIndex !== -1) {
             if (folderIndex === folderPath.length - 1) {
               const parentFolder = folderPath[folderIndex - 1];
-              setCurrentFolder(parentFolder ? parentFolder._id : null);
-              setFolderPath(prev => prev.slice(0, folderIndex));
+              onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
               const params = {
                 folder: parentFolder ? parentFolder._id : null,
                 sort: sortBy
@@ -1132,9 +1138,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               const data = await getUserFiles(params);
               const filesArray = Array.isArray(data.files) ? data.files : [];
               setFiles(filesArray);
-            } else {
-              setFolderPath(prev => prev.filter(f => f._id !== id));
-            }
+                          } else {
+                const newPath = folderPath.filter(f => f._id !== id);
+                onFolderChange(currentFolder, newPath);
+              }
           }
         }
 
@@ -1386,6 +1393,8 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const fileListRef = useRef(null);
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [folderPath, setFolderPath] = useState([]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -1454,12 +1463,24 @@ const Dashboard = () => {
             fileListRef.current?.refresh();
           }}
           className={currentUser?.role === 'admin' ? 'file-list' : 'file-list user-normal'}
+          currentFolder={currentFolder}
+          folderPath={folderPath}
+          onFolderChange={(newFolder, newPath) => {
+            setCurrentFolder(newFolder);
+            setFolderPath(newPath);
+          }}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
         {isAdmin && (
           <FileUpload 
             onUploadSuccess={handleUploadSuccess}
+            currentFolder={currentFolder}
+            folderPath={folderPath}
+            onFolderChange={(newFolder, newPath) => {
+              setCurrentFolder(newFolder);
+              setFolderPath(newPath);
+            }}
           />
         )}
       </div>

@@ -70,7 +70,7 @@ body {
 }
 
 /* 按钮通用样式 */
-.btn {
+/* .btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -83,7 +83,7 @@ body {
   text-decoration: none;
   display: inline-block;
   text-align: center;
-}
+} */
 
 .btn:hover {
   transform: translateY(-2px);

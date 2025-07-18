@@ -181,7 +181,7 @@
 
 /* 文件夹名称 */
 .folder-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #2c3e50;
 }
@@ -351,7 +351,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 20px;
   /* 设置最大高度：admin用户70vh，普通用户90vh */
-  max-height: 70vh;
+  height: 70vh;
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 防止内容溢出，由子容器处理滚动 */
@@ -365,6 +365,7 @@
   left: -2px;
   right: -2px;
   bottom: -2px;
+  height: inherit;
   background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea, #764ba2);
   border-radius: 22px;
   z-index: -1;
@@ -378,7 +379,7 @@
 
 /* 普通用户的文件列表高度 */
 .file-list.user-normal {
-  max-height: 90vh;
+  height: 90vh;
 }
 
 /* 文件列表标题 */
@@ -386,21 +387,21 @@
   color: #2c3e50;
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin: 0px 0px 10px 0px;
   text-align: center;
 }
 
 .file-list th {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 16px;
+  padding: 10px;
   text-align: left;
   font-weight: 600;
   font-size: 14px;
 }
 
 .file-list td {
-  padding: 16px;
+  padding: 5px 10px;
   border-bottom: 1px solid rgba(102, 126, 234, 0.1);
   font-size: 14px;
 }
@@ -455,7 +456,7 @@
 /* 排序下拉框 */
 .sort-select {
   width: 100%;
-  padding: 10px 32px 10px 12px;
+  padding: 12px 16px;  /* means */
   font-size: 14px;
   font-weight: 700;
   color: #2c3e50;
@@ -674,19 +675,26 @@ th {
   background-color: #f8fafc;
   color: #4b5563;
   font-weight: 600;
+  margin: 0px 0px;
   padding: 12px 16px;
   text-align: left;
   border-bottom: 2px solid #e2e8f0;
+  z-index: 1000;
+  position: relative ;
 }
 
 td {
+  height: 70px;
   padding: 12px 16px;
   border-bottom: 1px solid #e2e8f0;
   color: #1f2937;
+  z-index: 1;
+  position: relative;
 }
 
 tr:last-child td {
   border-bottom: none;
+  margin: 0px 0px;
 }
 
 /* 确保表格内容区域能够滚动 */
@@ -724,6 +732,7 @@ td:nth-child(2) {
 /* 文件夹行样式 */
 .folder-row {
   background-color: #f8fafc !important;
+  padding: 10px;
   transition: all 0.2s ease;
 }
 
@@ -736,7 +745,7 @@ td:nth-child(2) {
   border: none;
   color: #4361ee;
   cursor: pointer;
-  padding: 8px;
+  /* padding: 8px; */
   font-size: inherit;
   text-align: left;
   width: 100%;
@@ -753,7 +762,7 @@ td:nth-child(2) {
 }
 
 .folder-icon {
-  font-size: 18px;
+  font-size: 14px;
   color: #4361ee;
 }
 
@@ -764,12 +773,14 @@ td:nth-child(2) {
   word-break: break-word;
   line-height: 1.4;
   text-indent: 0;
+  font-size: 14px;
   flex: 1; /* 占据剩余空间 */
 }
 
 /* 普通文件名样式 */
 .file-name {
   margin-left: 28px;
+  font-size: 14px;
   word-break: break-word;
   line-height: 1.4;
   display: block;
@@ -777,19 +788,21 @@ td:nth-child(2) {
 
 /* 操作按钮样式 */
 .action-buttons {
+  /* height: 75px; */
   display: flex;
+  margin: 0px 0px;
   gap: 8px;
   justify-content: flex-end;
 }
 
-.btn {
+/* .btn {
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;
-}
+} */
 
 .btn-primary {
   background-color: #4361ee;
