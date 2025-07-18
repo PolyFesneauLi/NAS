@@ -577,8 +577,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       
       // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
-        setFiles([]);
-        setProgress({});
+      setFiles([]);
+      setProgress({});
         setUploadComplete(false);
         setSuccessMessage('');
         onUploadSuccess();
@@ -670,13 +670,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             )}
             
             {!uploadComplete && (
-              <button 
-                type="submit" 
-                disabled={isUploading}
-                className="upload-button"
-              >
-                {isUploading ? '上传中...' : '开始上传'}
-              </button>
+            <button 
+              type="submit" 
+              disabled={isUploading}
+              className="upload-button"
+            >
+              {isUploading ? '上传中...' : '开始上传'}
+            </button>
             )}
           </>
         )}
@@ -1323,7 +1323,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         >
                           <span className="folder-icon">📁</span>
                           <span className="folder-name-text">
-                            {fixEncoding(file.originalName || file.filename)}
+                          {fixEncoding(file.originalName || file.filename)}
                           </span>
                         </button>
                       ) : (
@@ -1349,12 +1349,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               预览
                             </button>
                           )}
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                          >
-                            下载
-                          </button>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                        >
+                          下载
+                        </button>
                         </>
                       )}
                       {userRole === 'admin' && (

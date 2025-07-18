@@ -262,10 +262,11 @@
   /* padding: 0px 5px 5px 5px; */
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  /* 设置最大高度：admin用户60%，普通用户80% */
+  /* 设置最大高度：admin用户70vh，普通用户90vh */
   max-height: 70vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* 防止内容溢出，由子容器处理滚动 */
 }
 
 /* 普通用户的文件列表高度 */
@@ -390,9 +391,13 @@
 /* 表格容器 - 可滚动区域 */
 .table-container {
   flex: 1;
-  overflow: auto; /* 允许滚动 */
+  overflow-y: auto; /* 明确指定纵向滚动 */
+  overflow-x: hidden; /* 横向不滚动 */
   min-height: 0; /* 允许flex子元素收缩 */
-  max-height: 80vh; /* 设置最大高度为70%视口高度 */
+  /* 移除固定最大高度，让它根据父容器自适应 */
+  
+  /* 确保滚动区域正确显示 */
+  position: relative;
 }
 
 /* 自定义滚动条样式 */
@@ -402,20 +407,21 @@
 }
 
 .table-container::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f8fafc;
+  border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: rgba(203, 213, 225, 0.2);
+  background: rgba(67, 97, 238, 0.3);
   border-radius: 4px;
   transition: background 0.3s ease;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(67, 97, 238, 0.6);
 }
 
-/* 只在滚动时显示滚动条 */
+/* 确保滚动条在需要时总是可见 */
 .table-container::-webkit-scrollbar-thumb:vertical {
   min-height: 30px;
 }
@@ -424,16 +430,7 @@
   min-width: 30px;
 }
 
-/* 当内容不需要滚动时隐藏滚动条 */
-.table-container:not(:hover)::-webkit-scrollbar-thumb {
-  background: rgba(203, 213, 225, 0.1);
-}
-
-/* 表格样式 */
-.table-scroll-container {
-  overflow: visible; /* 移除这里的overflow限制 */
-  margin-bottom: 20px;
-}
+/* 移除原来的隐藏逻辑，让滚动条始终可见 */
 
 /* 表格内容 */
 table {
@@ -454,7 +451,17 @@ th {
   color: #0c1f49;
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10; /* 提高z-index确保表头在最上层 */
+  border-bottom: 2px solid #e2e8f0; /* 加强底部边框 */
+}
+
+/* 确保表格内容区域能够滚动 */
+.table-scroll-container {
+  /* 移除overflow限制，让父容器处理滚动 */
+  margin-bottom: 0; /* 移除底部边距避免影响滚动 */
+  /* 确保表格容器不会被挤压 */
+  min-height: 0;
+  overflow: visible;
 }
 
 /* 文件大小列 - 防止换行 */
