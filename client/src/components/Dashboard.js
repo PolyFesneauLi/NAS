@@ -205,7 +205,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
   };
 
   // 拖拽过程中
-  const handleDragMove = (e) => {
+  const handleDragMove = useCallback((e) => {
     if (!isDragging) return;
     
     const deltaX = e.clientX - dragStartX;
@@ -214,12 +214,12 @@ const FilePreview = ({ file, isOpen, onClose }) => {
     const newWidth = Math.max(20, Math.min(80, dragStartWidth + deltaPercent)); // 限制在20%-80%之间
     
     setPanelWidth(newWidth);
-  };
+  }, [isDragging, dragStartX, dragStartWidth]);
 
   // 拖拽结束
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
 
   // 添加全局鼠标事件监听
   useEffect(() => {
@@ -241,7 +241,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isDragging, dragStartX, dragStartWidth, panelWidth]);
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   const renderPreviewContent = () => {
     const previewType = getPreviewType(file.originalName || file.filename);
@@ -529,6 +529,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setUploadComplete(false);
     setSuccessMessage('');
     
+    // 设置全局上传状态
+    if (window.uploadState) {
+      window.uploadState.isUploading = true;
+    }
+    
     // 初始化所有文件的进度条为0
     const initialProgress = {};
     files.forEach(file => {
@@ -588,10 +593,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       
       // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
-      setFiles([]);
-      setProgress({});
+        setFiles([]);
+        setProgress({});
         setUploadComplete(false);
         setSuccessMessage('');
+        
+        // 重置全局上传状态
+        if (window.uploadState) {
+          window.uploadState.isUploading = false;
+        }
+        
         onUploadSuccess();
       }, 2000);
       
@@ -603,6 +614,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     } finally {
       // console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
+      
+      // 重置全局上传状态
+      if (window.uploadState) {
+        window.uploadState.isUploading = false;
+      }
     }
   };
 

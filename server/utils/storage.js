@@ -79,6 +79,25 @@ const allowedTypes = [
   'model/iges',                          // .igs, .iges
   'application/sldworks',                // SolidWorks
   
+  // 压缩包
+  'application/x-7z-compressed',         // .7z
+  'application/x-rar-compressed',        // .rar
+  'application/x-tar',                   // .tar
+  'application/x-gzip',                  // .gz
+  'application/x-bzip2',                 // .bz2
+  'application/x-xz',                    // .xz
+  'application/x-wim',                   // .wim
+  'application/x-zip-compressed',        // .zip
+
+  //exe
+  'application/x-msdownload',            // .exe
+  'application/x-ms-dos-executable',     // .exe
+  'application/x-executable',            // .exe
+  'application/x-ms-windows-executable', // .exe
+  'application/x-ms-windows-installer',  // .exe
+  'application/x-ms-windows-package',    // .exe
+  'application/x-ms-windows-package',    // .exe
+  
   // 其他常见类型
   'application/octet-stream'             // 通用二进制流
 ];
@@ -94,7 +113,10 @@ const allowedExtensions = [
   
   // 图片/CAD
   '.jpg', '.jpeg', '.png', '.svg',
-  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm'
+  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm',
+  
+  // 压缩包
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.wim', '.iso', '.exe'
 ];
 
 // 增强的文件过滤器
@@ -108,6 +130,8 @@ const fileFilter = (req, file, cb) => {
   if (isTypeValid || isExtValid) {
     cb(null, true);
   } else {
+    console.log( "[TYPE] ❌ 不支持的文件类型:", file.mimetype, fileExt);
+    console.log( "[TYPE] ❌ 不支持的文件类型:", isTypeValid, isExtValid);
     cb(new Error(
       `不支持的文件类型。允许上传：\n` +
       `• 文档：PDF/Word/Excel/TXT/Markdown\n` +

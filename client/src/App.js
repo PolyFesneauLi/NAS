@@ -7,6 +7,12 @@ import Navbar from './components/Navbar';
 import TeamMembers from './components/TeamMembers';
 import './App.css';
 
+// 全局上传状态管理
+window.uploadState = {
+  isUploading: false,
+  isAdmin: false
+};
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -25,6 +31,8 @@ function App() {
           const userData = await getCurrentUser();
           setUser(userData);
           setIsAuthenticated(true);
+          // 更新全局上传状态中的用户角色
+          window.uploadState.isAdmin = userData?.role === 'admin';
         } catch (error) {
           console.error('Failed to load user:', error);
           localStorage.removeItem('token');
@@ -39,15 +47,27 @@ function App() {
   // 闲置检测
   useEffect(() => {
     if (!isAuthenticated) return;
+    
     let lastActivity = Date.now();
     const resetIdle = () => {
       lastActivity = Date.now();
       setIdleSeconds(0);
       setShowIdleModal(false);
     };
+    
     const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
     events.forEach(evt => window.addEventListener(evt, resetIdle));
+    
     idleTimer.current = setInterval(() => {
+      // 检查是否是admin用户且正在上传
+      if (window.uploadState.isAdmin && window.uploadState.isUploading) {
+        // 重置闲置计时器，不上传期间不显示idle弹窗
+        lastActivity = Date.now();
+        setIdleSeconds(0);
+        setShowIdleModal(false);
+        return;
+      }
+      
       const diff = Math.floor((Date.now() - lastActivity) / 1000);
       setIdleSeconds(diff);
       if (diff >= idleLimit) {
@@ -55,17 +75,22 @@ function App() {
         handleLogout();
       }
     }, 1000);
+    
     return () => {
       events.forEach(evt => window.removeEventListener(evt, resetIdle));
-      clearInterval(idleTimer.current);
+      if (idleTimer.current) {
+        clearInterval(idleTimer.current);
+      }
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, idleLimit]); // 添加idleLimit到依赖数组
 
   const handleLogin = (token, userData) => {
     localStorage.setItem('token', token);
     setAuthToken(token);
     setIsAuthenticated(true);
     setUser(userData);
+    // 更新全局上传状态中的用户角色
+    window.uploadState.isAdmin = userData?.role === 'admin';
   };
 
   const handleLogout = () => {
@@ -73,6 +98,9 @@ function App() {
     setAuthToken(null);
     setIsAuthenticated(false);
     setUser(null);
+    // 重置全局上传状态
+    window.uploadState.isAdmin = false;
+    window.uploadState.isUploading = false;
   };
 
   if (loading) {
