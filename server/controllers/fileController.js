@@ -593,12 +593,12 @@ const downloadFile = async (req, res) => {
 // 导出所有控制器函数
 const uploadFile = async (req, res) => {
   try {
-    console.log('[SERVER] 收到普通文件上传请求');
+    // console.log('[SERVER] 收到普通文件上传请求');
     const result = await processFileUpload(req, res, 'regular');
-    console.log('[SERVER] 上传处理完成，发送成功响应');
+    // console.log('[SERVER] 上传处理完成，发送成功响应');
     res.status(200).json(result);
   } catch (error) {
-    console.log('[SERVER] 普通文件上传失败:', error.message);
+    // console.log('[SERVER] 普通文件上传失败:', error.message);
     res.status(500).json({ 
       error: '文件上传失败',
       details: error.message 

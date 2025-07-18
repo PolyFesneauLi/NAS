@@ -200,6 +200,19 @@
   );
 }
 
+/* 进度条文字 */
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
 /* 添加进度条容器的右侧凸起 */
 .progress-bar-container::after {
   content: '';
@@ -444,6 +457,81 @@ th {
   z-index: 5;
 }
 
+/* 文件大小列 - 防止换行 */
+/* 管理员用户：大小是第4列 */
+.file-list:not(.user-normal) td:nth-child(4) {
+  white-space: nowrap;
+}
+
+/* 普通用户：大小是第3列 */
+.file-list.user-normal td:nth-child(3) {
+  white-space: nowrap;
+}
+
+/* 文件名列样式 */
+td:nth-child(2) {
+  word-break: break-word;
+  max-width: 300px; /* 限制最大宽度以便换行 */
+}
+
+/* 普通用户的文件名是第1列 */
+.file-list.user-normal td:nth-child(1) {
+  word-break: break-word;
+  max-width: 300px; /* 限制最大宽度以便换行 */
+}
+
+/* 文件夹名称按钮样式 */
+.folder-name-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-size: inherit;
+  color: #4361ee;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  word-break: break-word;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: 8px;
+}
+
+.folder-name-btn:hover {
+  color: #3651d4;
+  text-decoration: underline;
+}
+
+/* 文件夹图标 */
+.folder-icon {
+  font-size: 16px;
+  display: inline-block;
+  width: 20px; /* 固定宽度便于对齐 */
+  text-align: center;
+  flex-shrink: 0; /* 防止图标被压缩 */
+}
+
+/* 文件夹名称文字部分 */
+.folder-name-text {
+  display: inline;
+  vertical-align: middle;
+  word-break: break-word;
+  line-height: 1.4;
+  text-indent: 0;
+  flex: 1; /* 占据剩余空间 */
+}
+
+/* 普通文件名样式 */
+.file-name {
+  margin-left: 28px;
+  word-break: break-word;
+  line-height: 1.4;
+  display: block;
+}
+
 /* 文件夹行样式 */
 .folder-row {
   background-color: #f8fafc;
@@ -486,6 +574,266 @@ th {
   background-color: #dc2626;
 }
 
+.btn-preview {
+  background-color: #a855f7;
+  color: #fff;
+}
+
+.btn-preview:hover {
+  background-color: #9333ea;
+}
+
+/* =========================================
+   文件预览组件样式
+   ========================================= */
+.file-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.file-preview-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.file-preview-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background-color: #fff;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-preview-overlay.open .file-preview-panel {
+  transform: translateX(0);
+}
+
+/* 拖拽调整手柄 */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+  cursor: ew-resize;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: #4361ee;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  background-color: #cbd5e1;
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.resize-handle:hover::before {
+  opacity: 1;
+}
+
+/* 预览头部 */
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  flex-shrink: 0;
+}
+
+.preview-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  margin-right: 15px;
+  word-break: break-word;
+}
+
+.preview-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #64748b;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-close-btn:hover {
+  background-color: #e2e8f0;
+  color: #374151;
+}
+
+/* 预览内容区域 */
+.preview-content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 加载和错误状态 */
+.preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 16px;
+  color: #64748b;
+}
+
+.preview-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 16px;
+  color: #ef4444;
+  text-align: center;
+}
+
+/* 图片预览 */
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* PDF预览 */
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 文本预览 */
+.preview-text {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #374151;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: auto;
+  flex: 1;
+}
+
+/* Office文档预览 */
+.preview-office {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.office-preview-message {
+  text-align: center;
+  padding: 40px;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 2px dashed #cbd5e1;
+}
+
+.office-preview-message h4 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #475569;
+}
+
+.office-preview-message p {
+  margin: 8px 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* 不支持的文件类型 */
+.preview-unsupported {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 16px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .file-preview-panel {
+    width: 80% !important;
+  }
+  
+  .resize-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .file-preview-panel {
+    width: 100% !important;
+  }
+  
+  .resize-handle {
+    display: none;
+  }
+  
+  .preview-header {
+    padding: 15px;
+  }
+  
+  .preview-content {
+    padding: 15px;
+  }
+  
+  .preview-title {
+    font-size: 16px;
+  }
+}
+
 /* 错误消息样式 */
 .error-message {
   margin-top: 16px;
@@ -501,6 +849,21 @@ th {
   text-align: center;
   padding: 20px;
   color: #64748b;
+}
+
+/* 成功消息样式 */
+.success-message {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background-color: #dcfce7;
+  color: #166534;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+  animation: successFadeIn 0.3s ease;
 }
 
 /* 自定义滚动条 */
@@ -546,6 +909,17 @@ th {
   100% {
     background-color: transparent;
     transform: scale(1);
+  }
+}
+
+@keyframes successFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -19,6 +19,25 @@ const getFileExtension = (filename) => {
   return match ? match[1].toLowerCase() : '';
 };
 
+// 检测文件是否支持预览
+const isSupportedForPreview = (filename) => {
+  const extension = getFileExtension(filename);
+  const supportedTypes = ['pdf', 'txt', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'];
+  return supportedTypes.includes(extension);
+};
+
+// 获取文件预览类型
+const getPreviewType = (filename) => {
+  const extension = getFileExtension(filename);
+  if (['png', 'jpg', 'jpeg'].includes(extension)) return 'image';
+  if (['pdf'].includes(extension)) return 'pdf';
+  if (['txt'].includes(extension)) return 'text';
+  if (['xls', 'xlsx'].includes(extension)) return 'excel';
+  if (['doc', 'docx'].includes(extension)) return 'word';
+  if (['ppt', 'pptx'].includes(extension)) return 'powerpoint';
+  return 'unsupported';
+};
+
 // 字符比较函数 - 字母/数字/符号 < 汉字
 const compareChar = (charA, charB) => {
   const isChineseA = /[\u4e00-\u9fff]/.test(charA);
@@ -112,7 +131,184 @@ const formatBeijingTime = (isoString) => {
   return `${MM}/${DD} ${HH}:${mm}`;
 };
 
+// ------------------------------------------------------------
+// FilePreview 组件
+// ------------------------------------------------------------
+const FilePreview = ({ file, isOpen, onClose }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [panelWidth, setPanelWidth] = useState(50); // 初始宽度50%
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragStartWidth, setDragStartWidth] = useState(50);
+
+  useEffect(() => {
+    if (isOpen && file) {
+      loadPreview();
+    }
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [isOpen, file]);
+
+  const loadPreview = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await downloadFile(file._id);
+      const previewType = getPreviewType(file.originalName || file.filename);
+      
+      if (previewType === 'image') {
+        const blob = new Blob([response.data], { type: response.headers['content-type'] });
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+      } else if (previewType === 'pdf') {
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+      } else if (previewType === 'text') {
+        if (typeof response.data === 'string') {
+          setPreviewUrl(response.data);
+        } else if (response.data instanceof ArrayBuffer) {
+          const text = new TextDecoder('utf-8').decode(response.data);
+          setPreviewUrl(text);
+        } else if (response.data instanceof Uint8Array) {
+          const text = new TextDecoder('utf-8').decode(response.data);
+          setPreviewUrl(text);
+        } else {
+          // 如果是其他类型，尝试转换为Blob再读取
+          const blob = new Blob([response.data], { type: 'text/plain' });
+          const text = await blob.text();
+          setPreviewUrl(text);
+        }
+      } else if (['excel', 'word', 'powerpoint'].includes(previewType)) {
+        // Office文档不需要下载内容，直接显示提示信息
+        setPreviewUrl('office-document');
+      } else {
+        setError('暂不支持此文件类型的预览');
+      }
+    } catch (err) {
+      setError('预览加载失败: ' + (err.message || '未知错误'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 拖拽开始
+  const handleDragStart = (e) => {
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    setDragStartWidth(panelWidth);
+  };
+
+  // 拖拽过程中
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - dragStartX;
+    const windowWidth = window.innerWidth;
+    const deltaPercent = (deltaX / windowWidth) * 100;
+    const newWidth = Math.max(20, Math.min(80, dragStartWidth + deltaPercent)); // 限制在20%-80%之间
+    
+    setPanelWidth(newWidth);
+  };
+
+  // 拖拽结束
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  // 添加全局鼠标事件监听
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleDragMove);
+      document.addEventListener('mouseup', handleDragEnd);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, dragStartX, dragStartWidth, panelWidth]);
+
+  const renderPreviewContent = () => {
+    const previewType = getPreviewType(file.originalName || file.filename);
+    
+    if (loading) {
+      return <div className="preview-loading">正在加载预览...</div>;
+    }
+    
+    if (error) {
+      return <div className="preview-error">{error}</div>;
+    }
+    
+    switch (previewType) {
+      case 'image':
+        return <img src={previewUrl} alt="预览" className="preview-image" />;
+      case 'pdf':
+        return <iframe src={previewUrl} className="preview-iframe" title="PDF预览" />;
+      case 'text':
+        return <pre className="preview-text">{previewUrl}</pre>;
+      case 'excel':
+      case 'word':
+      case 'powerpoint':
+        return (
+          <div className="preview-office">
+            <div className="office-preview-message">
+              <h4>Office 文档预览</h4>
+              <p>暂不支持 {getFileExtension(file.originalName || file.filename).toUpperCase()} 文件的在线预览。</p>
+              <p>请下载文件后使用相应的应用程序打开。</p>
+            </div>
+          </div>
+        );
+      default:
+        return <div className="preview-unsupported">不支持的文件类型</div>;
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={`file-preview-overlay ${isOpen ? 'open' : ''}`}>
+      <div 
+        className="file-preview-panel"
+        style={{ width: `${panelWidth}%` }}
+      >
+        <div className="preview-header">
+          <h3 className="preview-title">
+            {fixEncoding(file.originalName || file.filename)}
+          </h3>
+          <button className="preview-close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="preview-content">
+          {renderPreviewContent()}
+        </div>
+        <div 
+          className="resize-handle"
+          onMouseDown={handleDragStart}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ------------------------------------------------------------
 // FileUpload 组件
+// ------------------------------------------------------------
 const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFolder = null }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -123,6 +319,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [currentPath, setCurrentPath] = useState('Home');
   const [folderPaths, setFolderPaths] = useState(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const dropdownRef = useRef(null);
 
   // 点击外部关闭下拉框
@@ -276,18 +474,59 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     // console.log('[UPLOAD] 所有文件验证完成，有效文件数量:', validFiles.length);
     setFiles(validFiles);
     setError('');
+    setUploadComplete(false);
+    setSuccessMessage('');
+    setProgress({});
+  };
+
+  // 检查存储空间是否足够
+  const checkStorageSpace = async (totalSize) => {
+    try {
+      const response = await getCurrentUser();
+      const { used, quota } = response.storageUsage;
+      const remaining = quota - used;
+      
+      if (totalSize > remaining) {
+        const errorMsg = `上传失败 云端空间不足 只剩余${formatBytes(remaining)}`;
+        setError(errorMsg);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setError('获取存储空间信息失败');
+      return false;
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!files.length) return;
+    
+    // 计算总文件大小
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    
+    // 检查存储空间
+    const hasEnoughSpace = await checkStorageSpace(totalSize);
+    if (!hasEnoughSpace) {
+      return; // 错误信息已在checkStorageSpace中设置
+    }
+    
     // console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
     // console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
     setIsUploading(true);
     setError('');
-    setProgress({});
+    setUploadComplete(false);
+    setSuccessMessage('');
+    
+    // 初始化所有文件的进度条为0
+    const initialProgress = {};
+    files.forEach(file => {
+      initialProgress[file.name] = 0;
+    });
+    setProgress(initialProgress);
+    
     try {
-      await Promise.all(files.map(async (file) => {
+      const uploadPromises = files.map(async (file) => {
         // console.log(`[UPLOAD] 开始处理文件: ${file.name}`);
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
         const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
@@ -318,9 +557,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             onUploadProgress: (progressEvent) => {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
               // console.log(`[UPLOAD] ${file.name} 上传进度: ${percentCompleted}%`);
-              if (percentCompleted === 100) {
-                // console.log(`[UPLOAD] ${file.name} 文件已完全上传，等待服务器处理...`);
-              }
               setProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
             }
           });
@@ -328,27 +564,31 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           return response;
         } catch (error) {
           // console.log(`[UPLOAD] ❌ 文件 ${file.name} 上传失败:`, error);
-          // console.log(`[UPLOAD] 错误详情:`, {
-          //   message: error.message,
-          //   response: error.response?.data,
-          //   status: error.response?.status
-          // });
           throw error;
         }
-      }));
+      });
+      
+      // 等待所有文件上传完成
+      await Promise.all(uploadPromises);
       
       // console.log('[UPLOAD] 🎉 所有文件上传完成!');
-      onUploadSuccess();
-      setFiles([]);
-      setProgress({});
+      setUploadComplete(true);
+      setSuccessMessage(`共成功上传${formatBytes(totalSize)}文件`);
+      
+      // 2秒后隐藏进度条和成功消息
+      setTimeout(() => {
+        setFiles([]);
+        setProgress({});
+        setUploadComplete(false);
+        setSuccessMessage('');
+        onUploadSuccess();
+      }, 2000);
+      
     } catch (err) {
       // console.log('[UPLOAD] ❌ 上传过程中发生错误:', err);
-      // console.log('[UPLOAD] 错误详情:', {
-      //   message: err.message,
-      //   response: err.response?.data,
-      //   status: err.response?.status
-      // });
       setError(err.response?.data?.error || `上传失败: ${err.message || '未知错误'}`);
+      setUploadComplete(false);
+      setSuccessMessage('');
     } finally {
       // console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
@@ -410,24 +650,34 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               {files.map(f => (
                 <div key={f.name} className="file-item">
                   <span>{f.name} | <strong>{(f.size / 1024 / 1024).toFixed(2)} MB</strong></span>
-                  {progress[f.name] > 0 && progress[f.name] < 100 && (
+                  {(progress[f.name] > 0 || uploadComplete) && (
                     <div className="progress-bar-container">
                       <div 
                         className="progress-bar"
-                        style={{ width: `${progress[f.name]}%` }}
+                        style={{ width: `${progress[f.name] || 0}%` }}
                       />
+                      <span className="progress-text">{progress[f.name] || 0}%</span>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <button 
-              type="submit" 
-              disabled={isUploading}
-              className="upload-button"
-            >
-              {isUploading ? '上传中...' : '开始上传'}
-            </button>
+            
+            {successMessage && (
+              <div className="success-message">
+                {successMessage}
+              </div>
+            )}
+            
+            {!uploadComplete && (
+              <button 
+                type="submit" 
+                disabled={isUploading}
+                className="upload-button"
+              >
+                {isUploading ? '上传中...' : '开始上传'}
+              </button>
+            )}
           </>
         )}
         
@@ -441,7 +691,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   );
 };
 
+// ------------------------------------------------------------
 // FileList 组件
+// ------------------------------------------------------------
 const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list' }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -454,6 +706,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [folderPath, setFolderPath] = useState([]);
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [folderName, setFolderName] = useState('');
+  const [previewFile, setPreviewFile] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const refreshFiles = async () => {
     try {
@@ -746,6 +1000,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
+  const handlePreview = (file) => {
+    setPreviewFile(file);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewFile(null);
+  };
 
 
   useEffect(() => {
@@ -903,6 +1166,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   return (
     <div className="file-list">
+      <FilePreview 
+        file={previewFile}
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+      />
+      
       <h3>云端文件</h3>
       
       <div className="folder-navigation">
@@ -1029,7 +1298,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                   <th style={{ textAlign: 'center' }}>名称</th>
                   <th style={{ textAlign: 'center' }}>类型</th>
                   <th style={{ textAlign: 'center' }}>大小</th>
-                  {userRole === 'admin' && <th style={{ textAlign: 'center' }}>创建时间</th>}
+                  {/* {userRole === 'admin' && <th style={{ textAlign: 'center' }}>创建时间</th>} */}
                   {userRole === 'admin' && <th style={{ textAlign: 'center' }}>更新时间</th>}
                   <th style={{ textAlign: 'center' }}>操作</th>
                 </tr>
@@ -1053,26 +1322,40 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           onClick={() => handleFolderClick(file)}
                         >
                           <span className="folder-icon">📁</span>
-                          {fixEncoding(file.originalName || file.filename)}
+                          <span className="folder-name-text">
+                            {fixEncoding(file.originalName || file.filename)}
+                          </span>
                         </button>
                       ) : (
-                        <span style={{ marginLeft: '28px' }}>
+                        <span className="file-name">
                           {fixEncoding(file.originalName || file.filename)}
                         </span>
                       )}
                     </td>
-                    <td>{file.isFolder ? '文件夹' : getFileExtension(file.originalName || file.filename)}</td>
-                    <td>{file.isFolder ? '-' : formatBytes(file.size)}</td>
-                    {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>}
-                    {userRole === 'admin' && <td>{formatBeijingTime(file.updatedAt)}</td>}
+                    <td style={{ textAlign: 'center' }}>{file.isFolder ? '文件夹' : getFileExtension(file.originalName || file.filename)}</td>
+                    <td style={{ textAlign: 'center' }}>{file.isFolder ? '-' : formatBytes(file.size)}</td>
+                    {/* {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>} */}
+                    {userRole === 'admin' && <td style={{ textAlign: 'center' }}>{formatBeijingTime(file.updatedAt)}</td>}
                     <td className="action-buttons">
                       {!file.isFolder && (
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                        >
-                          下载
-                        </button>
+                        <>
+                          {isSupportedForPreview(file.originalName || file.filename) && (
+                            <button 
+                              className="btn btn-preview"
+                              onClick={() => handlePreview(file)}
+                              title="预览文件"
+                              style={{ background: '#bc9ffa' }}    // 中等深度紫色
+                            >
+                              预览
+                            </button>
+                          )}
+                          <button 
+                            className="btn btn-primary"
+                            onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                          >
+                            下载
+                          </button>
+                        </>
                       )}
                       {userRole === 'admin' && (
                         <button 
@@ -1094,7 +1377,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   );
 });
 
+// ------------------------------------------------------------
 // Dashboard 组件
+// ------------------------------------------------------------
 const Dashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
