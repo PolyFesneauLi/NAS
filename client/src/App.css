@@ -6,7 +6,87 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+/* --------------------------------- */
+/* 响应式设计 */
+/* 用途：当屏幕宽度小于768px时，响应式调整页面布局 */
+/* --------------------------------- */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 16px;
+  }
+  
+  .auth-form {
+    margin: 40px auto;
+    padding: 24px;
+  }
+  
+  .file-upload {
+    padding: 16px;
+  }
+  
+  .file-list {
+    padding: 24px;
+  }
+  
+  .file-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box, .sort-box {
+    min-width: auto;
+  }
+  
+  .file-list table {
+    font-size: 12px;
+  }
+  
+  .file-list th, .file-list td {
+    padding: 12px 8px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .nav-links {
+    gap: 12px;
+  }
+  
+  .nav-links a, .nav-links button {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-form {
+    margin: 20px auto;
+    padding: 20px;
+  }
+  
+  .file-upload {
+    padding: 14px;
+  }
+  
+  .file-list {
+    padding: 20px;
+  }
+  
+  .user-info {
+    padding: 24px;
+  }
+  
+  .user-info h2 {
+    font-size: 24px;
+  }
+}
+
+/* --------------------------------- */
 /* 导航栏样式 */
+/* --------------------------------- */
+
 .navbar {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -220,243 +300,14 @@
   background-clip: text;
 }
 
-/* FileUpload 组件样式 */
-.file-upload {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 2px dashed #667eea;
-  padding: 20px;
-  margin-bottom: 32px;
-  text-align: center;
-  animation: fadeIn 0.6s ease-out;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.file-upload:hover {
-  border-color: #764ba2;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
-}
-
-.file-upload h3 {
-  color: #2c3e50;
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.file-input-container {
-  margin: 16px 0;
-}
-
-.file-label {
-  display: inline-block;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  font-size: 14px;
-}
-
-.file-label:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-}
-
-.file-input {
-  display: none;
-}
-
-.file-info {
-  margin: 12px 0;
-  font-size: 14px;
-  color: #666;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 12px 24px;
-  border-radius: 5px;
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1000;
-  display: block;
-  /* border: 1px solid rgba(255, 255, 255, 0.2); */
-  cursor: default;
-  user-select: none;
-  width: 100%;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.file-info:hover {
-  background: rgba(255, 255, 255, 0.95);
-  opacity: 1;
-}
-
-
-/* 文件列表样式 */
-.file-list {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 20px;
-  animation: fadeIn 0.6s ease-out;
-}
-
-/* 文件控制栏样式 */
-.file-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.search-box {
-  flex: 1;
-  min-width: 200px;
-}
-
-.sort-box {
-  min-width: 150px;
-}
-
 .admin-controls {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.search-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-}
-
-.sort-select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-}
-
-.sort-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-  position: relative;
-}
-
-.file-list h3 {
-  color: #2c3e50;
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.file-list th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.file-list td {
-  padding: 16px;
-  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
-  font-size: 14px;
-}
-
-.file-list tr:hover {
-  background: rgba(102, 126, 234, 0.05);
-  transform: scale(1.01);
-  transition: all 0.2s ease;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.download-btn, .delete-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.download-btn {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
-}
-
-.download-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-}
-
-.delete-btn {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-  color: white;
-}
-
-.delete-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-}
-
-/* 批量删除按钮 */
-.btn-danger {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-  color: #fff;
-  border: none;
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  /* margin-left: 8px; */
-  transition: all 0.2s;
-}
-.btn-danger:hover {
-  background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
-}
-/* 表格复选框 */
-.file-list input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #667eea;
-  cursor: pointer;
-}
-
 /* 存储计量器样式 */
+/* 用途：显示用户当前存储空间使用情况 */
 .storage-meter {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 16px;
@@ -479,149 +330,6 @@
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   transition: width 0.4s ease;
   border-radius: 10px;
-}
-
-/* 额外的美化效果 */
-.file-upload::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
-  border-radius: 22px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-/*悬停变色后增加透明度*/
-.file-upload:hover::before { 
-  opacity: 0.8;
-}
-
-.file-list::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea, #764ba2);
-  border-radius: 22px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.file-list:hover::before {
-  opacity: 0;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .container {
-    padding: 20px 16px;
-  }
-  
-  .auth-form {
-    margin: 40px auto;
-    padding: 24px;
-  }
-  
-  .file-upload {
-    padding: 16px;
-  }
-  
-  .file-list {
-    padding: 24px;
-  }
-  
-  .file-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-box, .sort-box {
-    min-width: auto;
-  }
-  
-  .file-list table {
-    font-size: 12px;
-  }
-  
-  .file-list th, .file-list td {
-    padding: 12px 8px;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .nav-links {
-    gap: 12px;
-  }
-  
-  .nav-links a, .nav-links button {
-    padding: 6px 12px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .auth-form {
-    margin: 20px auto;
-    padding: 20px;
-  }
-  
-  .file-upload {
-    padding: 14px;
-  }
-  
-  .file-list {
-    padding: 20px;
-  }
-  
-  .user-info {
-    padding: 24px;
-  }
-  
-  .user-info h2 {
-    font-size: 24px;
-  }
-}
-
-/* 加载动画 */
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  font-size: 16px;
-  color: #667eea;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  margin: 20px 0;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.loading::after {
-  content: '';
-  width: 20px;
-  height: 20px;
-  border: 2px solid #667eea;
-  border-top: 2px solid transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-left: 10px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* 闲置弹窗遮罩 */
@@ -654,197 +362,6 @@
 }
 .idle-modal .btn {
   min-width: 80px;
-}
-/* 文件夹创建相关样式 */
-.folder-controls {
-  margin-bottom: 16px;
-}
-
-.folder-form {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.folder-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  min-width: 200px;
-}
-
-.confirm-folder-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.cancel-folder-btn {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.confirm-folder-btn:hover {
-  background-color: #45a049;
-}
-
-.cancel-folder-btn:hover {
-  background-color: #da190b;
-}
-
-/* 文件夹相关样式 */
-.folder-row {
-  background-color: #f8f9fa;
-}
-
-.folder-name-btn {
-  background: none;
-  border: none;
-  color: #0066cc;
-  cursor: pointer;
-  padding: 0;
-  font-size: inherit;
-  text-align: left;
-  width: 100%;
-}
-
-.folder-name-btn:hover {
-  text-decoration: underline;
-}
-
-/* 文件夹导航样式 */
-.folder-navigation {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.back-btn {
-  background-color: #3774e4;
-  border: 2px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 8px 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  color: #ffffff;
-}
-
-.back-btn:hover {
-  background-color: #e2e8f0;
-  transform: translateY(-1px);
-}
-
-.back-btn::before {
-  content: "⬅️";
-  font-size: 12px;
-}
-
-.folder-path {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #4b5563;
-  padding: 8px;
-  background-color: #f8fafc;
-  border-radius: 6px;
-  border: 2px solid #e2e8f0;
-}
-
-.folder-path-separator {
-  color: #9ca3af;
-}
-
-/* 文件夹行样式 */
-.folder-row {
-  background-color: #f8fafc !important;
-  transition: all 0.2s ease;
-}
-
-.folder-row:hover {
-  background-color: #f1f5f9 !important;
-}
-
-.folder-name-btn {
-  background: none;
-  border: none;
-  color: #4361ee;
-  cursor: pointer;
-  padding: 8px;
-  font-size: inherit;
-  text-align: left;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  border-radius: 4px;
-}
-
-.folder-name-btn:hover {
-  color: #3730a3;
-  background-color: rgba(67, 97, 238, 0.1);
-}
-
-.folder-icon {
-  font-size: 18px;
-  color: #4361ee;
-}
-
-/* 表格样式优化 */
-.table-scroll-container {
-  border-radius: 8px;
-  border: 2px solid #e2e8f0;
-  overflow: hidden;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: white;
-}
-
-th {
-  background-color: #f8fafc;
-  color: #4b5563;
-  font-weight: 600;
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  color: #1f2937;
-}
-
-tr:last-child td {
-  border-bottom: none;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
 }
 
 /* 通用按钮样式 */
@@ -892,92 +409,4 @@ tr:last-child td {
   transform: translateY(-1px);
 }
 
-/* 文件夹按钮样式 */
-.create-folder-btn {
-  background-color: #4361ee;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
 
-.create-folder-btn:hover {
-  background-color: #3730a3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.create-folder-btn::before {
-  content: "📁";
-  font-size: 16px;
-}
-
-.folder-form {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background-color: #f8fafc;
-  padding: 8px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.folder-input {
-  padding: 8px 12px;
-  border: 2px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 14px;
-  min-width: 200px;
-  transition: all 0.2s ease;
-}
-
-.folder-input:focus {
-  border-color: #4361ee;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-}
-
-.confirm-folder-btn {
-  background-color: #4361ee;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.cancel-folder-btn {
-  background-color: #ef4444;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.confirm-folder-btn:hover {
-  background-color: #3730a3;
-  transform: translateY(-1px);
-}
-
-.cancel-folder-btn:hover {
-  background-color: #dc2626;
-  transform: translateY(-1px);
-}
