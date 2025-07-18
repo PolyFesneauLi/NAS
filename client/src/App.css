@@ -376,49 +376,6 @@
   text-align: center;
 }
 
-/* .file-list table {
-  width: 100%;
-  border-collapse: collapse;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-} */
-
-/* 表格滚动容器 */
-.table-scroll-container {
-  max-height: calc(100vh - 300px); /* 视窗高度减去页眉、标题、控制栏等高度 */
-  overflow-y: auto;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.table-scroll-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.table-scroll-container::-webkit-scrollbar-track {
-  background: rgba(102, 126, 234, 0.1);
-  border-radius: 4px;
-}
-
-.table-scroll-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 4px;
-}
-
-.table-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-}
-
-/* 当表格在滚动容器内时，去掉表格的圆角和阴影 */
-.table-scroll-container table {
-  border-radius: 0;
-  box-shadow: none;
-  margin: 0;
-}
-
 .file-list th {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -438,14 +395,6 @@
   background: rgba(102, 126, 234, 0.05);
   transform: scale(1.01);
   transition: all 0.2s ease;
-}
-
-.file-list tr:nth-child(even) {
-  background: rgba(102, 126, 234, 0.02);
-}
-
-.file-list tr:nth-child(even):hover {
-  background: rgba(102, 126, 234, 0.08);
 }
 
 .action-buttons {
