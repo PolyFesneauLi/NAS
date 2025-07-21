@@ -7,9 +7,11 @@ echo      NAS System Startup
 echo =====================================
 echo.
 
+setlocal enabledelayedexpansion
+
 REM Get script directory and project root
 set "SCRIPT_DIR=%~dp0"  
-set "PROJECT_ROOT=%SCRIPT_DIR%.." ::this is scripts/..
+set "PROJECT_ROOT=%SCRIPT_DIR%.."
 
 echo Script directory: %SCRIPT_DIR%
 echo Project root: %PROJECT_ROOT%
@@ -21,10 +23,40 @@ cd /d "%PROJECT_ROOT%"
 echo Changed to project root: %CD%
 echo.
 
+REM Check npm dependencies - 修复路径问题
+echo [0/4] Checking npm dependencies...
+
+echo ========================
+echo Installing SERVER dependencies
+echo ========================
+cd server
+call npm install --silent
+if %errorlevel% neq 0 (
+    echo [ERROR] Server dependencies installation failed
+    pause
+    exit /b 1
+)
+cd ..
+
+echo ========================
+echo Installing CLIENT dependencies
+echo ========================
+cd client
+call npm install --silent
+if %errorlevel% neq 0 (
+    echo [ERROR] Client dependencies installation failed
+    pause
+    exit /b 1
+)
+cd ..
+
+echo [OK] Npm dependencies installed
+echo.
+
 REM Check if programs are already running
 echo [1/4] Checking program status...
 netstat -an | findstr ":5000" >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [OK] Server already running (port 5000)
     set SERVER_RUNNING=1
 ) else (
@@ -33,7 +65,7 @@ if %errorlevel% equ 0 (
 )
 
 netstat -an | findstr ":3000" >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [OK] Client already running (port 3000)
     set CLIENT_RUNNING=1
 ) else (
@@ -42,7 +74,7 @@ if %errorlevel% equ 0 (
 )
 
 REM If programs are already running, just open browser
-if %SERVER_RUNNING% equ 1 if %CLIENT_RUNNING% equ 1 (
+if !SERVER_RUNNING! equ 1 if !CLIENT_RUNNING! equ 1 (
     echo.
     echo =====================================
     echo        Program Already Running
@@ -57,13 +89,13 @@ if %SERVER_RUNNING% equ 1 if %CLIENT_RUNNING% equ 1 (
 )
 
 REM If partially running, stop all services first
-if %SERVER_RUNNING% equ 1 (
+if !SERVER_RUNNING! equ 1 (
     echo Stopping existing server...
     taskkill /f /im node.exe >nul 2>&1
     timeout /t 2 /nobreak >nul
 )
 
-if %CLIENT_RUNNING% equ 1 (
+if !CLIENT_RUNNING! equ 1 (
     echo Stopping existing client...
     taskkill /f /im node.exe >nul 2>&1
     timeout /t 2 /nobreak >nul
@@ -104,10 +136,10 @@ set CLIENT_PORT=3000
 
 :check_server_port
 netstat -an | findstr ":%SERVER_PORT%" >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo Port %SERVER_PORT% is occupied, trying next port...
     set /a SERVER_PORT+=1
-    if %SERVER_PORT% gtr 5010 (
+    if !SERVER_PORT! gtr 5010 (
         echo [ERROR] Cannot find available port
         pause
         exit /b 1
@@ -119,10 +151,10 @@ if %errorlevel% equ 0 (
 
 :check_client_port
 netstat -an | findstr ":%CLIENT_PORT%" >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo Port %CLIENT_PORT% is occupied, trying next port...
     set /a CLIENT_PORT+=1
-    if %CLIENT_PORT% gtr 3010 (
+    if !CLIENT_PORT! gtr 3010 (
         echo [ERROR] Cannot find available port
         pause
         exit /b 1
@@ -132,20 +164,27 @@ if %errorlevel% equ 0 (
     echo [OK] Client using port: %CLIENT_PORT%
 )
 
+REM Update .env with actual server port
+echo Updating .env with port %SERVER_PORT%...
+> .env (
+    echo MONGODB_URI=mongodb://localhost:27017/nas_system
+    echo JWT_SECRET=your-secret-key-change-this
+    echo PORT=%SERVER_PORT%
+)
+
+REM [4/4] Starting services in parallel
+echo [4/4] Starting services...
+echo.
+
 REM Start server
-echo [4/4] Starting server...
-cd server
+pushd server
 set PORT=%SERVER_PORT%
-start "NAS Server" cmd /c "node server.js %SERVER_PORT%"
-cd ..
+start "NAS Server" cmd /c "node server.js"
+popd
 
-REM Wait for server to start
-echo Waiting for server to start...
-timeout /t 8 /nobreak >nul
-
-REM Start client
-echo Starting client...
-cd client
+REM Start client with minimal delay
+timeout /t 1 /nobreak >nul
+pushd client
 set PORT=%CLIENT_PORT%
 set BROWSER=none
 set REACT_APP_SERVER_PORT=%SERVER_PORT%
@@ -156,11 +195,44 @@ echo REACT_APP_SERVER_PORT=%SERVER_PORT% > .env.local
 echo REACT_APP_CLIENT_PORT=%CLIENT_PORT% >> .env.local
 
 start "NAS Client" cmd /c "npm start"
-cd ..
+popd
 
-REM Wait for client to start
-echo Waiting for client to start...
-timeout /t 12 /nobreak >nul
+echo Services starting in background...
+echo Server running at: http://localhost:%SERVER_PORT%
+echo Client running at: http://localhost:%CLIENT_PORT%
+echo.
+
+REM Wait for services to become available
+echo Waiting for services to become ready...
+set max_attempts=20
+set attempts=0
+
+:check_services
+set /a attempts+=1
+
+netstat -an | findstr ":%SERVER_PORT%" | findstr "LISTENING" >nul
+set server_up=!errorlevel!
+
+netstat -an | findstr ":%CLIENT_PORT%" | findstr "LISTENING" >nul
+set client_up=!errorlevel!
+
+if !server_up! equ 0 if !client_up! equ 0 (
+    goto services_ready
+)
+
+if !attempts! geq !max_attempts! (
+    echo [ERROR] Services did not start within !max_attempts! seconds
+    echo Check server and client windows for details
+    pause
+    exit /b 1
+)
+
+timeout /t 1 /nobreak >nul
+goto check_services
+
+:services_ready
+echo [OK] All services are running
+echo.
 
 REM Open browser
 echo Opening web interface...
@@ -186,4 +258,5 @@ echo CLIENT_PORT=%CLIENT_PORT% >> .ports
 REM Create port info file for frontend
 echo {"serverPort": %SERVER_PORT%, "clientPort": %CLIENT_PORT%} > .port-config.json
 
-timeout /t 3 /nobreak >nul 
+echo Press any key to close this window...
+pause >nul
