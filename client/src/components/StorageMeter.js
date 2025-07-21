@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatBytes } from '../utils';
 
-const StorageMeter = ({ used = 0, total = 1024 * 1024 * 1024 }) => {
+const StorageMeter = ({ used = 0, total = 1024 * 1024 * 500 }) => {
   const percentage = Math.round((used / total) * 100);
   return (
     <div className="storage-meter">

@@ -114,7 +114,8 @@ export const getCurrentUser = async () => {
     ...response.data,
     storageUsage: response.data.storageUsage || {
       used: 0,
-      quota: 1024 * 1024 * 1024
+      quota: 1024 * 1024 * 1024*20 // 20G
+      
     }
   };
 };
