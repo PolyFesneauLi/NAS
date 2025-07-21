@@ -60,17 +60,19 @@ const AuthForm = ({ type, onSuccess }) => {
           });
         }
         else if (response.user.status === 'approved') {
-          return (
-            <div className="auth-form">
-              <div className="registration-pending">
-                <h2>最高管理员注册成功</h2>
-                <p>请登录使用</p>
-                <button onClick={() => navigate('/login')} className="btn">
-                  返回登录
-                </button>
-              </div>
-            </div>
-          );
+          onSuccess(response.token, response.user);
+          navigate('/dashboard');
+          // return (
+          //   <div className="auth-form">
+          //     <div className="registration-pending">
+          //       <h2>最高管理员注册成功</h2>
+          //       <p>请登录使用</p>
+          //       <button onClick={() => navigate('/login')} className="btn">
+          //         返回登录
+          //       </button>
+          //     </div>
+          //   </div>
+          // );
         }
       }
     } catch (err) {
