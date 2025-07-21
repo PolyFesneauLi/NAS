@@ -191,8 +191,9 @@ set REACT_APP_CLIENT_PORT=%CLIENT_PORT%
 REM Create temporary environment file
 echo REACT_APP_SERVER_PORT=%SERVER_PORT% > .env.local
 echo REACT_APP_CLIENT_PORT=%CLIENT_PORT% >> .env.local
+echo REACT_APP_API_URL=http://localhost:%SERVER_PORT%/api >> .env.local
 
-start "NAS Client" cmd /c "npm start"
+start "NAS Client" cmd /c "set REACT_APP_SERVER_PORT=%SERVER_PORT% && set REACT_APP_API_URL=http://localhost:%SERVER_PORT%/api && set PORT=%CLIENT_PORT% && npm start"
 popd
 
 echo Services starting in background...
