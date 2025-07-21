@@ -13,6 +13,7 @@ const AuthForm = ({ type, onSuccess }) => {
   const [registrationStatus, setRegistrationStatus] = useState(null);
   const navigate = useNavigate();
 
+  // 处理输入变化的模块函数
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -22,6 +23,7 @@ const AuthForm = ({ type, onSuccess }) => {
     setError('');
   };
 
+  // 处理表单提交
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -56,10 +58,19 @@ const AuthForm = ({ type, onSuccess }) => {
             password: '',
             confirmPassword: ''
           });
-        } else if (response.user.status === 'approved') {
-          // console.log('用户状态为approved，跳转到仪表板'); // 添加调试日志
-      onSuccess(response.token, response.user);
-      navigate('/dashboard');
+        }
+        else if (response.user.status === 'approved') {
+          return (
+            <div className="auth-form">
+              <div className="registration-pending">
+                <h2>最高管理员注册成功</h2>
+                <p>请登录使用</p>
+                <button onClick={() => navigate('/login')} className="btn">
+                  返回登录
+                </button>
+              </div>
+            </div>
+          );
         }
       }
     } catch (err) {
@@ -86,6 +97,21 @@ const AuthForm = ({ type, onSuccess }) => {
       </div>
     );
   }
+
+  // 最高管理员注册成功
+  // if (type === 'register' && formData.username === 'admin' && formData.password == formData.confirmPassword) {
+  //   return (
+  //     <div className="auth-form">
+  //       <div className="registration-pending">
+  //         <h2>最高管理员注册成功</h2>
+  //         <p>请登录使用</p>
+  //         <button onClick={() => navigate('/login')} className="btn">
+  //           返回登录
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="auth-form">

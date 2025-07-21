@@ -80,6 +80,12 @@ curl -X DELETE http://localhost:5000/api/files/all ^
      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NmUzNDY3ZmQ4YTBkNjA4YzJjZTg4NCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1MjA1Nzc1MywiZXhwIjoxNzUyMDYxMzUzfQ.L1trXwIVPbTkBDNULuPRq3pcjlERuvg90HAgSOTwHgU"
 
 
+9 获取当前用户信息
+   curl -X GET http://localhost:5000/api/users/me ^
+     -H "Auhoization: Bearer <你的token>"
+  
+
+
 
 现在完成这个操作   ：1. 新用户注册输入用户名 密码    确认密码后必须让管理员同意  管理员能看到所有历史注册请求  并且 能够进行拒绝或同意   2.第一个注册的是最高级管理员prime admin； admin管理员能看见所有用户 并能删除用户或者更改normal用户权限   最高级管理员能删改包括admin normal在内的用户的账号和用户权限 3. prime和admin管理员能在前端跳转到“团队成员”页面看见用户列表和注册时间 用户权限等信息的表格   不要改前端的配色     一步步来   先完成第一步
 

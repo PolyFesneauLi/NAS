@@ -167,8 +167,6 @@ if !errorlevel! equ 0 (
 REM Update .env with actual server port
 echo Updating .env with port %SERVER_PORT%...
 > .env (
-    echo MONGODB_URI=mongodb://localhost:27017/nas_system
-    echo JWT_SECRET=your-secret-key-change-this
     echo PORT=%SERVER_PORT%
 )
 
@@ -179,7 +177,7 @@ echo.
 REM Start server
 pushd server
 set PORT=%SERVER_PORT%
-start "NAS Server" cmd /c "node server.js"
+start "NAS Server" cmd /c "npm start"
 popd
 
 REM Start client with minimal delay

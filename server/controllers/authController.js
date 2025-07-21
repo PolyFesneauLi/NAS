@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
     // 设置用户角色和状态：第一个用户是admin且直接approved，其他都是normal且需要审核
     const userRole = userCount === 0 ? 'admin' : 'normal';
     const userStatus = userCount === 0 ? 'approved' : 'pending';
-    // console.log(`创建用户 ${username}, 用户总数: ${userCount}, 设置角色为: ${userRole}, 状态为: ${userStatus}`);
+    console.log(`创建用户 ${username}, 用户总数: ${userCount}, 设置角色为: ${userRole}, 状态为: ${userStatus}`);
 
     // 创建新用户
     const user = new User({
