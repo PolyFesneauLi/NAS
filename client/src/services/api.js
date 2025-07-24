@@ -80,7 +80,7 @@ export const downloadFile = async (id) => {
   const token = api.defaults.headers.common['Authorization'];
   
   const response = await api.get(`/files/download/${id}`, {
-    responseType: 'arraybuffer',  // 确保接收二进制数据
+    responseType: 'blob',  // 使用blob而不是arraybuffer，更适合大文件
     headers: {
       'Accept': 'application/octet-stream',  // 告诉服务器我们要二进制数据
       'Authorization': token  // 添加认证令牌
@@ -115,7 +115,7 @@ export const getCurrentUser = async () => {
     ...response.data,
     storageUsage: response.data.storageUsage || {
       used: 0,
-      quota: 1024 * 1024 * 1024*20 // 20G
+      quota: 1024 * 1024 * 1024*500 // 500G
       
     }
   };
@@ -154,6 +154,12 @@ export const deleteUser = async (userId) => {
 // 修改用户权限
 export const changeUserRole = async (userId, newRole) => {
   const response = await api.put(`/users/${userId}/role`, { role: newRole });
+  return response.data;
+};
+
+// 获取所有admin用户的存储使用情况总和
+export const getAdminStorageUsage = async () => {
+  const response = await api.get('/users/admin-storage');
   return response.data;
 };
 

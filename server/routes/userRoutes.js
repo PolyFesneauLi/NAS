@@ -36,4 +36,7 @@ router.delete('/all-force', userController.deleteAllUsers);
 // 重置当前用户已用空间为0
 router.post('/reset-used', auth.authenticate, userController.resetUsedStorage);
 
+// 获取所有admin用户的存储使用情况总和
+router.get('/admin-storage', auth.authenticate, auth.requireRole('admin'), userController.getAdminStorageUsage);
+
 module.exports = router;

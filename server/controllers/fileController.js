@@ -66,7 +66,7 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     // console.log('[SERVER] 目标文件夹ID:', folderId || 'home');
     
     // 检查存储空间
-    if (user.usedStorage + fileSize > user.storageQuota) {
+    if (user.usedStorage + fileSize > (user.storageQuota||config.DEFAULT_STORAGE_QUOTA)) {
       // console.log('[SERVER] 错误: 存储空间不足');
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: '存储空间不足' });
@@ -584,8 +584,85 @@ const downloadFile = async (req, res) => {
       return res.status(404).json({ error: '文件不存在或已被删除' });
     }
 
-    res.download(file.path, file.originalName || file.filename);
+    // 获取文件信息
+    const stats = fs.statSync(file.path);
+    const fileSize = stats.size;
+    
+    // 设置较长的超时时间，特别是对大文件
+    if (fileSize > 100 * 1024 * 1024) { // 大于100MB的文件
+      req.setTimeout(30 * 60 * 1000); // 30分钟超时
+      res.setTimeout(30 * 60 * 1000); // 30分钟超时
+    } else {
+      req.setTimeout(5 * 60 * 1000); // 5分钟超时
+      res.setTimeout(5 * 60 * 1000); // 5分钟超时
+    }
+    const fileName = file.originalName || file.filename;
+
+    // 设置响应头
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.setHeader('Content-Length', fileSize);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Connection', 'keep-alive');
+    
+    // 对于大文件，不使用chunked编码，避免问题
+    if (fileSize > 100 * 1024 * 1024) {
+      res.setHeader('Transfer-Encoding', 'identity');
+    } else {
+      res.setHeader('Transfer-Encoding', 'chunked');
+    }
+
+    // 声明stream变量
+    let stream;
+
+    // 支持断点续传
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader('Content-Length', chunksize);
+
+      stream = fs.createReadStream(file.path, { start, end, highWaterMark: 64 * 1024 }); // 64KB chunks
+    } else {
+      // 普通下载 - 使用更大的缓冲区提高大文件传输效率
+      stream = fs.createReadStream(file.path, { highWaterMark: 64 * 1024 }); // 64KB chunks
+    }
+
+    // 错误处理
+    stream.on('error', (error) => {
+      console.error('文件下载错误:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: '文件下载失败' });
+      }
+    });
+
+    // 添加进度日志（仅对大文件）
+    if (fileSize > 100 * 1024 * 1024) { // 大于100MB的文件
+      let bytesTransferred = 0;
+      stream.on('data', (chunk) => {
+        bytesTransferred += chunk.length;
+        if (bytesTransferred % (10 * 1024 * 1024) < chunk.length) { // 每10MB记录一次
+          const progress = ((bytesTransferred / fileSize) * 100).toFixed(1);
+          console.log(`文件下载进度: ${fileName} - ${progress}% (${(bytesTransferred / 1024 / 1024).toFixed(2)}MB / ${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+        }
+      });
+      
+      stream.on('end', () => {
+        console.log(`文件下载完成: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+      });
+    }
+
+    // 管道传输
+    stream.pipe(res);
+
   } catch (error) {
+    console.error('下载文件错误:', error);
     res.status(500).json({ error: error.message });
   }
 };

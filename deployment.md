@@ -83,7 +83,26 @@ curl -X DELETE http://localhost:5000/api/files/all ^
 9 获取当前用户信息
    curl -X GET http://localhost:5000/api/users/me ^
      -H "Auhoization: Bearer <你的token>"
-  
+
+
+10. 重置USERID用户的配额    和已经使用量
+curl -X PUT http://localhost:5000/api/users/quota ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" ^
+  -d "{\"quota\": 536870912000}" 
+curl -X POST http://localhost:5000/api/users/reset-used ^
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+
+curl -X PUT http://localhost:5000/api/users/quota ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization:   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NzBiYzczOGYyZWNmZjVkYzFlMDJhMCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1MzEwMDY5OSwiZXhwIjoxNzUzMTg3MDk5fQ.Yy2_7hZ-mhtT6kDG85iP5uJqfj-B-O67VWzDQvFLw48" ^
+  -d "{\"quota\": 536870912000}" 
+
+
+curl -X POST http://localhost:5000/api/users/reset-used ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NzBiYzczOGYyZWNmZjVkYzFlMDJhMCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1MzEwMDY5OSwiZXhwIjoxNzUzMTg3MDk5fQ.Yy2_7hZ-mhtT6kDG85iP5uJqfj-B-O67VWzDQvFLw48"
+
 
 
 
@@ -93,3 +112,9 @@ curl -X DELETE http://localhost:5000/api/files/all ^
 
 @FileUpload.js 对于云文件可以存成文件管理器那种文件夹分级格式 
 上传的时候可以选择上传位置 也可以新建文件夹  弹窗做成文件管理器一致的模式和格式   filelist也要改  
+
+
+
+删除文件夹的时候 本地缓存最后剩下的空文件夹也要删除
+
+zip下载不了

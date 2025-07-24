@@ -79,7 +79,7 @@ const allowedTypes = [
   'model/iges',                          // .igs, .iges
   'application/sldworks',                // SolidWorks
   
-  // 压缩包
+  // 压缩包 - 确保与前端配置一致
   'application/x-7z-compressed',         // .7z
   'application/x-rar-compressed',        // .rar
   'application/x-tar',                   // .tar
@@ -88,6 +88,8 @@ const allowedTypes = [
   'application/x-xz',                    // .xz
   'application/x-wim',                   // .wim
   'application/x-zip-compressed',        // .zip
+  'application/zip',                     // .zip (标准MIME类型)
+  'application/x-zip',                   // .zip (另一种MIME类型)
 
   //exe
   'application/x-msdownload',            // .exe
@@ -96,13 +98,12 @@ const allowedTypes = [
   'application/x-ms-windows-executable', // .exe
   'application/x-ms-windows-installer',  // .exe
   'application/x-ms-windows-package',    // .exe
-  'application/x-ms-windows-package',    // .exe
   
   // 其他常见类型
   'application/octet-stream'             // 通用二进制流
 ];
 
-// 扩展名白名单（用于双重验证）
+// 扩展名白名单（用于双重验证）- 确保与前端配置一致
 const allowedExtensions = [
   // 文档
   '.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx',
@@ -113,9 +114,9 @@ const allowedExtensions = [
   
   // 图片/CAD
   '.jpg', '.jpeg', '.png', '.svg',
-  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm',
+  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm', '.dwl',
   
-  // 压缩包
+  // 压缩包 - 与前端配置完全一致
   '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.wim', '.iso', '.exe'
 ];
 

@@ -47,15 +47,15 @@ exports.updateStorageQuota = async (req, res) => {
     }
 
     // 更新配额
-    user.storageQuota = quota;
+    user.storageQuota = quota || config.DEFAULT_STORAGE_QUOTA;
     await user.save();
 
     res.json({ 
       message: '存储配额更新成功',
       storageUsage: {
         used: user.usedStorage || 0,
-        quota: user.storageQuota,
-        percentage: Math.round(((user.usedStorage || 0) / user.storageQuota) * 100)
+        quota: user.storageQuota || config.DEFAULT_STORAGE_QUOTA,
+        percentage: Math.round(((user.usedStorage || 0) / (user.storageQuota||config.DEFAULT_STORAGE_QUOTA)) * 100)
       }
     });
   } catch (error) {
@@ -333,6 +333,40 @@ exports.rejectUser = async (req, res) => {
     await user.save();
 
     res.json({ message: '已拒绝该用户注册', user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 获取所有admin用户的存储使用情况总和
+exports.getAdminStorageUsage = async (req, res) => {
+  try {
+    // 获取所有admin用户
+    const adminUsers = await User.find({ role: 'admin' });
+    
+    // 计算所有admin用户的存储使用总和
+    const totalUsedStorage = adminUsers.reduce((total, user) => {
+      return total + (user.usedStorage || 0);
+    }, 0);
+    
+    // 计算总配额（所有admin用户的配额总和）
+    const totalQuota = config.DEFAULT_STORAGE_QUOTA;
+    
+    // 计算使用百分比
+    const percentage = totalQuota > 0 ? Math.round((totalUsedStorage / totalQuota) * 100) : 0;
+    
+    res.json({
+      totalUsedStorage,
+      totalQuota,
+      percentage,
+      adminCount: adminUsers.length,
+      adminUsers: adminUsers.map(user => ({
+        id: user._id,
+        username: user.username,
+        usedStorage: user.usedStorage || 0,
+        quota: config.DEFAULT_STORAGE_QUOTA
+      }))
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

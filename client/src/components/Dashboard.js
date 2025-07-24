@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, deleteFile, batchDeleteFiles, createFolder } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -355,6 +355,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
 
+  // 合并所有文件类型为统一的accept属性
+  const unifiedAccept = Object.values(allAcceptedExtensions)
+    .flat()
+    .join(',');
+
   // 递归构建文件夹树形结构和路径映射
   const buildFolderStructure = useCallback(async (parentId = null, level = 0, parentPath = 'Home') => {
     try {
@@ -458,11 +463,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     );
   };
 
-  // 合并所有文件类型为统一的accept属性
-  const unifiedAccept = Object.values(allAcceptedExtensions)
-    .flat()
-    .join(',');
-
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
@@ -493,12 +493,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   // 检查存储空间是否足够
   const checkStorageSpace = async (totalSize) => {
     try {
-      const response = await getCurrentUser();
-      const { used, quota } = response.storageUsage;
-      const remaining = quota - used;
+      const response = await getAdminStorageUsage();
+      const { totalUsedStorage, totalQuota } = response;
+      const remaining = totalQuota - totalUsedStorage;
+      console.log('[USED] 使用空间',totalUsedStorage);
+      console.log('[QUOTA] 总容量',totalQuota);
+      console.log('[REMAINING] 剩余空间',remaining);
       
       if (totalSize > remaining) {
-        const errorMsg = `上传失败 云端空间不足 只剩余${formatBytes(remaining)}`;
+        const errorMsg = `上传失败 云空间不足 只剩余${formatBytes(remaining)}`;
         setError(errorMsg);
         return false;
       }
@@ -1092,37 +1095,179 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const handleDownload = async (id, filename) => {
     try {
-      const response = await downloadFile(id);
-      
-      const contentDisposition = response.headers['content-disposition'];
       let downloadFilename = fixEncoding(filename);
       
+      // 先获取文件信息，检查文件大小
+      const response = await downloadFile(id);
+      
+      // 从响应头中获取文件名（如果后端设置了的话）
+      const contentDisposition = response.headers['content-disposition'];
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (filenameMatch && filenameMatch[1]) {
           downloadFilename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
+      
+      // 对于大文件（>1GB），直接使用传统下载方式，避免流式写入问题
+      if (response.data.size > 1024 * 1024 * 1024) {
+        console.log(`大文件（>1GB）使用传统下载方式: ${downloadFilename} (${(response.data.size / 1024 / 1024 / 1024).toFixed(2)}GB)`);
+        
+        // 直接使用response.data作为blob，避免重复创建
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = downloadFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        console.log(`大文件传统下载完成: ${downloadFilename}`);
+        return;
+      }
+      
+      // 检查浏览器是否支持 showSaveFilePicker API
+      if ('showSaveFilePicker' in window) {
+        try {
+          // 在用户手势事件中直接调用 showSaveFilePicker
+          const handle = await window.showSaveFilePicker({
+            suggestedName: downloadFilename,
+            types: [{
+              description: 'All Files',
+              accept: {'*/*': []}
+            }],
+          });
 
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: downloadFilename,
-          types: [{
-            description: 'All Files',
-            accept: {'*/*': []}
-          }],
-        });
+          // 文件数据已经在上面获取过了，直接使用
 
-        const writable = await handle.createWritable();
-        await writable.write(response.data);
-        await writable.close();
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          return;
+          const writable = await handle.createWritable();
+          
+          // 对于大文件，使用流式写入
+          if (response.data.size > 100 * 1024 * 1024) { // 大于100MB的文件
+            console.log(`开始下载大文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
+            
+            // 将blob转换为stream并分块写入
+            const reader = response.data.stream().getReader();
+            const writer = writable.getWriter();
+            
+            let totalBytes = 0;
+            const totalSize = response.data.size;
+            let hasError = false;
+            
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                try {
+                  await writer.write(value);
+                  totalBytes += value.length;
+                  
+                  // 每10MB显示一次进度
+                  if (totalBytes % (200 * 1024 * 1024) < value.length) {
+                    const progress = ((totalBytes / totalSize) * 100).toFixed(1);
+                    console.log(`下载进度: ${progress}% (${(totalBytes / 1024 / 1024).toFixed(2)}MB / ${(totalSize / 1024 / 1024).toFixed(2)}MB)`);
+                  }
+                } catch (writeError) {
+                  console.error('写入块时发生错误:', writeError);
+                  hasError = true;
+                  throw writeError;
+                }
+              }
+              
+              if (!hasError) {
+                console.log(`文件下载完成: ${downloadFilename} (${(totalBytes / 1024 / 1024).toFixed(2)}MB)`);
+              }
+            } catch (streamError) {
+              console.error('流式下载过程中发生错误:', streamError);
+              hasError = true;
+              throw streamError;
+            } finally {
+              try {
+                reader.releaseLock();
+                writer.releaseLock();
+              } catch (releaseError) {
+                console.error('释放锁时发生错误:', releaseError);
+              }
+            }
+            
+            if (hasError) {
+              throw new Error('文件写入过程中发生错误');
+            }
+          } else {
+            // 小文件直接写入
+            console.log(`开始下载小文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
+            try {
+              await writable.write(response.data);
+              console.log(`文件下载完成: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
+            } catch (writeError) {
+              console.error('小文件写入时发生错误:', writeError);
+              throw writeError;
+            }
+          }
+          
+          try {
+            await writable.close();
+            console.log(`文件已成功保存: ${downloadFilename}`);
+          } catch (closeError) {
+            console.error('关闭文件时发生错误:', closeError);
+            throw closeError;
+          }
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            return; // 用户取消了选择
+          }
+          console.error('现代下载方式失败，尝试传统下载方式:', err);
+          
+          // 如果现代下载方式失败，回退到传统下载方式
+          try {
+            console.log(`回退到传统下载方式: ${downloadFilename}`);
+            // 需要重新获取文件数据，因为之前的可能已经被消费了
+            const response = await downloadFile(id);
+            
+            // 从响应头中获取文件名（如果后端设置了的话）
+            const contentDisposition = response.headers['content-disposition'];
+            if (contentDisposition) {
+              const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+              if (filenameMatch && filenameMatch[1]) {
+                downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+              }
+            }
+            
+            // 直接使用response.data作为blob，避免重复创建
+            const url = window.URL.createObjectURL(response.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = downloadFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            console.log(`传统下载完成: ${downloadFilename}`);
+            return; // 成功使用传统方式下载，不再抛出错误
+          } catch (fallbackError) {
+            console.error('传统下载方式也失败:', fallbackError);
+            throw err; // 抛出原始错误
+          }
         }
-        throw err;
+      } else {
+        // 降级方案：使用传统的下载方式
+        console.log(`使用传统方式下载: ${downloadFilename}`);
+        // 文件数据已经在上面获取过了，直接使用
+        
+        // 直接使用response.data作为blob，避免重复创建
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = downloadFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        console.log(`传统下载完成: ${downloadFilename}`);
       }
     } catch (err) {
+      console.error('下载失败:', err);
       alert('下载失败: ' + (err.message || '未知错误'));
     }
   };
@@ -1459,11 +1604,7 @@ const Dashboard = () => {
           </h2>
           {isAdmin && (
             <div className="storage-info">
-              <StorageMeter 
-                used={currentUser?.storageUsage?.used || 0}
-                total={currentUser?.storageUsage?.quota || 0}
-                percentage={currentUser?.storageUsage?.percentage || 0}
-              />
+              <StorageMeter />
             </div>
           )}
         </div>

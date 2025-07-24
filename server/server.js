@@ -8,6 +8,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const userRoutes = require('./routes/userRoutes');
 const apiRoutes = require('./routes/api');
 const initRootFolder = require('./utils/initRootFolder');
+const cleanupUploads = require('./utils/cleanupUploads');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +38,8 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
 .then(async () => {
   console.log('✅ MongoDB connected');
+  // 清理孤立文件
+  cleanupUploads();
   // 初始化根目录
   await initRootFolder();
 })
