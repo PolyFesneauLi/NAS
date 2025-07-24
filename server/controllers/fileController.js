@@ -570,6 +570,71 @@ const getUserFiles = async (req, res) => {
 };
 
 // 下载文件
+// 检查文件状态
+const checkFileStatus = async (req, res) => {
+  try {
+    const file = await File.findById(req.params.id);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 检查文件是否存在于文件系统
+    if (!file.path || !fs.existsSync(file.path)) {
+      return res.status(404).json({ 
+        status: 'error',
+        message: '文件不存在或已被删除' 
+      });
+    }
+
+    // 检查文件大小
+    const stats = fs.statSync(file.path);
+    const fileSize = stats.size;
+
+    // 检查文件是否完整（大小是否匹配）
+    if (fileSize !== file.size) {
+      return res.status(200).json({ 
+        status: 'processing',
+        message: '文件正在处理中...',
+        currentSize: fileSize,
+        expectedSize: file.size
+      });
+    }
+
+    // 检查文件是否可读
+    try {
+      const testStream = fs.createReadStream(file.path, { start: 0, end: 0 });
+      testStream.on('error', () => {
+        return res.status(200).json({ 
+          status: 'processing',
+          message: '文件正在处理中...'
+        });
+      });
+      testStream.on('data', () => {
+        testStream.destroy();
+      });
+    } catch (error) {
+      return res.status(200).json({ 
+        status: 'processing',
+        message: '文件正在处理中...'
+      });
+    }
+
+    // 文件状态正常
+    return res.status(200).json({ 
+      status: 'ready',
+      message: '文件已准备就绪',
+      size: fileSize
+    });
+
+  } catch (error) {
+    console.error('检查文件状态错误:', error);
+    return res.status(500).json({ 
+      status: 'error',
+      message: '检查文件状态时发生错误' 
+    });
+  }
+};
+
 const downloadFile = async (req, res) => {
   try {
     const file = await File.findById(req.params.id);
@@ -605,13 +670,7 @@ const downloadFile = async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Connection', 'keep-alive');
-    
-    // 对于大文件，不使用chunked编码，避免问题
-    if (fileSize > 100 * 1024 * 1024) {
-      res.setHeader('Transfer-Encoding', 'identity');
-    } else {
-      res.setHeader('Transfer-Encoding', 'chunked');
-    }
+    // 移除 Transfer-Encoding: chunked，因为我们已经设置了 Content-Length
 
     // 声明stream变量
     let stream;
@@ -703,6 +762,7 @@ module.exports = {
   uploadCadFile,
   getUserFiles,
   downloadFile,
+  checkFileStatus,
   deleteFile,
   deleteAllFiles,
   batchDeleteFiles,

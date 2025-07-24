@@ -3,6 +3,7 @@ import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, 
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
+import response from '../services/api';
 
 // 修复编码问题的工具函数
 const fixEncoding = (str) => {
@@ -158,7 +159,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await downloadFile(file._id);
+      const response = await downloadFile(file._id, null); // 预览不需要进度回调
       const previewType = getPreviewType(file.originalName || file.filename);
       
       if (previewType === 'image') {
@@ -736,6 +737,67 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [folderName, setFolderName] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({});
+  const [downloadingFiles, setDownloadingFiles] = useState(new Set());
+  const [parsingProgress, setParsingProgress] = useState({});
+  const [parsingFiles, setParsingFiles] = useState(new Set());
+
+  // 解析进度动画函数
+  const startParsingProgress = async (fileId, closePromise) => {
+    const parsingSteps = 48; // 48步到80%
+    const baseDelay = 150; // 基础延迟时间
+    
+    // 第一阶段：平滑进度到80%
+    for (let i = 1; i <= parsingSteps; i++) {
+      const delay = baseDelay + Math.random() * 100; // 150-250ms随机延迟
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      const progress = Math.round((i / parsingSteps) * 80); // 只到80%
+      setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
+      
+      // 在关键节点添加一些变化，让用户感受到系统在工作
+      if (i % 8 === 0) {
+        console.log(`解析进度: ${progress}% - 正在处理文件...`);
+      }
+    }
+    
+    // 第二阶段：等待文件写入完成（writable.close()）
+    console.log(`解析进度: 80% - 等待文件写入完成...`);
+    
+    // 等待真正的 writable.close() 完成
+    if (closePromise) {
+      await closePromise;
+      console.log(`writable.close() 已完成`);
+    }
+    
+    // 最后20%快速完成
+    for (let i = 1; i <= 10; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const progress = 80 + Math.round((i / 10) * 20); // 80%到100%
+      setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
+    }
+    
+    console.log(`解析完成: 100% - 文件写入完成`);
+    
+    // 重置登录倒计时 - 在解析完成后
+    if (window.resetIdleTimer) {
+      window.resetIdleTimer();
+    }
+    
+    // 解析完成后延迟清除状态
+    setTimeout(() => {
+      setParsingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileId);
+        return newSet;
+      });
+      setParsingProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[fileId];
+        return newProgress;
+      });
+    }, 1000);
+  };
 
   const refreshFiles = async () => {
     try {
@@ -1097,34 +1159,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     try {
       let downloadFilename = fixEncoding(filename);
       
-      // 先获取文件信息，检查文件大小
-      const response = await downloadFile(id);
-      
-      // 从响应头中获取文件名（如果后端设置了的话）
-      const contentDisposition = response.headers['content-disposition'];
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          downloadFilename = filenameMatch[1].replace(/['"]/g, '');
-        }
-      }
-      
-      // 对于大文件（>1GB），直接使用传统下载方式，避免流式写入问题
-      if (response.data.size > 1024 * 1024 * 1024) {
-        console.log(`大文件（>1GB）使用传统下载方式: ${downloadFilename} (${(response.data.size / 1024 / 1024 / 1024).toFixed(2)}GB)`);
-        
-        // 直接使用response.data作为blob，避免重复创建
-        const url = window.URL.createObjectURL(response.data);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = downloadFilename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        console.log(`大文件传统下载完成: ${downloadFilename}`);
-        return;
-      }
+      // 设置下载状态
+      setDownloadingFiles(prev => new Set(prev).add(id));
+      setDownloadProgress(prev => ({ ...prev, [id]: 0 }));
       
       // 检查浏览器是否支持 showSaveFilePicker API
       if ('showSaveFilePicker' in window) {
@@ -1138,122 +1175,143 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             }],
           });
 
-          // 文件数据已经在上面获取过了，直接使用
+          // 获取文件数据，带进度回调
+          const response = await downloadFile(id, (progress, loaded, total) => {
+            setDownloadProgress(prev => ({ ...prev, [id]: progress }));
+            console.log(`下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
+            
+            // 当下载达到100%时，立即切换到解析阶段
+            if (progress === 100) {
+              // 立即切换到解析阶段，不等待
+              setDownloadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(id);
+                return newSet;
+              });
+              setDownloadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[id];
+                return newProgress;
+              });
+              
+              // 设置解析状态并立即开始进度
+              setParsingFiles(prev => new Set(prev).add(id));
+              setParsingProgress(prev => ({ ...prev, [id]: 0 }));
+              
+              // 立即开始解析进度动画，传递一个立即完成的 Promise
+              startParsingProgress(id, Promise.resolve());
+            }
+          });
+          
+          // 从响应头中获取文件名（如果后端设置了的话）
+          const contentDisposition = response.headers['content-disposition'];
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+              downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+            }
+          }
 
           const writable = await handle.createWritable();
           
-          // 对于大文件，使用流式写入
-          if (response.data.size > 100 * 1024 * 1024) { // 大于100MB的文件
-            console.log(`开始下载大文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
-            
-            // 将blob转换为stream并分块写入
-            const reader = response.data.stream().getReader();
-            const writer = writable.getWriter();
-            
-            let totalBytes = 0;
-            const totalSize = response.data.size;
-            let hasError = false;
-            
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                try {
-                  await writer.write(value);
-                  totalBytes += value.length;
-                  
-                  // 每10MB显示一次进度
-                  if (totalBytes % (200 * 1024 * 1024) < value.length) {
-                    const progress = ((totalBytes / totalSize) * 100).toFixed(1);
-                    console.log(`下载进度: ${progress}% (${(totalBytes / 1024 / 1024).toFixed(2)}MB / ${(totalSize / 1024 / 1024).toFixed(2)}MB)`);
-                  }
-                } catch (writeError) {
-                  console.error('写入块时发生错误:', writeError);
-                  hasError = true;
-                  throw writeError;
-                }
-              }
-              
-              if (!hasError) {
-                console.log(`文件下载完成: ${downloadFilename} (${(totalBytes / 1024 / 1024).toFixed(2)}MB)`);
-              }
-            } catch (streamError) {
-              console.error('流式下载过程中发生错误:', streamError);
-              hasError = true;
-              throw streamError;
-            } finally {
-              try {
-                reader.releaseLock();
-                writer.releaseLock();
-              } catch (releaseError) {
-                console.error('释放锁时发生错误:', releaseError);
-              }
-            }
-            
-            if (hasError) {
-              throw new Error('文件写入过程中发生错误');
-            }
-          } else {
-            // 小文件直接写入
-            console.log(`开始下载小文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
-            try {
-              await writable.write(response.data);
-              console.log(`文件下载完成: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
-            } catch (writeError) {
-              console.error('小文件写入时发生错误:', writeError);
-              throw writeError;
-            }
+          // 统一处理文件写入，无论大小
+          console.log(`开始下载文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
+          
+          // 验证blob数据完整性
+          if (!response.data || response.data.size === 0) {
+            throw new Error('下载的文件数据为空');
           }
           
-          try {
-            await writable.close();
-            console.log(`文件已成功保存: ${downloadFilename}`);
-          } catch (closeError) {
-            console.error('关闭文件时发生错误:', closeError);
-            throw closeError;
-          }
+          // 直接写入文件，进度已经在下载阶段处理
+          await writable.write(response.data);
+          
+          // 创建 close Promise，但不立即等待
+          const closePromise = writable.close();
+          
+          // 立即开始解析进度动画，传递 close Promise
+          startParsingProgress(id, closePromise);
+          
+          // 等待 close 完成
+          await closePromise;
+          console.log(`文件写入完成: ${downloadFilename}`);
+          
+          console.log(`文件已保存到用户选择的位置: ${downloadFilename}`);
+          
         } catch (err) {
           if (err.name === 'AbortError') {
             return; // 用户取消了选择
           }
-          console.error('现代下载方式失败，尝试传统下载方式:', err);
-          
-          // 如果现代下载方式失败，回退到传统下载方式
-          try {
-            console.log(`回退到传统下载方式: ${downloadFilename}`);
-            // 需要重新获取文件数据，因为之前的可能已经被消费了
-            const response = await downloadFile(id);
-            
-            // 从响应头中获取文件名（如果后端设置了的话）
-            const contentDisposition = response.headers['content-disposition'];
-            if (contentDisposition) {
-              const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-              if (filenameMatch && filenameMatch[1]) {
-                downloadFilename = filenameMatch[1].replace(/['"]/g, '');
-              }
-            }
-            
-            // 直接使用response.data作为blob，避免重复创建
-            const url = window.URL.createObjectURL(response.data);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = downloadFilename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-            console.log(`传统下载完成: ${downloadFilename}`);
-            return; // 成功使用传统方式下载，不再抛出错误
-          } catch (fallbackError) {
-            console.error('传统下载方式也失败:', fallbackError);
-            throw err; // 抛出原始错误
-          }
+          console.error('下载过程中发生错误:', err);
+          console.error('错误详情:', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack,
+            fileSize: response.data?.size,
+            fileName: downloadFilename
+          });
+          throw err;
+        } finally {
+          // 确保在出错时也清除下载状态
+          setDownloadingFiles(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+          });
+          setDownloadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[id];
+            return newProgress;
+          });
+          // 确保在出错时也清除解析状态
+          setParsingFiles(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+          });
+          setParsingProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[id];
+            return newProgress;
+          });
         }
       } else {
         // 降级方案：使用传统的下载方式
         console.log(`使用传统方式下载: ${downloadFilename}`);
-        // 文件数据已经在上面获取过了，直接使用
+        const response = await downloadFile(id, (progress, loaded, total) => {
+          setDownloadProgress(prev => ({ ...prev, [id]: progress }));
+          console.log(`传统下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
+          
+          // 当下载达到100%时，立即切换到解析阶段
+          if (progress === 100) {
+            // 立即切换到解析阶段
+            setDownloadingFiles(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(id);
+              return newSet;
+            });
+            setDownloadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[id];
+              return newProgress;
+            });
+            
+            // 设置解析状态并立即开始进度
+            setParsingFiles(prev => new Set(prev).add(id));
+            setParsingProgress(prev => ({ ...prev, [id]: 0 }));
+            
+            // 立即开始解析进度动画，传递一个立即完成的 Promise
+            startParsingProgress(id, Promise.resolve());
+          }
+        });
+        
+        // 从响应头中获取文件名（如果后端设置了的话）
+        const contentDisposition = response.headers['content-disposition'];
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch && filenameMatch[1]) {
+            downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+          }
+        }
         
         // 直接使用response.data作为blob，避免重复创建
         const url = window.URL.createObjectURL(response.data);
@@ -1265,10 +1323,36 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
         console.log(`传统下载完成: ${downloadFilename}`);
+        
+        // 解析进度已经在startParsingProgress函数中处理
+        
+        // 解析状态会在startParsingProgress中自动清除
       }
     } catch (err) {
       console.error('下载失败:', err);
       alert('下载失败: ' + (err.message || '未知错误'));
+      
+      // 清除下载和解析状态
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+      setDownloadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[id];
+        return newProgress;
+      });
+      setParsingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+      setParsingProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[id];
+        return newProgress;
+      });
     }
   };
 
@@ -1517,12 +1601,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               预览
                             </button>
                           )}
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                        >
-                          下载
-                        </button>
+                        {downloadingFiles.has(file._id) ? (
+                          <div className="download-progress-container">
+                            <div className="download-progress-bar">
+                              <div 
+                                className="download-progress-fill"
+                                style={{ width: `${downloadProgress[file._id] || 0}%` }}
+                              ></div>
+                            </div>
+                            <span className="download-progress-text">
+                              {downloadProgress[file._id] || 0}%
+                            </span>
+                          </div>
+                        ) : parsingFiles.has(file._id) ? (
+                          <div className="download-progress-container">
+                            <div className="download-progress-bar">
+                              <div 
+                                className="download-progress-fill parsing"
+                                style={{ width: `${parsingProgress[file._id] || 0}%` }}
+                              ></div>
+                            </div>
+                            <span className="download-progress-text">
+                              {parsingProgress[file._id] || 0}%
+                            </span>
+                            <span className="parsing-text">解析中</span>
+                          </div>
+                        ) : (
+                          <button 
+                            className="btn btn-primary"
+                            onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                          >
+                            下载
+                          </button>
+                        )}
                         </>
                       )}
                       {userRole === 'admin' && (

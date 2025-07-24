@@ -26,6 +26,9 @@ router.get('/', auth.authenticate, fileController.getUserFiles);
 // 下载文件
 router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 
+// 检查文件状态
+router.get('/check/:id', auth.authenticate, fileController.checkFileStatus);
+
 // 删除所有云端文件（仅 admin）
 router.delete('/all', auth.authenticate, auth.requireRole('admin'), fileController.deleteAllFiles);
 // 删除单个文件

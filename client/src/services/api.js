@@ -75,15 +75,22 @@ export const getUserFiles = async (params = {}) => {
   return response.data;
 };
 
-export const downloadFile = async (id) => {
+export const downloadFile = async (id, onProgress) => {
   // 获取当前的认证令牌
   const token = api.defaults.headers.common['Authorization'];
   
   const response = await api.get(`/files/download/${id}`, {
     responseType: 'blob',  // 使用blob而不是arraybuffer，更适合大文件
+    timeout: 30 * 60 * 1000, // 30分钟超时，适合大文件下载
     headers: {
       'Accept': 'application/octet-stream',  // 告诉服务器我们要二进制数据
       'Authorization': token  // 添加认证令牌
+    },
+    onDownloadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted, progressEvent.loaded, progressEvent.total);
+      }
     }
   });
   return response;
