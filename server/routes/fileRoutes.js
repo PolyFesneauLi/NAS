@@ -29,8 +29,7 @@ router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 // 下载文件夹
 router.get('/download-folder/:id', auth.authenticate, fileController.downloadFolder);
 
-// 批量下载文件和文件夹
-router.post('/batch-download', auth.authenticate, fileController.batchDownload);
+
 
 // 检查文件状态
 router.get('/check/:id', auth.authenticate, fileController.checkFileStatus);

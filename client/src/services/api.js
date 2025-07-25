@@ -117,27 +117,7 @@ export const downloadFolder = async (id, onProgress) => {
   return response;
 };
 
-// 批量下载文件和文件夹
-export const batchDownload = async (items, onProgress) => {
-  // 获取当前的认证令牌
-  const token = api.defaults.headers.common['Authorization'];
-  
-  const response = await api.post('/files/batch-download', {
-    items: items // 包含文件和文件夹的数组，每个项目包含 {id, type, name}
-  }, {
-    timeout: 30 * 60 * 1000, // 30分钟超时，适合大文件下载
-    headers: {
-      'Authorization': token  // 添加认证令牌
-    },
-    onDownloadProgress: (progressEvent) => {
-      if (onProgress && progressEvent.total) {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        onProgress(percentCompleted, progressEvent.loaded, progressEvent.total);
-      }
-    }
-  });
-  return response;
-};
+
 
 export const deleteFile = async (id) => {
   const response = await api.delete(`/files/${id}`);

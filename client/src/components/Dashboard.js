@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, downloadFolder, batchDownload, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -1606,13 +1606,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       // 获取选中的文件和文件夹信息
       const selectedItems = files.filter(file => selectedIds.includes(file._id));
       
-      // 准备批量下载的数据
-      const downloadItems = selectedItems.map(file => ({
-        id: file._id,
-        type: file.isFolder ? 'folder' : 'file',
-        name: file.originalName || file.filename
-      }));
-
       // 设置下载状态
       setDownloadingFiles(prev => new Set([...prev, ...selectedIds]));
       setDownloadProgress(prev => {
@@ -1623,153 +1616,20 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         return newProgress;
       });
       
-      // 获取批量下载数据
-      const response = await batchDownload(downloadItems, (progress, loaded, total) => {
-        // 为所有选中的项目设置相同的进度
-        setDownloadProgress(prev => {
-          const newProgress = { ...prev };
-          selectedIds.forEach(id => {
-            newProgress[id] = progress;
-          });
-          return newProgress;
-        });
-        console.log(`批量下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
-      });
-
-      // 检查响应类型
-      if (response.data.type === 'files_only') {
-        // 只有文件，逐个下载
-        console.log('检测到只有文件，开始逐个下载');
-        
-        for (let i = 0; i < response.data.files.length; i++) {
-          const file = response.data.files[i];
-          
-          try {
-            // 使用单个文件下载API
-            const fileResponse = await downloadFile(file.id, (progress, loaded, total) => {
-              setDownloadProgress(prev => ({ ...prev, [file.id]: progress }));
-            });
-            
-            // 检查浏览器是否支持 showSaveFilePicker API
-            if ('showSaveFilePicker' in window) {
-              const handle = await window.showSaveFilePicker({
-                suggestedName: file.name,
-                types: [{
-                  description: 'All Files',
-                  accept: {'*/*': []}
-                }],
-              });
-
-              const writable = await handle.createWritable();
-              await writable.write(fileResponse.data);
-              await writable.close();
-              
-              console.log(`文件下载完成: ${file.name}`);
-            } else {
-              // 传统下载方式
-              const url = window.URL.createObjectURL(fileResponse.data);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = file.name;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
-              
-              console.log(`文件下载完成: ${file.name}`);
-            }
-            
-            // 更新进度
-            setDownloadProgress(prev => ({ ...prev, [file.id]: 100 }));
-            
-          } catch (err) {
-            console.error(`下载文件失败: ${file.name}`, err);
-            alert(`下载文件失败: ${file.name}`);
+      // 逐个处理选中的项目
+      for (const file of selectedItems) {
+        try {
+          if (file.isFolder) {
+            // 文件夹：调用文件夹下载函数
+            await handleDownloadFolder(file._id, file.originalName || file.filename);
+          } else {
+            // 文件：调用文件下载函数
+            await handleDownload(file._id, file.originalName || file.filename);
           }
+        } catch (err) {
+          console.error(`下载失败: ${file.originalName || file.filename}`, err);
+          alert(`下载失败: ${file.originalName || file.filename}`);
         }
-        
-        // 清除下载状态
-        setTimeout(() => {
-          setDownloadingFiles(prev => {
-            const newSet = new Set(prev);
-            selectedIds.forEach(id => newSet.delete(id));
-            return newSet;
-          });
-          setDownloadProgress(prev => {
-            const newProgress = { ...prev };
-            selectedIds.forEach(id => {
-              delete newProgress[id];
-            });
-            return newProgress;
-          });
-        }, 1000);
-        
-      } else {
-        // 有文件夹，下载ZIP包
-        console.log('检测到包含文件夹，下载ZIP包');
-        
-        // 生成下载文件名
-        const timestamp = Date.now();
-        let downloadFilename = `batch_download_${timestamp}.zip`;
-        
-        // 如果只选择了一个项目，使用项目名称
-        if (selectedItems.length === 1) {
-          const item = selectedItems[0];
-          downloadFilename = `${fixEncoding(item.originalName || item.filename)}_${timestamp}.zip`;
-        }
-        
-        // 检查浏览器是否支持 showSaveFilePicker API
-        if ('showSaveFilePicker' in window) {
-          try {
-            const handle = await window.showSaveFilePicker({
-              suggestedName: downloadFilename,
-              types: [{
-                description: 'ZIP Files',
-                accept: {'application/zip': ['.zip']}
-              }],
-            });
-
-            const writable = await handle.createWritable();
-            await writable.write(response.data);
-            await writable.close();
-            
-            console.log(`批量下载ZIP完成: ${downloadFilename}`);
-            
-          } catch (err) {
-            if (err.name === 'AbortError') {
-              return; // 用户取消了选择
-            }
-            throw err;
-          }
-        } else {
-          // 传统下载方式
-          const url = window.URL.createObjectURL(response.data);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = downloadFilename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-          
-          console.log(`批量下载ZIP完成: ${downloadFilename}`);
-        }
-        
-        // 清除下载状态
-        setTimeout(() => {
-          setDownloadingFiles(prev => {
-            const newSet = new Set(prev);
-            selectedIds.forEach(id => newSet.delete(id));
-            return newSet;
-          });
-          setDownloadProgress(prev => {
-            const newProgress = { ...prev };
-            selectedIds.forEach(id => {
-              delete newProgress[id];
-            });
-            return newProgress;
-          });
-        }, 1000);
       }
       
       // 清除选择状态
@@ -1778,7 +1638,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     } catch (err) {
       console.error('批量下载失败:', err);
       alert('批量下载失败: ' + (err.message || '未知错误'));
-      
+    } finally {
       // 清除下载状态
       setDownloadingFiles(prev => {
         const newSet = new Set(prev);

@@ -669,7 +669,7 @@ const downloadFile = async (req, res) => {
       req.setTimeout(5 * 60 * 1000); // 5分钟超时
       res.setTimeout(5 * 60 * 1000); // 5分钟超时
     }
-    const fileName = FixEncoding(file.originalName || file.filename);
+    const fileName = file.originalName || file.filename;
 
     // 设置响应头
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -803,7 +803,7 @@ const downloadFolder = async (req, res) => {
       fs.mkdirSync(tempDir, { recursive: true });
     }
     
-    const zipFileName = `${FixEncoding(folder.originalName || folder.filename)}_${Date.now()}.zip`;
+    const zipFileName = `${folder.originalName || folder.filename}_${Date.now()}.zip`;
     const zipFilePath = path.join(tempDir, zipFileName);
     
     // 创建ZIP文件
@@ -897,166 +897,7 @@ const downloadFolder = async (req, res) => {
   }
 };
 
-// 批量下载文件和文件夹
-const batchDownload = async (req, res) => {
-  try {
-    const { items } = req.body;
-    
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: '请选择要下载的文件或文件夹' });
-    }
-    
-    // 验证所有项目是否存在
-    const validItems = [];
-    for (const item of items) {
-      const file = await File.findById(item.id);
-      if (file) {
-        validItems.push({
-          ...item,
-          file: file
-        });
-      }
-    }
-    
-    if (validItems.length === 0) {
-      return res.status(404).json({ error: '未找到有效的文件或文件夹' });
-    }
-    
-    // 分离文件和文件夹
-    const files = validItems.filter(item => item.type === 'file');
-    const folders = validItems.filter(item => item.type === 'folder');
-    
-    // 如果没有文件夹，直接返回文件列表供前端逐个下载
-    if (folders.length === 0) {
-      const fileList = files.map(item => ({
-        id: item.id,
-        name: FixEncoding(item.name),
-        path: item.file.path,
-        size: item.file.size
-      }));
-      
-      return res.json({
-        type: 'files_only',
-        files: fileList
-      });
-    }
-    
-    // 如果有文件夹，创建混合下载包
-    // 创建临时目录
-    const tempDir = path.join(__dirname, '../temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    
-    // 生成ZIP文件名
-    const timestamp = Date.now();
-    const zipFileName = `batch_download_${timestamp}.zip`;
-    const zipFilePath = path.join(tempDir, zipFileName);
-    
-    // 创建ZIP文件
-    const archiver = require('archiver');
-    const output = fs.createWriteStream(zipFilePath);
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // 设置压缩级别
-    });
-    
-    // 监听ZIP创建完成
-    const zipPromise = new Promise((resolve, reject) => {
-      output.on('close', () => {
-        console.log(`批量下载ZIP文件创建完成: ${zipFileName} (${archive.pointer()} bytes)`);
-        resolve();
-      });
-      
-      archive.on('error', (err) => {
-        console.error('批量下载ZIP创建错误:', err);
-        reject(err);
-      });
-    });
-    
-    archive.pipe(output);
-    
-    // 处理文件夹 - 每个文件夹打包成独立的ZIP
-    for (const item of folders) {
-      const { file, name } = item;
-      const folderStructure = await getFolderStructure(file._id);
-      
-      // 递归添加文件夹内容到ZIP
-      const addFolderToZip = async (structure, basePath = '') => {
-        // 添加当前文件夹中的文件
-        for (const fileItem of structure.files) {
-          if (fileItem.path && fs.existsSync(fileItem.path)) {
-            const filePath = path.join(basePath, FixEncoding(fileItem.originalName || fileItem.filename));
-            archive.file(fileItem.path, { name: filePath });
-            console.log(`批量下载 - 添加文件到ZIP: ${filePath}`);
-          }
-        }
-        
-        // 递归处理子文件夹
-        for (const subfolder of structure.subfolders) {
-          const subfolderPath = path.join(basePath, FixEncoding(subfolder.folder.originalName || subfolder.folder.filename));
-          await addFolderToZip(subfolder, subfolderPath);
-        }
-      };
-      
-      await addFolderToZip(folderStructure, FixEncoding(name));
-    }
-    
-    // 处理单个文件 - 直接添加到ZIP根目录
-    for (const item of files) {
-      const { file, name } = item;
-      if (file.path && fs.existsSync(file.path)) {
-        const fixedName = FixEncoding(name);
-        archive.file(file.path, { name: fixedName });
-        console.log(`批量下载 - 添加文件到ZIP: ${fixedName}`);
-      }
-    }
-    
-    // 完成ZIP文件
-    await archive.finalize();
-    await zipPromise;
-    
-    // 检查ZIP文件是否创建成功
-    if (!fs.existsSync(zipFilePath)) {
-      return res.status(500).json({ error: 'ZIP文件创建失败' });
-    }
-    
-    const stats = fs.statSync(zipFilePath);
-    const fileSize = stats.size;
-    
-    // 设置响应头
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(zipFileName)}`);
-    res.setHeader('Content-Length', fileSize);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    // 创建文件流并发送
-    const fileStream = fs.createReadStream(zipFilePath);
-    
-    fileStream.on('error', (error) => {
-      console.error('批量下载ZIP文件下载错误:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'ZIP文件下载失败' });
-      }
-    });
-    
-    fileStream.on('end', () => {
-      // 下载完成后删除临时文件
-      fs.unlink(zipFilePath, (err) => {
-        if (err) {
-          console.error('删除临时批量下载ZIP文件失败:', err);
-        } else {
-          console.log(`临时批量下载ZIP文件已删除: ${zipFileName}`);
-        }
-      });
-    });
-    
-    fileStream.pipe(res);
-    
-  } catch (error) {
-    console.error('批量下载错误:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
+
 
 // 导出所有控制器函数
 const uploadFile = async (req, res) => {
@@ -1095,7 +936,6 @@ module.exports = {
   getUserFiles,
   downloadFile,
   downloadFolder,
-  batchDownload,
   deleteFile,
   deleteAllFiles,
   batchDeleteFiles,
