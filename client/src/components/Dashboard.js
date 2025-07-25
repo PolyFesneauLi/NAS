@@ -23,7 +23,7 @@ const getFileExtension = (filename) => {
 // 检测文件是否支持预览
 const isSupportedForPreview = (filename) => {
   const extension = getFileExtension(filename);
-  const supportedTypes = ['pdf', 'txt', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'];
+  const supportedTypes = ['pdf', 'txt', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'dwl', 'dwg'];
   return supportedTypes.includes(extension);
 };
 
@@ -36,6 +36,7 @@ const getPreviewType = (filename) => {
   if (['xls', 'xlsx'].includes(extension)) return 'excel';
   if (['doc', 'docx'].includes(extension)) return 'word';
   if (['ppt', 'pptx'].includes(extension)) return 'powerpoint';
+  if (['dwl', 'dwg'].includes(extension)) return 'cad';
   return 'unsupported';
 };
 
@@ -188,6 +189,9 @@ const FilePreview = ({ file, isOpen, onClose }) => {
       } else if (['excel', 'word', 'powerpoint'].includes(previewType)) {
         // Office文档不需要下载内容，直接显示提示信息
         setPreviewUrl('office-document');
+      } else if (previewType === 'cad') {
+        // CAD文件不需要下载内容，直接显示提示信息
+        setPreviewUrl('cad-document');
       } else {
         setError('暂不支持此文件类型的预览');
       }
@@ -245,8 +249,6 @@ const FilePreview = ({ file, isOpen, onClose }) => {
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   const renderPreviewContent = () => {
-    const previewType = getPreviewType(file.originalName || file.filename);
-    
     if (loading) {
       return <div className="preview-loading">正在加载预览...</div>;
     }
@@ -255,6 +257,38 @@ const FilePreview = ({ file, isOpen, onClose }) => {
       return <div className="preview-error">{error}</div>;
     }
     
+    // 根据 previewUrl 的值来判断显示内容
+    if (previewUrl === 'office-document') {
+      return (
+        <div className="preview-office">
+          <div className="office-preview-message">
+            <h4>Office 文档预览</h4>
+            <p>暂不支持 {getFileExtension(file.originalName || file.filename).toUpperCase()} 文件的在线预览。</p>
+            <p>请下载文件后使用相应的应用程序打开。</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (previewUrl === 'cad-document') {
+      return (
+        <div className="preview-cad">
+          <div className="cad-preview-message">
+            <h4>CAD 文件预览</h4>
+            <p>暂不支持 {getFileExtension(file.originalName || file.filename).toUpperCase()} 文件的在线预览。</p>
+            <p>请下载文件后使用 AutoCAD 或其他 CAD 软件打开。</p>
+            <div className="cad-file-info">
+              <p><strong>文件类型:</strong> {getFileExtension(file.originalName || file.filename).toUpperCase()}</p>
+              <p><strong>文件大小:</strong> {formatBytes(file.size)}</p>
+              <p><strong>建议软件:</strong> AutoCAD, DraftSight, LibreCAD</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // 其他文件类型的预览
+    const previewType = getPreviewType(file.originalName || file.filename);
     switch (previewType) {
       case 'image':
         return <img src={previewUrl} alt="预览" className="preview-image" />;
@@ -262,18 +296,6 @@ const FilePreview = ({ file, isOpen, onClose }) => {
         return <iframe src={previewUrl} className="preview-iframe" title="PDF预览" />;
       case 'text':
         return <pre className="preview-text">{previewUrl}</pre>;
-      case 'excel':
-      case 'word':
-      case 'powerpoint':
-        return (
-          <div className="preview-office">
-            <div className="office-preview-message">
-              <h4>Office 文档预览</h4>
-              <p>暂不支持 {getFileExtension(file.originalName || file.filename).toUpperCase()} 文件的在线预览。</p>
-              <p>请下载文件后使用相应的应用程序打开。</p>
-            </div>
-          </div>
-        );
       default:
         return <div className="preview-unsupported">不支持的文件类型</div>;
     }
@@ -351,7 +373,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
-    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.html','.json','.jpg','.jpeg','.png','.svg'],
+    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg'],
     cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl',".zip",".rar",".7z",".tar",".gz",".bz2"],
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
@@ -771,11 +793,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
     
     // 最后20%快速完成
-    for (let i = 1; i <= 10; i++) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const progress = 80 + Math.round((i / 10) * 20); // 80%到100%
-      setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
-    }
+    // for (let i = 1; i <= 10; i++) {
+    //   await new Promise(resolve => setTimeout(resolve, 100));
+    //   const progress = 80 + Math.round((i / 10) * 20); // 80%到100%
+    //   setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
+    // }
     
     console.log(`解析完成: 100% - 文件写入完成`);
     

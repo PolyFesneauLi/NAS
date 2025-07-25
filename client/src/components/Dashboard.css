@@ -1068,6 +1068,57 @@ td:nth-child(2) {
   line-height: 1.5;
 }
 
+/* CAD文件预览 */
+.preview-cad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.cad-preview-message {
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(44, 62, 80, 0.3);
+  max-width: 450px;
+}
+
+.cad-preview-message h4 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #ecf0f1;
+  font-weight: 600;
+}
+
+.cad-preview-message p {
+  margin: 8px 0;
+  color: #bdc3c7;
+  line-height: 1.5;
+}
+
+.cad-file-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border-left: 4px solid #3498db;
+}
+
+.cad-file-info p {
+  margin-bottom: 8px;
+  font-size: 14px;
+  text-align: left;
+  color: #ecf0f1;
+}
+
+.cad-file-info strong {
+  color: #3498db;
+  font-weight: 600;
+}
+
 /* 不支持的文件类型 */
 .preview-unsupported {
   display: flex;

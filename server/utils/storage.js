@@ -48,6 +48,8 @@ const allowedTypes = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
   'application/vnd.ms-excel',            // .xls
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-powerpoint',       // .ppt
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
   
   // 编程源代码
   'text/x-c',                            // .c
@@ -106,7 +108,7 @@ const allowedTypes = [
 // 扩展名白名单（用于双重验证）- 确保与前端配置一致
 const allowedExtensions = [
   // 文档
-  '.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+  '.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
   
   // 源代码
   '.c', '.cpp', '.h', '.hpp', '.java', '.js', '.py', '.php', '.sh',
@@ -135,7 +137,7 @@ const fileFilter = (req, file, cb) => {
     console.log( "[TYPE] ❌ 不支持的文件类型:", isTypeValid, isExtValid);
     cb(new Error(
       `不支持的文件类型。允许上传：\n` +
-      `• 文档：PDF/Word/Excel/TXT/Markdown\n` +
+      `• 文档：PDF/Word/Excel/PowerPoint/TXT/Markdown\n` +
       `• 源代码：C/C++/JS/Python/Java等\n` +
       `• 网页文件：HTML/CSS/JSON\n` +
       `• 工程图：DWG/DXF/STEP/IGES/SolidWorks\n` +
