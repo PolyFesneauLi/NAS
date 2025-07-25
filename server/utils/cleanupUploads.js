@@ -8,6 +8,7 @@ const path = require('path');
  */
 function cleanupUploads() {
   const uploadsDir = path.join(__dirname, '../../storage/uploads');
+  const downloadsDir = path.join(__dirname, '../../storage/temp');
   
   try {
     // 检查uploads目录是否存在
@@ -49,6 +50,16 @@ function cleanupUploads() {
     }
   } catch (err) {
     console.error('❌ Error during uploads cleanup:', err.message);
+  }
+
+  try { // clean all files in download temp directory
+    const items = fs.readdirSync(downloadsDir);
+    items.forEach(item => {
+      const itemPath = path.join(downloadsDir, item);
+      fs.unlinkSync(itemPath);
+    });
+  } catch (err) {
+    console.error('❌ Error during downloads cleanup:', err.message);
   }
 }
 
