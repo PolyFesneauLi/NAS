@@ -178,9 +178,34 @@ const cadUpload = multer({
   }
 });
 
+// 为文件夹上传创建专门的存储配置
+const folderStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, STORAGE_PATH);
+  },
+  filename: (req, file, cb) => {
+    // 保留完整的相对路径
+    let relativePath = file.originalname;
+    
+    // 检查是否为乱码（典型 UTF-8 字节流被当成 latin1 解析）
+    if (/^[\x00-\x7F]*$/.test(relativePath) === false && /[^\u0000-\u00ff]/.test(relativePath) === false) {
+      // 可能是 UTF-8 字节流
+      const buf = Buffer.from(relativePath, 'latin1');
+      try {
+        relativePath = buf.toString('utf8');
+      } catch (e) {
+        // 保底
+      }
+    }
+    
+    // 使用完整路径作为文件名，这样可以在后续处理中提取路径信息
+    cb(null, relativePath);
+  }
+});
+
 // 为文件夹上传创建独立的上传中间件
 const folderUpload = multer({
-  storage,
+  storage: folderStorage,
   fileFilter,
   limits: {
     fileSize: config.UPLOAD_MAX_SIZE, // 使用相同的限制

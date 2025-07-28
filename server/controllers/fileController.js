@@ -852,34 +852,80 @@ const uploadFolder = async (req, res) => {
 
     // 创建物理文件夹
     const folderPath = path.join(STORAGE_PATH, folderName);
+    console.log("[DEBUG] folderPath local:", folderPath);
     fs.mkdirSync(folderPath, { recursive: true });
 
     let totalSize = 0;
     const uploadedFiles = [];
 
-    // 处理每个上传的文件
+    // 处理每个上传的文件，保持文件夹结构
     for (const file of req.files) {
       try {
-        // 从原始文件名中提取相对路径
-        const relativePath = decodeURIComponent(file.originalname);
-        const filePath = path.join(folderPath, relativePath);
+        // 从文件名中提取相对路径（multer已经将完整路径作为文件名保存）
+        const relativePath = file.filename; // 使用multer保存的文件名，它包含完整路径
+        console.log("[DEBUG] file.filename (full path):", relativePath);
+        
+        const pathParts = relativePath.split('/');
+        
+        // 第一个部分是根文件夹名称，跳过   x   不跳过
+        const fileRelativePath = pathParts.slice(0).join('/');
+        console.log("[DEBUG] fileRelativePath:", fileRelativePath);
+        const fileName = path.basename(fileRelativePath);
+        
+        // 构建完整的文件路径
+        const filePath = path.join(folderPath, fileRelativePath);
         
         // 确保目录存在
         const fileDir = path.dirname(filePath);
         fs.mkdirSync(fileDir, { recursive: true });
         
         // 移动文件到目标位置
+        console.log("[DEBUG] filePath:", filePath);
+        console.log("[DEBUG] file.path (temp):", file.path);
         fs.renameSync(file.path, filePath);
+        
+        // 递归创建文件夹结构并找到正确的父文件夹
+        let currentParentFolder = newFolder._id;
+        const folderPathParts = path.dirname(fileRelativePath).split('/').filter(part => part.length > 0);
+        
+        // 为每个子文件夹创建记录
+        for (let i = 0; i < folderPathParts.length; i++) {
+          const subFolderName = folderPathParts[i];
+          const subFolderPath = folderPathParts.slice(0, i + 1).join('/');
+          
+          // 检查子文件夹是否已存在
+          let subFolder = await File.findOne({
+            filename: subFolderName,
+            parentFolder: currentParentFolder,
+            isFolder: true
+          });
+          
+          if (!subFolder) {
+            // 创建子文件夹记录
+            subFolder = new File({
+              filename: subFolderName,
+              path: path.join(folderPath, subFolderPath),
+              size: 0,
+              owner: req.user.id,
+              isFolder: true,
+              originalName: subFolderName,
+              parentFolder: currentParentFolder
+            });
+            await subFolder.save();
+          }
+          
+          currentParentFolder = subFolder._id;
+        }
         
         // 创建文件记录
         const fileRecord = new File({
-          filename: path.basename(filePath),
+          filename: fileName,
           path: filePath,
           size: file.size,
           owner: req.user.id,
           fileType: 'regular',
-          originalName: path.basename(relativePath),
-          parentFolder: newFolder._id
+          originalName: fileName,
+          parentFolder: currentParentFolder
         });
 
         await fileRecord.save();
@@ -889,11 +935,11 @@ const uploadFolder = async (req, res) => {
           filename: fileRecord.filename,
           originalName: fileRecord.originalName,
           size: fileRecord.size,
-          path: relativePath
+          path: fileRelativePath
         });
 
       } catch (error) {
-        console.error('处理文件失败:', file.originalname, error);
+        console.error('处理文件失败:', file.filename, error);
         // 删除已上传的文件
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
@@ -901,9 +947,32 @@ const uploadFolder = async (req, res) => {
       }
     }
 
-    // 更新文件夹大小
-    newFolder.size = totalSize;
-    await newFolder.save();
+    // 递归更新所有相关文件夹的大小
+    const updateFolderSizes = async (folderId) => {
+      const folder = await File.findById(folderId);
+      if (!folder) return 0;
+      
+      // 获取所有子文件和子文件夹
+      const children = await File.find({ parentFolder: folderId });
+      let totalSize = 0;
+      
+      for (const child of children) {
+        if (child.isFolder) {
+          totalSize += await updateFolderSizes(child._id);
+        } else {
+          totalSize += child.size;
+        }
+      }
+      
+      // 更新当前文件夹大小
+      folder.size = totalSize;
+      await folder.save();
+      
+      return totalSize;
+    };
+    
+    // 更新根文件夹大小
+    await updateFolderSizes(newFolder._id);
 
     // 更新用户存储使用情况
     user.usedStorage += totalSize;
