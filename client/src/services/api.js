@@ -52,6 +52,17 @@ export const uploadCadFile = async (formData, config = {}) => {
   return response.data;
 };
 
+// 文件操作 - 文件夹上传
+export const uploadFolder = async (formData, config = {}) => {
+  const response = await api.post('/files/upload-folder', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    ...config
+  });
+  return response.data;
+};
+
 // 获取上传进度包装器
 export const withUploadProgress = (callback) => ({
   onUploadProgress: (progressEvent) => {

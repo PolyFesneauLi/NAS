@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -344,6 +344,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [folderFiles, setFolderFiles] = useState([]);
+  const [folderName, setFolderName] = useState('');
   const dropdownRef = useRef(null);
 
   // 同步当前文件夹和路径
@@ -373,8 +375,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
-    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg'],
-    cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl',".zip",".rar",".7z",".tar",".gz",".bz2"],
+    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp'],
+    cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl',".zip",".rar",".7z",".tar",".gz",".bz2",".smbx",'.dgn','.dst','.dwl2','.sbp','.ovkml','.ovobj'],
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
 
@@ -513,6 +515,105 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setProgress({});
   };
 
+  const handleFolderChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // 获取文件夹名称（从第一个文件的路径中提取）
+    const firstFile = files[0];
+    const pathParts = firstFile.webkitRelativePath.split('/');
+    const folderName = pathParts[0];
+    
+    if (!folderName) {
+      setError('无法获取文件夹名称');
+      return;
+    }
+
+    // 验证文件格式
+    const validFiles = [];
+    for (const file of files) {
+      const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+      const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
+      if (!isValidFile) {
+        setError(`不支持的文件格式: ${fileExt} (${file.name})`);
+        setFolderFiles([]);
+        setFolderName('');
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    setFolderFiles(validFiles);
+    setFolderName(folderName);
+    setError('');
+    setUploadComplete(false);
+    setSuccessMessage('');
+    setProgress({});
+  };
+
+  const handleFolderUpload = async (e) => {
+    e.preventDefault();
+    if (!folderFiles.length) return;
+    
+    // 计算总文件大小
+    const totalSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
+    
+    // 检查存储空间
+    const hasEnoughSpace = await checkStorageSpace(totalSize);
+    if (!hasEnoughSpace) {
+      return;
+    }
+
+    setIsUploading(true);
+    setError('');
+    setUploadComplete(false);
+    setSuccessMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('folderName', folderName);
+      
+      if (selectedFolder) {
+        formData.append('folderId', selectedFolder);
+      }
+
+      // 添加所有文件，保持相对路径
+      folderFiles.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const response = await uploadFolder(formData, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setProgress({ [folderName]: percentCompleted });
+        }
+      });
+
+      setUploadComplete(true);
+      setSuccessMessage(`文件夹 "${folderName}" 上传成功！包含 ${response.files.length} 个文件`);
+      
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
+
+      // 2秒后清除状态
+      setTimeout(() => {
+        setFolderFiles([]);
+        setFolderName('');
+        setProgress({});
+        setUploadComplete(false);
+        setSuccessMessage('');
+      }, 2000);
+
+    } catch (error) {
+      console.error('文件夹上传失败:', error);
+      setError('文件夹上传失败: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsUploading(false);
+      setProgress({});
+    }
+  };
+
   // 检查存储空间是否足够
   const checkStorageSpace = async (totalSize) => {
     try {
@@ -620,6 +721,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
         setFiles([]);
+        setFolderFiles([]);
+        setFolderName('');
         setProgress({});
         setUploadComplete(false);
         setSuccessMessage('');
@@ -740,6 +843,62 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </div>
         )}
       </form>
+
+      {/* 文件夹上传部分 */}
+      <div className="folder-upload-section">
+        <h4>上传文件夹</h4>
+        <form onSubmit={handleFolderUpload}>
+          <div className="folder-input-container">
+            <label className="folder-label">
+              {folderFiles.length ? `${folderFiles.length} 个文件` : '选择文件夹'}
+              <input 
+                type="file" 
+                onChange={handleFolderChange}
+                webkitdirectory=""
+                directory=""
+                multiple
+                disabled={isUploading}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+
+          {folderFiles.length > 0 && (
+            <>
+              <div className="folder-info">
+                <div className="folder-item">
+                  <span>文件夹: {folderName} | <strong>{folderFiles.length} 个文件</strong></span>
+                  {(progress[folderName] > 0 || uploadComplete) && (
+                    <div className="progress-bar-container">
+                      <div 
+                        className="progress-bar"
+                        style={{ width: `${progress[folderName] || 0}%` }}
+                      />
+                      <span className="progress-text">{progress[folderName] || 0}%</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {successMessage && (
+                <div className="success-message">
+                  {successMessage}
+                </div>
+              )}
+              
+              {!uploadComplete && (
+                <button 
+                  type="submit" 
+                  disabled={isUploading}
+                  className="upload-button"
+                >
+                  {isUploading ? '上传中...' : '开始上传'}
+                </button>
+              )}
+            </>
+          )}
+        </form>
+      </div>
     </div>
   );
 };

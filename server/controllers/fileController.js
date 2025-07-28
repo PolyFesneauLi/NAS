@@ -781,6 +781,167 @@ const getFolderStructure = async (folderId) => {
   return structure;
 };
 
+// 上传文件夹处理
+const uploadFolder = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: '未上传文件' });
+    }
+
+    const user = await User.findById(req.user.id);
+    
+    // 检查权限 - 只有管理员可以上传文件
+    if (user.role !== 'admin') {
+      // 删除所有上传的文件
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(403).json({ error: '只有管理员可以上传文件' });
+    }
+
+    const folderId = req.body.folderId;
+    const folderName = req.body.folderName;
+    
+    if (!folderName) {
+      return res.status(400).json({ error: '文件夹名称不能为空' });
+    }
+    
+    // 如果没有指定文件夹，使用home目录
+    let targetFolder = null;
+    if (!folderId) {
+      targetFolder = await File.findOne({ 
+        isFolder: true, 
+        parentFolder: null,
+        filename: "home"
+      });
+      
+      if (!targetFolder) {
+        req.files.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+      }
+    } else {
+      targetFolder = await File.findOne({ _id: folderId, isFolder: true });
+      if (!targetFolder) {
+        req.files.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        return res.status(404).json({ error: '目标文件夹不存在' });
+      }
+    }
+
+    // 创建文件夹记录
+    const newFolder = new File({
+      filename: folderName,
+      path: path.join(STORAGE_PATH, folderName),
+      size: 0,
+      owner: req.user.id,
+      isFolder: true,
+      originalName: folderName,
+      parentFolder: targetFolder._id
+    });
+
+    await newFolder.save();
+
+    // 创建物理文件夹
+    const folderPath = path.join(STORAGE_PATH, folderName);
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    let totalSize = 0;
+    const uploadedFiles = [];
+
+    // 处理每个上传的文件
+    for (const file of req.files) {
+      try {
+        // 从原始文件名中提取相对路径
+        const relativePath = decodeURIComponent(file.originalname);
+        const filePath = path.join(folderPath, relativePath);
+        
+        // 确保目录存在
+        const fileDir = path.dirname(filePath);
+        fs.mkdirSync(fileDir, { recursive: true });
+        
+        // 移动文件到目标位置
+        fs.renameSync(file.path, filePath);
+        
+        // 创建文件记录
+        const fileRecord = new File({
+          filename: path.basename(filePath),
+          path: filePath,
+          size: file.size,
+          owner: req.user.id,
+          fileType: 'regular',
+          originalName: path.basename(relativePath),
+          parentFolder: newFolder._id
+        });
+
+        await fileRecord.save();
+        totalSize += file.size;
+        uploadedFiles.push({
+          id: fileRecord._id,
+          filename: fileRecord.filename,
+          originalName: fileRecord.originalName,
+          size: fileRecord.size,
+          path: relativePath
+        });
+
+      } catch (error) {
+        console.error('处理文件失败:', file.originalname, error);
+        // 删除已上传的文件
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
+    }
+
+    // 更新文件夹大小
+    newFolder.size = totalSize;
+    await newFolder.save();
+
+    // 更新用户存储使用情况
+    user.usedStorage += totalSize;
+    await user.save();
+
+    // 递归更新父文件夹的更新时间
+    await updateParentFoldersTimestamp(targetFolder._id);
+
+    res.status(201).json({
+      message: '文件夹上传成功',
+      folder: {
+        id: newFolder._id,
+        name: newFolder.filename,
+        size: newFolder.size,
+        fileCount: uploadedFiles.length
+      },
+      files: uploadedFiles
+    });
+
+  } catch (error) {
+    console.error('上传文件夹错误:', error);
+    
+    // 清理已上传的文件
+    if (req.files) {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
+    
+    res.status(500).json({ 
+      error: '文件夹上传失败',
+      details: error.message 
+    });
+  }
+};
+
 // 下载文件夹
 const downloadFolder = async (req, res) => {
   try {
@@ -933,6 +1094,7 @@ const uploadCadFile = async (req, res) => {
 module.exports = {
   uploadFile,
   uploadCadFile,
+  uploadFolder,
   getUserFiles,
   downloadFile,
   downloadFolder,

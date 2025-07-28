@@ -80,6 +80,7 @@ const allowedTypes = [
   'model/step',                          // .stp, .step
   'model/iges',                          // .igs, .iges
   'application/sldworks',                // SolidWorks
+  'application/x-sldworks',              // .smbx
   
   // 压缩包 - 确保与前端配置一致
   'application/x-7z-compressed',         // .7z
@@ -102,7 +103,13 @@ const allowedTypes = [
   'application/x-ms-windows-package',    // .exe
   
   // 其他常见类型
-  'application/octet-stream'             // 通用二进制流
+  'application/octet-stream',             // 通用二进制流
+  'image/bmp',          // .bmp
+  'application/dgn',     // .dgn (MicroStation)
+  'application/x-dgn', 
+  'application/vnd.dgn',
+  'model/dgn',
+  'text/plain',          // .log, .err, .bak (文本类通用覆盖)
 ];
 
 // 扩展名白名单（用于双重验证）- 确保与前端配置一致
@@ -115,11 +122,16 @@ const allowedExtensions = [
   '.html', '.htm', '.css', '.json', '.xml',
   
   // 图片/CAD
-  '.jpg', '.jpeg', '.png', '.svg',
-  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm', '.dwl',
+  '.jpg', '.jpeg', '.png', '.svg', '.bmp', // 补充统计中的.bmp
+  '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm',
+  '.dwl', '.smbx', '.dgn', // 明确添加.dgn
+  '.dst', '.dwl2', '.sbp', '.ovkml', '.ovobj', // 补充统计中的其他CAD格式
   
-  // 压缩包 - 与前端配置完全一致
-  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.wim', '.iso', '.exe'
+  // 压缩包/可执行文件
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.wim', '.iso', '.exe',
+  
+  // 其他必需类型
+  '.bak', '.log', '.err' // 补充统计中的文本类文件
 ];
 
 // 增强的文件过滤器
@@ -166,9 +178,20 @@ const cadUpload = multer({
   }
 });
 
+// 为文件夹上传创建独立的上传中间件
+const folderUpload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: config.UPLOAD_MAX_SIZE, // 使用相同的限制
+    files: 1000 // 允许更多文件用于文件夹上传
+  }
+});
+
 module.exports = {
   upload,        // 常规文件上传
   cadUpload,     // CAD大文件上传
+  folderUpload,  // 文件夹上传
   allowedTypes,  // 导出供其他模块使用
   allowedExtensions
 };

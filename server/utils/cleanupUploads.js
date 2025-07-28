@@ -19,7 +19,7 @@ function cleanupUploads() {
 
     const items = fs.readdirSync(uploadsDir);
     let cleanedCount = 0;
-    const commonExtensions = ['.zip', '.txt', '.png', '.jpg', '.jpeg', '.pdf', '.docx', '.rar', '.7z', '.dwg', '.dwl', '.dwl2', '.ppt', '.pptx', '.xlsx'];
+    const commonExtensions = ['.zip', '.txt', '.png', '.jpg', '.jpeg', '.pdf', '.docx', '.rar', '.7z', '.dwg', '.dwl', '.dwl2', '.ppt', '.pptx', '.xlsx','.smbx'];
 
     items.forEach(item => {
       const itemPath = path.join(uploadsDir, item);

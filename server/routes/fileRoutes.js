@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fileController = require('../controllers/fileController');
 const auth = require('../utils/auth');
-const { upload, cadUpload } = require('../utils/storage');
+const { upload, cadUpload, folderUpload } = require('../utils/storage');
 
 // 常规文件上传
 router.post('/upload', 
@@ -18,6 +18,14 @@ router.post('/upload-cad',
   auth.requireRole('admin'),
   cadUpload.single('file'),
   fileController.uploadCadFile
+);
+
+// 上传文件夹
+router.post('/upload-folder',
+  auth.authenticate,
+  auth.requireRole('admin'),
+  folderUpload.array('files'),
+  fileController.uploadFolder
 );
 
 // 获取用户文件

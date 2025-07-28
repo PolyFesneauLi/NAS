@@ -1456,3 +1456,78 @@ td:nth-child(2) {
   text-align: center;
   margin-top: 2px;
 } 
+
+/* =========================================
+   文件夹上传部分样式
+   ========================================= */
+.folder-upload-section {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px dashed #667eea;
+  border-radius: 12px;
+  background: #f8f9ff;
+  transition: all 0.3s ease;
+}
+
+.folder-upload-section:hover {
+  border-color: #764ba2;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+}
+
+.folder-upload-section h4 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.folder-input-container {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.folder-label {
+  display: inline-block;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.folder-label:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a6fd8, #6a4190);
+}
+
+.folder-info {
+  margin: 15px 0;
+  padding: 15px;
+  background: #f8f9ff;
+  border-radius: 8px;
+  border: 1px solid #e3e6f0;
+  text-align: center;
+}
+
+.folder-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.folder-item span {
+  font-size: 14px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.folder-item strong {
+  color: #667eea;
+  font-weight: 600;
+}
