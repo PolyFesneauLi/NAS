@@ -13,6 +13,27 @@ const FixEncoding = (str) => {
   }
 };
 
+// 递归获取文件夹的完整路径
+const getFolderFullPath = async (folderId) => {
+  try {
+    const pathParts = [];
+    let currentFolderId = folderId;
+    
+    while (currentFolderId) {
+      const folder = await File.findById(currentFolderId);
+      if (!folder) break;
+      
+      pathParts.unshift(folder.filename);
+      currentFolderId = folder.parentFolder;
+    }
+    
+    return pathParts.join('/');
+  } catch (error) {
+    console.error('获取文件夹完整路径失败:', error);
+    return '';
+  }
+};
+
 // 递归更新父文件夹的更新时间
 const updateParentFoldersTimestamp = async (folderId) => {
   try {
@@ -114,19 +135,18 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     let filePath = req.file.path;
     // console.log('[SERVER] 原始文件路径:', filePath);
     
-    if (targetFolder.filename === "home") {
-      // console.log('[SERVER] 移动文件到home目录');
-      filePath = path.join(STORAGE_PATH, "home", path.basename(req.file.path));
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.renameSync(req.file.path, filePath);
-    } else {
-      // console.log('[SERVER] 移动文件到目标文件夹');
-      const newPath = path.join(path.dirname(req.file.path), targetFolder.filename, path.basename(req.file.path));
-      fs.mkdirSync(path.dirname(newPath), { recursive: true });
-      fs.renameSync(req.file.path, newPath);
-      filePath = newPath;
-    }
-    // console.log('[SERVER] 最终文件路径:', filePath);
+    // 获取目标文件夹的完整路径
+    const folderFullPath = await getFolderFullPath(targetFolder._id);
+    console.log('[SERVER] 目标文件夹完整路径:', folderFullPath);
+    
+    // 构建文件在存储中的完整路径
+    const fileName = path.basename(req.file.path);
+    filePath = path.join(STORAGE_PATH, folderFullPath, fileName);
+    console.log('[SERVER] 文件最终路径:', filePath);
+    
+    // 确保目录存在
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.renameSync(req.file.path, filePath);
 
     // 创建文件记录
     const file = new File({
@@ -448,15 +468,10 @@ const createFolder = async (req, res) => {
       return res.status(400).json({ error: '同名文件夹已存在' });
     }
 
-    // 构建物理路径
-    let folderPath;
-    if (parentFolder.filename === "home") {
-      // 如果父文件夹是home目录，在 uploads/home 下创建
-      folderPath = path.join(STORAGE_PATH, "home", folderName);
-    } else {
-      // 否则在父文件夹下创建
-      folderPath = path.join(STORAGE_PATH, parentFolder.filename, folderName);
-    }
+    // 构建物理路径 - 使用完整的文件夹路径
+    const parentFolderPath = await getFolderFullPath(parentFolder._id);
+    const folderPath = path.join(STORAGE_PATH, parentFolderPath, folderName);
+    console.log('[SERVER] 创建文件夹路径:', folderPath);
 
     // 创建物理文件夹
     fs.mkdirSync(folderPath, { recursive: true });
@@ -840,7 +855,7 @@ const uploadFolder = async (req, res) => {
     // 创建文件夹记录
     const newFolder = new File({
       filename: folderName,
-      path: path.join(STORAGE_PATH, folderName),
+      path: path.join(STORAGE_PATH, folderName), // 这个path字段在数据库中，保持简单
       size: 0,
       owner: req.user.id,
       isFolder: true,
@@ -850,8 +865,9 @@ const uploadFolder = async (req, res) => {
 
     await newFolder.save();
 
-    // 创建物理文件夹
-    const folderPath = path.join(STORAGE_PATH, folderName);
+    // 获取目标文件夹的完整路径
+    const targetFolderPath = await getFolderFullPath(targetFolder._id);
+    const folderPath = path.join(STORAGE_PATH, targetFolderPath, folderName);
     console.log("[DEBUG] folderPath local:", folderPath);
     fs.mkdirSync(folderPath, { recursive: true });
 
@@ -872,7 +888,7 @@ const uploadFolder = async (req, res) => {
         console.log("[DEBUG] fileRelativePath:", fileRelativePath);
         const fileName = path.basename(fileRelativePath);
         
-        // 构建完整的文件路径
+        // 构建完整的文件路径 - 使用完整的文件夹路径
         const filePath = path.join(folderPath, fileRelativePath);
         
         // 确保目录存在
@@ -904,7 +920,7 @@ const uploadFolder = async (req, res) => {
             // 创建子文件夹记录
             subFolder = new File({
               filename: subFolderName,
-              path: path.join(folderPath, subFolderPath),
+              path: path.join(folderPath, subFolderPath), // 这个path字段在数据库中，保持简单
               size: 0,
               owner: req.user.id,
               isFolder: true,
