@@ -251,7 +251,8 @@ const recursiveDelete = async (folderId, userStorageMap = {}) => {
   // 删除文件夹本身
   if (folder.path && fs.existsSync(folder.path)) {
     try {
-      fs.rmdirSync(folder.path);
+      // 使用 fs.rmSync 递归删除文件夹及其所有内容
+      fs.rmSync(folder.path, { recursive: true, force: true });
     } catch (error) {
       console.error(`删除文件夹 ${folder.path} 失败:`, error);
     }
@@ -326,7 +327,24 @@ const deleteAllFiles = async (req, res) => {
     let deletedCount = 0;
     // 统计每个用户释放的空间
     const userStorageMap = {};
-    for (const file of files) {
+    
+    // 先删除所有文件夹（递归删除）
+    const folders = files.filter(file => file.isFolder);
+    for (const folder of folders) {
+      if (folder.path && fs.existsSync(folder.path)) {
+        try {
+          // 使用 fs.rmSync 递归删除文件夹及其所有内容
+          fs.rmSync(folder.path, { recursive: true, force: true });
+        } catch (error) {
+          console.error(`删除文件夹 ${folder.path} 失败:`, error);
+        }
+      }
+      deletedCount++;
+    }
+    
+    // 再删除所有文件
+    const regularFiles = files.filter(file => !file.isFolder);
+    for (const file of regularFiles) {
       // 删除物理文件
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
@@ -337,6 +355,7 @@ const deleteAllFiles = async (req, res) => {
       }
       deletedCount++;
     }
+    
     // 批量更新所有相关用户的 usedStorage
     for (const [userId, freed] of Object.entries(userStorageMap)) {
       const user = await User.findById(userId);
