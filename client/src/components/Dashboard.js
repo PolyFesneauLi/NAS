@@ -579,7 +579,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
       // 添加所有文件，保持相对路径
       folderFiles.forEach(file => {
-        formData.append('files', file);
+        // 将路径信息作为文件名前缀传递
+        const pathPrefix = file.webkitRelativePath.replace(/\//g, '_').replace(/\\/g, '_');
+        const fileWithPath = new File([file], `${pathPrefix}_${file.name}`, {
+          type: file.type,
+          lastModified: file.lastModified
+        });
+        formData.append('files', fileWithPath);
       });
 
       const response = await uploadFolder(formData, {

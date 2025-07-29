@@ -184,7 +184,7 @@ const folderStorage = multer.diskStorage({
     cb(null, STORAGE_PATH);
   },
   filename: (req, file, cb) => {
-    // 保留完整的相对路径
+    // 保留完整的相对路径 - 使用 originalname，它现在包含 webkitRelativePath
     let relativePath = file.originalname;
     
     // 检查是否为乱码（典型 UTF-8 字节流被当成 latin1 解析）
@@ -198,8 +198,13 @@ const folderStorage = multer.diskStorage({
       }
     }
     
+    // 将路径信息保存到文件对象中，供后续处理使用
+    file.relativePath = relativePath;
+    
     // 使用完整路径作为文件名，这样可以在后续处理中提取路径信息
-    cb(null, relativePath);
+    // 但是我们需要确保路径分隔符是系统兼容的
+    const normalizedPath = relativePath.replace(/[\/\\]/g, path.sep);
+    cb(null, normalizedPath);
   }
 });
 
@@ -211,12 +216,30 @@ const folderUpload = multer({
     fileSize: config.UPLOAD_MAX_SIZE, // 使用相同的限制
     files: 1000 // 允许更多文件用于文件夹上传
   }
-});
+}).array('files');
+
+// 创建一个包装函数来处理额外的字段
+const folderUploadWithFields = (req, res, next) => {
+  folderUpload(req, res, (err) => {
+    if (err) {
+      return next(err);
+    }
+    // 确保额外的字段被正确解析
+    if (req.body.filePaths) {
+      // 如果 filePaths 是字符串，转换为数组
+      if (typeof req.body.filePaths === 'string') {
+        req.body.filePaths = [req.body.filePaths];
+      }
+    }
+    next();
+  });
+};
 
 module.exports = {
   upload,        // 常规文件上传
   cadUpload,     // CAD大文件上传
   folderUpload,  // 文件夹上传
+  folderUploadWithFields, // 文件夹上传（带额外字段处理）
   allowedTypes,  // 导出供其他模块使用
   allowedExtensions
 };

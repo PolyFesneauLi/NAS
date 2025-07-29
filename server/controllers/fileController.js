@@ -471,7 +471,7 @@ const createFolder = async (req, res) => {
     // 构建物理路径 - 使用完整的文件夹路径
     const parentFolderPath = await getFolderFullPath(parentFolder._id);
     const folderPath = path.join(STORAGE_PATH, parentFolderPath, folderName);
-    console.log('[SERVER] 创建文件夹路径:', folderPath);
+    // console.log('[SERVER] 创建文件夹路径:', folderPath);
 
     // 创建物理文件夹
     fs.mkdirSync(folderPath, { recursive: true });
@@ -877,28 +877,58 @@ const uploadFolder = async (req, res) => {
     // 处理每个上传的文件，保持文件夹结构
     for (const file of req.files) {
       try {
-        // 从文件名中提取相对路径（multer已经将完整路径作为文件名保存）
-        const relativePath = file.filename; // 使用multer保存的文件名，它包含完整路径
-        console.log("[DEBUG] file.filename (full path):", relativePath);
+        // 调试：查看文件对象的完整结构
+        console.log("[DEBUG] 文件对象完整信息:");
+        console.log("  - file.originalname:", file.originalname);
+        console.log("  - file.filename:", file.filename);
+        console.log("  - file.path:", file.path);
+        console.log("  - file.fieldname:", file.fieldname);
+        console.log("  - file.mimetype:", file.mimetype);
+        console.log("  - file.size:", file.size);
+        console.log("  - file.buffer:", file.buffer ? "存在" : "不存在");
+        console.log("  - 所有属性:", Object.keys(file));
         
-        const pathParts = relativePath.split('/');
+        // 从文件名中提取路径信息
+        const encodedFileName = file.originalname;
+        const lastUnderscoreIndex = encodedFileName.lastIndexOf('_');
+        const originalFileName = encodedFileName.substring(lastUnderscoreIndex + 1);
+        const pathPrefix = encodedFileName.substring(0, lastUnderscoreIndex);
+        const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') + '/' + originalFileName);
         
-        // 第一个部分是根文件夹名称，跳过   x   不跳过
-        const fileRelativePath = pathParts.slice(0).join('/');
+        console.log("[DEBUG] 提取的路径信息:");
+        console.log("  - 原始文件名:", encodedFileName);
+        console.log("  - 路径前缀:", pathPrefix);
+        console.log("  - 原始文件名:", originalFileName);
+        console.log("  - 相对路径:", relativePath);
+        
+        // 检查路径是否以文件夹名称开头
+        if (!relativePath.startsWith(folderName + '/')) {
+          console.log("[DEBUG] 跳过不匹配的文件:", relativePath);
+          continue;
+        }
+        
+        // 移除文件夹名称前缀，获取文件在文件夹内的相对路径
+        const fileRelativePath = relativePath.substring(folderName.length + 1);
         console.log("[DEBUG] fileRelativePath:", fileRelativePath);
+        
+        if (!fileRelativePath) {
+          console.log("[DEBUG] 跳过空路径文件");
+          continue;
+        }
+        
         const fileName = path.basename(fileRelativePath);
         
         // 构建完整的文件路径 - 使用完整的文件夹路径
-        const filePath = path.join(folderPath, fileRelativePath);
+        const finalFilePath = path.join(folderPath, fileRelativePath);
         
         // 确保目录存在
-        const fileDir = path.dirname(filePath);
+        const fileDir = path.dirname(finalFilePath);
         fs.mkdirSync(fileDir, { recursive: true });
         
         // 移动文件到目标位置
-        console.log("[DEBUG] filePath:", filePath);
+        console.log("[DEBUG] filePath:", finalFilePath);
         console.log("[DEBUG] file.path (temp):", file.path);
-        fs.renameSync(file.path, filePath);
+        fs.renameSync(file.path, finalFilePath);
         
         // 递归创建文件夹结构并找到正确的父文件夹
         let currentParentFolder = newFolder._id;
@@ -907,7 +937,6 @@ const uploadFolder = async (req, res) => {
         // 为每个子文件夹创建记录
         for (let i = 0; i < folderPathParts.length; i++) {
           const subFolderName = folderPathParts[i];
-          const subFolderPath = folderPathParts.slice(0, i + 1).join('/');
           
           // 检查子文件夹是否已存在
           let subFolder = await File.findOne({
@@ -918,9 +947,10 @@ const uploadFolder = async (req, res) => {
           
           if (!subFolder) {
             // 创建子文件夹记录
+            const subFolderPath = path.join(folderPath, folderPathParts.slice(0, i + 1).join('/'));
             subFolder = new File({
               filename: subFolderName,
-              path: path.join(folderPath, subFolderPath), // 这个path字段在数据库中，保持简单
+              path: subFolderPath,
               size: 0,
               owner: req.user.id,
               isFolder: true,
@@ -928,6 +958,7 @@ const uploadFolder = async (req, res) => {
               parentFolder: currentParentFolder
             });
             await subFolder.save();
+            console.log("[DEBUG] 创建子文件夹:", subFolderName, "路径:", subFolderPath);
           }
           
           currentParentFolder = subFolder._id;
@@ -936,7 +967,7 @@ const uploadFolder = async (req, res) => {
         // 创建文件记录
         const fileRecord = new File({
           filename: fileName,
-          path: filePath,
+          path: finalFilePath,
           size: file.size,
           owner: req.user.id,
           fileType: 'regular',
@@ -953,9 +984,11 @@ const uploadFolder = async (req, res) => {
           size: fileRecord.size,
           path: fileRelativePath
         });
+        
+        console.log("[DEBUG] 创建文件记录:", fileName, "在文件夹:", currentParentFolder);
 
       } catch (error) {
-        console.error('处理文件失败:', file.filename, error);
+        console.error('处理文件失败:', file.originalname, error);
         // 删除已上传的文件
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
