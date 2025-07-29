@@ -128,6 +128,17 @@ export const downloadFolder = async (id, onProgress) => {
   return response;
 };
 
+// 获取归档进度
+export const getArchivingProgress = async (folderName) => {
+  const response = await api.get(`/files/archiving-progress?folderName=${encodeURIComponent(folderName)}`);
+  return response.data;
+};
+
+// 检查文件夹下载状态
+export const checkFolderDownloadStatus = async (id) => {
+  const response = await api.get(`/files/check-folder/${id}`);
+  return response.data;
+};
 
 
 export const deleteFile = async (id) => {

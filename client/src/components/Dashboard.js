@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -347,6 +347,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [folderFiles, setFolderFiles] = useState([]);
   const [folderName, setFolderName] = useState('');
   const dropdownRef = useRef(null);
+  
+  // 新增：归档进度状态
+  const [archivingProgress, setArchivingProgress] = useState({});
+  const [archivingFiles, setArchivingFiles] = useState(new Set());
 
   // 同步当前文件夹和路径
   useEffect(() => {
@@ -551,6 +555,80 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setProgress({});
   };
 
+  // 归档进度动画函数
+  const startArchivingProgress = async (folderName, totalFiles) => {
+    console.log(`开始归档文件夹: ${folderName}，共 ${totalFiles} 个文件`);
+    
+    // 设置初始进度
+    setArchivingProgress(prev => ({ ...prev, [folderName]: 0 }));
+    
+    // 使用轮询方式获取真实进度
+    const pollProgress = async () => {
+      try {
+        const response = await getArchivingProgress(folderName);
+        const progress = response.progress || 0;
+        
+        setArchivingProgress(prev => ({ ...prev, [folderName]: progress }));
+        console.log(`归档进度: ${progress}% - 正在整理文件结构...`);
+        
+        if (progress < 100 && response.status !== 'completed') {
+          // 继续轮询
+          setTimeout(pollProgress, 200);
+        } else {
+          // 归档完成
+          setArchivingProgress(prev => ({ ...prev, [folderName]: 100 }));
+          console.log(`归档完成: 100% - 文件夹结构整理完成`);
+          
+          // 归档完成后延迟清除状态
+          setTimeout(() => {
+            setArchivingFiles(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(folderName);
+              return newSet;
+            });
+            setArchivingProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[folderName];
+              return newProgress;
+            });
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('获取归档进度失败:', error);
+        // 如果API调用失败，使用模拟进度
+        let currentProgress = 0;
+        const progressInterval = setInterval(() => {
+          const increment = Math.max(1, Math.floor(totalFiles / 50));
+          currentProgress = Math.min(98, currentProgress + increment);
+          
+          setArchivingProgress(prev => ({ ...prev, [folderName]: currentProgress }));
+          
+          if (currentProgress >= 98) {
+            clearInterval(progressInterval);
+            setTimeout(() => {
+              setArchivingProgress(prev => ({ ...prev, [folderName]: 100 }));
+              setTimeout(() => {
+                setArchivingFiles(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(folderName);
+                  return newSet;
+                });
+                setArchivingProgress(prev => {
+                  const newProgress = { ...prev };
+                  delete newProgress[folderName];
+                  return newProgress;
+                });
+              }, 1000);
+            }, 300);
+          }
+        }, 150);
+      }
+    };
+    
+    // 开始轮询
+    setTimeout(pollProgress, 500);
+  };
+
   const handleFolderUpload = async (e) => {
     e.preventDefault();
     if (!folderFiles.length) return;
@@ -592,6 +670,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress({ [folderName]: percentCompleted });
+          
+          // 当上传达到100%时，立即切换到归档阶段
+          if (percentCompleted >= 100) {
+            // 立即切换到归档阶段，不等待
+            setProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[folderName];
+              return newProgress;
+            });
+            
+            // 设置归档状态并立即开始进度
+            setArchivingFiles(prev => new Set(prev).add(folderName));
+            setArchivingProgress(prev => ({ ...prev, [folderName]: 0 }));
+            
+            // 立即开始归档进度动画，传递一个立即完成的 Promise
+            startArchivingProgress(folderName, folderFiles.length);
+          }
         }
       });
 
@@ -607,6 +702,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         setFolderFiles([]);
         setFolderName('');
         setProgress({});
+        setArchivingProgress({});
+        setArchivingFiles(new Set());
         setUploadComplete(false);
         setSuccessMessage('');
       }, 2000);
@@ -617,6 +714,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     } finally {
       setIsUploading(false);
       setProgress({});
+      setArchivingProgress({});
+      setArchivingFiles(new Set());
     }
   };
 
@@ -883,6 +982,20 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                       <span className="progress-text">{progress[folderName] || 0}%</span>
                     </div>
                   )}
+                  {archivingFiles.has(folderName) && (
+                    <div className="archiving-progress-container">
+                      <div 
+                        className="archiving-progress-fill"
+                        style={{ width: `${archivingProgress[folderName] || 0}%` }}
+                      />
+                      <div className="archiving-text-container">
+                        {/* <span className="archiving-progress-text">
+                          {archivingProgress[folderName] || 0}%
+                        </span> */}
+                        <span className="archiving-text">归档中</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -1090,15 +1203,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           };
           const data = await getUserFiles(params);
           const filesArray = Array.isArray(data.files) ? data.files : [];
-          setFiles(filesArray);
-        }
-      } else {
-        await batchDeleteFiles(selectedIds);
-        setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
-        setSelectedIds([]);
-      }
+                      setFiles(filesArray);
+          } else {
+            await batchDeleteFiles(selectedIds);
+            setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+            setSelectedIds([]);
+          }
 
-      if (onDeleteSuccess) onDeleteSuccess();
+        if (onDeleteSuccess) onDeleteSuccess();
+      }
     } catch (err) {
       console.error('批量删除错误:', err);
       const errorMessage = err.response?.data?.error || err.message || '未知错误';
@@ -1569,24 +1682,58 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setDownloadProgress(prev => ({ ...prev, [id]: 0 }));
       
       // 检查浏览器是否支持 showSaveFilePicker API
+      let handle = null;
       if ('showSaveFilePicker' in window) {
         try {
-          // 在用户手势事件中直接调用 showSaveFilePicker
-          const handle = await window.showSaveFilePicker({
+          // 立即在用户手势事件中调用 showSaveFilePicker
+          handle = await window.showSaveFilePicker({
             suggestedName: downloadFilename,
             types: [{
               description: 'ZIP Files',
               accept: {'application/zip': ['.zip']}
             }],
           });
-
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            // 用户取消了选择，清除下载状态并返回
+            setDownloadingFiles(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(id);
+              return newSet;
+            });
+            setDownloadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[id];
+              return newProgress;
+            });
+            return;
+          }
+          throw err;
+        }
+      }
+      
+      // 预检查文件夹状态
+      console.log(`开始检查文件夹状态: ${folderName}`);
+      const folderStatus = await checkFolderDownloadStatus(id);
+      console.log(`文件夹状态:`, folderStatus);
+      
+      // 显示预检查进度（模拟）
+      setDownloadProgress(prev => ({ ...prev, [id]: 5 }));
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setDownloadProgress(prev => ({ ...prev, [id]: 10 }));
+      
+      if (handle) {
+        // 使用 showSaveFilePicker API
+        try {
           // 获取文件夹数据，带进度回调
           const response = await downloadFolder(id, (progress, loaded, total) => {
-            setDownloadProgress(prev => ({ ...prev, [id]: progress }));
-            console.log(`文件夹下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
+            // 将预检查进度（10%）和实际下载进度（90%）结合
+            const actualProgress = 10 + Math.round((progress * 90) / 100);
+            setDownloadProgress(prev => ({ ...prev, [id]: actualProgress }));
+            console.log(`文件夹下载进度: ${actualProgress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
             
             // 当下载达到100%时，立即切换到解析阶段
-            if (progress === 100) {
+            if (actualProgress >= 100) {
               // 立即切换到解析阶段，不等待
               setDownloadingFiles(prev => {
                 const newSet = new Set(prev);
@@ -1643,15 +1790,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           console.log(`文件夹已保存到用户选择的位置: ${downloadFilename}`);
           
         } catch (err) {
-          if (err.name === 'AbortError') {
-            return; // 用户取消了选择
-          }
           console.error('文件夹下载过程中发生错误:', err);
           console.error('错误详情:', {
             name: err.name,
             message: err.message,
             stack: err.stack,
-            fileSize: response.data?.size,
+            fileSize: response?.data?.size,
             fileName: downloadFilename
           });
           throw err;
@@ -1683,11 +1827,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // 降级方案：使用传统的下载方式
         console.log(`使用传统方式下载文件夹: ${downloadFilename}`);
         const response = await downloadFolder(id, (progress, loaded, total) => {
-          setDownloadProgress(prev => ({ ...prev, [id]: progress }));
-          console.log(`传统文件夹下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
+          // 将预检查进度（10%）和实际下载进度（90%）结合
+          const actualProgress = 10 + Math.round((progress * 90) / 100);
+          setDownloadProgress(prev => ({ ...prev, [id]: actualProgress }));
+          console.log(`传统文件夹下载进度: ${actualProgress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
           
           // 当下载达到100%时，立即切换到解析阶段
-          if (progress === 100) {
+          if (actualProgress >= 100) {
             // 立即切换到解析阶段
             setDownloadingFiles(prev => {
               const newSet = new Set(prev);

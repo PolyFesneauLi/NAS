@@ -270,6 +270,80 @@
   position: relative;
 }
 
+/* 归档进度条样式 */
+.progress-bar.archiving {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  animation: archivingShimmer 2s ease-in-out infinite;
+}
+
+@keyframes archivingShimmer {
+  0%, 100% {
+    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  }
+  50% {
+    background: linear-gradient(90deg, #a78bfa, #c4b5fd);
+  }
+}
+
+/* 归档进度条容器 - 支持双文字显示 */
+.archiving-progress-container {
+  position: relative;
+  margin-top: 12px;
+  height: 20px;
+  background-color: #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #8b5cf6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 归档进度条 */
+.archiving-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  transition: width 0.3s ease;
+  border-radius: 8px;
+  position: relative;
+  animation: archivingShimmer 2s ease-in-out infinite;
+}
+
+/* 归档进度文字容器 */
+.archiving-text-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  width: 100%;
+  text-align: center;
+}
+
+/* 归档进度百分比 */
+.archiving-progress-text {
+  color: #8b5cf6;
+  font-size: 11px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(139, 92, 246, 0.3);
+  margin-bottom: 1px;
+  line-height: 1;
+}
+
+/* 归档中文字 */
+.archiving-text {
+  color: #8b5cf6;
+  font-size: 10px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(139, 92, 246, 0.3);
+  line-height: 1;
+}
+
 .progress-bar::after {
   content: '';
   position: absolute;

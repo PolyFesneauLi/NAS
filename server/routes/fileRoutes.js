@@ -37,7 +37,11 @@ router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 // 下载文件夹
 router.get('/download-folder/:id', auth.authenticate, fileController.downloadFolder);
 
+// 检查文件夹下载状态
+router.get('/check-folder/:id', auth.authenticate, fileController.checkFolderDownloadStatus);
 
+// 获取归档进度
+router.get('/archiving-progress', auth.authenticate, fileController.getArchivingProgress);
 
 // 检查文件状态
 router.get('/check/:id', auth.authenticate, fileController.checkFileStatus);

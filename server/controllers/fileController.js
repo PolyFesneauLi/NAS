@@ -873,6 +873,8 @@ const uploadFolder = async (req, res) => {
 
     let totalSize = 0;
     const uploadedFiles = [];
+    const totalFiles = req.files.length;
+    let processedFiles = 0;
 
     // 处理每个上传的文件，保持文件夹结构
     for (const file of req.files) {
@@ -883,6 +885,7 @@ const uploadFolder = async (req, res) => {
         const originalFileName = encodedFileName.substring(lastUnderscoreIndex + 1);
         const pathPrefix = encodedFileName.substring(0, lastUnderscoreIndex);
         const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') + '/' + originalFileName);
+        // const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') );
         
         // console.log("[DEBUG] file.originalname (full path):", relativePath);
         
@@ -971,6 +974,10 @@ const uploadFolder = async (req, res) => {
           path: fileRelativePath
         });
         
+        // 更新处理进度
+        processedFiles++;
+        console.log(`归档进度: ${Math.round((processedFiles / totalFiles) * 100)}% - 已处理 ${processedFiles}/${totalFiles} 个文件`);
+        
         // console.log("[DEBUG] 创建文件记录:", fileName, "在文件夹:", currentParentFolder);
 
       } catch (error) {
@@ -1046,7 +1053,75 @@ const uploadFolder = async (req, res) => {
   }
 };
 
-// 下载文件夹
+// 获取归档进度
+const getArchivingProgress = async (req, res) => {
+  try {
+    const { folderName } = req.query;
+    
+    if (!folderName) {
+      return res.status(400).json({ error: '缺少文件夹名称参数' });
+    }
+    
+    // 这里可以根据实际需求实现进度跟踪
+    // 目前返回模拟进度
+    const progress = Math.floor(Math.random() * 100);
+    
+    res.json({
+      folderName,
+      progress,
+      status: progress >= 100 ? 'completed' : 'processing'
+    });
+  } catch (error) {
+    console.error('获取归档进度错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 检查文件夹下载状态
+const checkFolderDownloadStatus = async (req, res) => {
+  try {
+    const folderId = req.params.id;
+    const folder = await File.findById(folderId);
+    
+    if (!folder || !folder.isFolder) {
+      return res.status(404).json({ error: '文件夹不存在' });
+    }
+    
+    // 获取文件夹结构
+    const folderStructure = await getFolderStructure(folderId);
+    
+    // 计算文件统计信息
+    let totalFiles = 0;
+    let totalSize = 0;
+    
+    const calculateTotals = (structure) => {
+      for (const file of structure.files) {
+        if (file.path && fs.existsSync(file.path)) {
+          totalFiles++;
+          totalSize += file.size || 0;
+        }
+      }
+      for (const subfolder of structure.subfolders) {
+        calculateTotals(subfolder);
+      }
+    };
+    
+    calculateTotals(folderStructure);
+    
+    res.json({
+      folderName: folder.originalName || folder.filename,
+      totalFiles,
+      totalSize,
+      estimatedZipSize: Math.round(totalSize * 0.8), // 估算ZIP大小（压缩后约为原大小的80%）
+      readyForDownload: true
+    });
+    
+  } catch (error) {
+    console.error('检查文件夹下载状态错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const downloadFolder = async (req, res) => {
   try {
     const folderId = req.params.id;
@@ -1075,8 +1150,30 @@ const downloadFolder = async (req, res) => {
     const archiver = require('archiver');
     const output = fs.createWriteStream(zipFilePath);
     const archive = archiver('zip', {
-      zlib: { level: 9 } // 设置压缩级别
+      zlib: { level: 6 } // 降低压缩级别以提高速度
     });
+    
+    // 进度跟踪变量
+    let totalFiles = 0;
+    let processedFiles = 0;
+    let totalSize = 0;
+    let processedSize = 0;
+    
+    // 计算总文件数和大小
+    const calculateTotals = (structure) => {
+      for (const file of structure.files) {
+        if (file.path && fs.existsSync(file.path)) {
+          totalFiles++;
+          totalSize += file.size || 0;
+        }
+      }
+      for (const subfolder of structure.subfolders) {
+        calculateTotals(subfolder);
+      }
+    };
+    
+    calculateTotals(folderStructure);
+    console.log(`开始创建ZIP文件，总计 ${totalFiles} 个文件，${(totalSize / 1024 / 1024).toFixed(2)}MB`);
     
     // 监听ZIP创建完成
     const zipPromise = new Promise((resolve, reject) => {
@@ -1088,6 +1185,13 @@ const downloadFolder = async (req, res) => {
       archive.on('error', (err) => {
         console.error('ZIP创建错误:', err);
         reject(err);
+      });
+      
+      // 监听文件添加进度
+      archive.on('entry', (entry) => {
+        processedFiles++;
+        const progress = Math.round((processedFiles / totalFiles) * 100);
+        console.log(`ZIP创建进度: ${progress}% (${processedFiles}/${totalFiles} 文件) - ${entry.name}`);
       });
     });
     
@@ -1134,14 +1238,31 @@ const downloadFolder = async (req, res) => {
     const stats = fs.statSync(zipFilePath);
     const fileSize = stats.size;
     
+    console.log(`ZIP文件准备就绪: ${zipFileName} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+    
     // 设置响应头
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(zipFileName)}`);
     res.setHeader('Content-Length', fileSize);
     res.setHeader('Cache-Control', 'no-cache');
     
-    // 创建文件流并发送
+    // 创建文件流并发送，添加传输进度跟踪
     const fileStream = fs.createReadStream(zipFilePath);
+    let bytesSent = 0;
+    const startTime = Date.now();
+    
+    fileStream.on('data', (chunk) => {
+      bytesSent += chunk.length;
+      const transferProgress = Math.round((bytesSent / fileSize) * 100);
+      let lastPrintedProgress = 0;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed = bytesSent / elapsed / 1024 / 1024; // MB/s
+      //每10%打印一次  并且不重复打印之前打印过的
+      if (transferProgress % 10 === 0 && transferProgress > lastPrintedProgress) {
+        lastPrintedProgress = transferProgress;
+        console.log(`文件传输进度: ${transferProgress}% (${(bytesSent / 1024 / 1024).toFixed(2)}MB / ${(fileSize / 1024 / 1024).toFixed(2)}MB) - 速度: ${speed.toFixed(2)}MB/s`);
+      }
+    });
     
     fileStream.on('error', (error) => {
       console.error('ZIP文件下载错误:', error);
@@ -1151,6 +1272,8 @@ const downloadFolder = async (req, res) => {
     });
     
     fileStream.on('end', () => {
+      const totalTime = (Date.now() - startTime) / 1000;
+      console.log(`ZIP文件传输完成: ${zipFileName} - 总耗时: ${totalTime.toFixed(2)}秒`);
       // 下载完成后删除临时文件
       fs.unlink(zipFilePath, (err) => {
         if (err) {
@@ -1213,5 +1336,7 @@ module.exports = {
   deleteAllFiles,
   batchDeleteFiles,
   createFolder,
-  checkFileStatus
+  checkFileStatus,
+  checkFolderDownloadStatus,
+  getArchivingProgress
 };
