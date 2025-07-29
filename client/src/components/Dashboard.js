@@ -1262,12 +1262,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       });
       
       // 开始批量删除进度动画
-      const progressPromises = [];
       selectedIds.forEach(id => {
         const file = files.find(f => f._id === id);
         if (file) {
-          const progressPromise = startDeletingProgress(id, file.isFolder);
-          progressPromises.push(progressPromise);
+          startDeletingProgress(id, file.isFolder);
         }
       });
 
@@ -2123,7 +2121,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         setDeletingProgress(prev => ({ ...prev, [id]: 0 }));
         
         // 开始删除进度动画，获取Promise
-        const progressPromise = startDeletingProgress(id, fileToDelete.isFolder);
+        startDeletingProgress(id, fileToDelete.isFolder);
         
         // 执行实际的删除操作
         await deleteFile(id);
