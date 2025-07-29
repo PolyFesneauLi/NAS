@@ -251,8 +251,7 @@ const recursiveDelete = async (folderId, userStorageMap = {}) => {
   // 删除文件夹本身
   if (folder.path && fs.existsSync(folder.path)) {
     try {
-      // 使用 fs.rmSync 递归删除文件夹及其所有内容
-      fs.rmSync(folder.path, { recursive: true, force: true });
+      fs.rmdirSync(folder.path);
     } catch (error) {
       console.error(`删除文件夹 ${folder.path} 失败:`, error);
     }
@@ -327,24 +326,7 @@ const deleteAllFiles = async (req, res) => {
     let deletedCount = 0;
     // 统计每个用户释放的空间
     const userStorageMap = {};
-    
-    // 先删除所有文件夹（递归删除）
-    const folders = files.filter(file => file.isFolder);
-    for (const folder of folders) {
-      if (folder.path && fs.existsSync(folder.path)) {
-        try {
-          // 使用 fs.rmSync 递归删除文件夹及其所有内容
-          fs.rmSync(folder.path, { recursive: true, force: true });
-        } catch (error) {
-          console.error(`删除文件夹 ${folder.path} 失败:`, error);
-        }
-      }
-      deletedCount++;
-    }
-    
-    // 再删除所有文件
-    const regularFiles = files.filter(file => !file.isFolder);
-    for (const file of regularFiles) {
+    for (const file of files) {
       // 删除物理文件
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
@@ -355,7 +337,6 @@ const deleteAllFiles = async (req, res) => {
       }
       deletedCount++;
     }
-    
     // 批量更新所有相关用户的 usedStorage
     for (const [userId, freed] of Object.entries(userStorageMap)) {
       const user = await User.findById(userId);
@@ -887,7 +868,7 @@ const uploadFolder = async (req, res) => {
     // 获取目标文件夹的完整路径
     const targetFolderPath = await getFolderFullPath(targetFolder._id);
     const folderPath = path.join(STORAGE_PATH, targetFolderPath, folderName);
-    console.log("[DEBUG] folderPath local:", folderPath);
+    // console.log("[DEBUG] folderPath local:", folderPath);
     fs.mkdirSync(folderPath, { recursive: true });
 
     let totalSize = 0;
@@ -896,17 +877,6 @@ const uploadFolder = async (req, res) => {
     // 处理每个上传的文件，保持文件夹结构
     for (const file of req.files) {
       try {
-        // 调试：查看文件对象的完整结构
-        console.log("[DEBUG] 文件对象完整信息:");
-        console.log("  - file.originalname:", file.originalname);
-        console.log("  - file.filename:", file.filename);
-        console.log("  - file.path:", file.path);
-        console.log("  - file.fieldname:", file.fieldname);
-        console.log("  - file.mimetype:", file.mimetype);
-        console.log("  - file.size:", file.size);
-        console.log("  - file.buffer:", file.buffer ? "存在" : "不存在");
-        console.log("  - 所有属性:", Object.keys(file));
-        
         // 从文件名中提取路径信息
         const encodedFileName = file.originalname;
         const lastUnderscoreIndex = encodedFileName.lastIndexOf('_');
@@ -914,47 +884,44 @@ const uploadFolder = async (req, res) => {
         const pathPrefix = encodedFileName.substring(0, lastUnderscoreIndex);
         const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') + '/' + originalFileName);
         
-        console.log("[DEBUG] 提取的路径信息:");
-        console.log("  - 原始文件名:", encodedFileName);
-        console.log("  - 路径前缀:", pathPrefix);
-        console.log("  - 原始文件名:", originalFileName);
-        console.log("  - 相对路径:", relativePath);
+        // console.log("[DEBUG] file.originalname (full path):", relativePath);
         
         // 检查路径是否以文件夹名称开头
         if (!relativePath.startsWith(folderName + '/')) {
-          console.log("[DEBUG] 跳过不匹配的文件:", relativePath);
+          // console.log("[DEBUG] 跳过不匹配的文件:", relativePath);
           continue;
         }
         
         // 移除文件夹名称前缀，获取文件在文件夹内的相对路径
         const fileRelativePath = relativePath.substring(folderName.length + 1);
-        console.log("[DEBUG] fileRelativePath:", fileRelativePath);
+        // console.log("[DEBUG] fileRelativePath:", fileRelativePath);
         
         if (!fileRelativePath) {
-          console.log("[DEBUG] 跳过空路径文件");
+          // console.log("[DEBUG] 跳过空路径文件");
           continue;
         }
         
         const fileName = path.basename(fileRelativePath);
         
         // 构建完整的文件路径 - 使用完整的文件夹路径
-        const finalFilePath = path.join(folderPath, fileRelativePath);
+        const filePath = path.join(folderPath, fileRelativePath);
         
         // 确保目录存在
-        const fileDir = path.dirname(finalFilePath);
+        const fileDir = path.dirname(filePath);
         fs.mkdirSync(fileDir, { recursive: true });
         
         // 移动文件到目标位置
-        console.log("[DEBUG] filePath:", finalFilePath);
-        console.log("[DEBUG] file.path (temp):", file.path);
-        fs.renameSync(file.path, finalFilePath);
+        // console.log("[DEBUG] filePath:", filePath);
+        // console.log("[DEBUG] file.path (temp):", file.path);
+        fs.renameSync(file.path, filePath);
         
         // 递归创建文件夹结构并找到正确的父文件夹
         let currentParentFolder = newFolder._id;
         const folderPathParts = path.dirname(fileRelativePath).split('/').filter(part => part.length > 0);
         
         // 为每个子文件夹创建记录
-        for (let i = 0; i < folderPathParts.length; i++) {
+        // 不包括最后一级，因为最后一级是文件名
+        for (let i = 0; i < folderPathParts.length-1; i++) {
           const subFolderName = folderPathParts[i];
           
           // 检查子文件夹是否已存在
@@ -977,7 +944,7 @@ const uploadFolder = async (req, res) => {
               parentFolder: currentParentFolder
             });
             await subFolder.save();
-            console.log("[DEBUG] 创建子文件夹:", subFolderName, "路径:", subFolderPath);
+            // console.log("[DEBUG] 创建子文件夹:", subFolderName, "路径:", subFolderPath);
           }
           
           currentParentFolder = subFolder._id;
@@ -986,7 +953,7 @@ const uploadFolder = async (req, res) => {
         // 创建文件记录
         const fileRecord = new File({
           filename: fileName,
-          path: finalFilePath,
+          path: filePath,
           size: file.size,
           owner: req.user.id,
           fileType: 'regular',
@@ -1004,7 +971,7 @@ const uploadFolder = async (req, res) => {
           path: fileRelativePath
         });
         
-        console.log("[DEBUG] 创建文件记录:", fileName, "在文件夹:", currentParentFolder);
+        // console.log("[DEBUG] 创建文件记录:", fileName, "在文件夹:", currentParentFolder);
 
       } catch (error) {
         console.error('处理文件失败:', file.originalname, error);

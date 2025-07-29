@@ -3,7 +3,7 @@ const path = require('path');
 
 /**
  * 清理uploads目录下的孤立文件
- * 删除不在任何子文件夹中的文件（如localfile.zip等）
+ * 删除不在home文件夹下的所有孤立文件
  * 这些文件通常是上传中断或前端刷新导致的缓存文件
  */
 function cleanupUploads() {
@@ -19,7 +19,6 @@ function cleanupUploads() {
 
     const items = fs.readdirSync(uploadsDir);
     let cleanedCount = 0;
-    const commonExtensions = ['.zip', '.txt', '.png', '.jpg', '.jpeg', '.pdf', '.docx', '.rar', '.7z', '.dwg', '.dwl', '.dwl2', '.ppt', '.pptx', '.xlsx','.smbx'];
 
     items.forEach(item => {
       const itemPath = path.join(uploadsDir, item);
@@ -27,11 +26,13 @@ function cleanupUploads() {
 
       // 只处理文件，不处理文件夹
       if (stats.isFile()) {
-        // 检查是否是常见的孤立文件类型
-        const hasCommonExtension = commonExtensions.some(ext => item.toLowerCase().endsWith(ext));
-        const isLikelyOrphaned = hasCommonExtension || item.includes('localfile') || item.includes('Simulator');
+        // 删除所有不在 home 文件夹下的孤立文件
+        // 保留 home 文件夹下的文件，删除其他所有孤立文件
+        const isInHomeFolder = item.startsWith('home_') || item === 'home';
+        const isHomeFolder = item === 'home';
         
-        if (isLikelyOrphaned) {
+        // 如果不是 home 文件夹，且不是以 home_ 开头的文件，则删除
+        if (!isInHomeFolder && !isHomeFolder) {
           try {
             fs.unlinkSync(itemPath);
             console.log(`🗑️  Cleaned up orphaned file: ${item}`);
@@ -53,11 +54,17 @@ function cleanupUploads() {
   }
 
   try { // clean all files in download temp directory
-    const items = fs.readdirSync(downloadsDir);
-    items.forEach(item => {
-      const itemPath = path.join(downloadsDir, item);
-      fs.unlinkSync(itemPath);
-    });
+    if (fs.existsSync(downloadsDir)) {
+      const items = fs.readdirSync(downloadsDir);
+      items.forEach(item => {
+        const itemPath = path.join(downloadsDir, item);
+        const stats = fs.statSync(itemPath);
+        if (stats.isFile()) {
+          fs.unlinkSync(itemPath);
+          console.log(`🗑️  Cleaned up temp file: ${item}`);
+        }
+      });
+    }
   } catch (err) {
     console.error('❌ Error during downloads cleanup:', err.message);
   }

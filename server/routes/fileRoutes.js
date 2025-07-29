@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fileController = require('../controllers/fileController');
 const auth = require('../utils/auth');
-const { upload, cadUpload, folderUpload, folderUploadWithFields } = require('../utils/storage');
+const { upload, cadUpload, folderUpload } = require('../utils/storage');
 
 // 常规文件上传
 router.post('/upload', 
@@ -24,7 +24,7 @@ router.post('/upload-cad',
 router.post('/upload-folder',
   auth.authenticate,
   auth.requireRole('admin'),
-  folderUploadWithFields,
+  folderUpload.array('files'),
   fileController.uploadFolder
 );
 
