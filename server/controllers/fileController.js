@@ -1108,6 +1108,13 @@ const downloadFolder = async (req, res) => {
       // 递归处理子文件夹
       for (const subfolder of structure.subfolders) {
         const subfolderPath = path.join(basePath, subfolder.folder.originalName || subfolder.folder.filename);
+        
+        // 为每个子文件夹添加一个目录条目（即使文件夹为空）
+        const fixedSubfolderPath = FixEncoding(subfolderPath);
+        archive.append('', { name: fixedSubfolderPath + '/' });
+        console.log(`添加空文件夹到ZIP: ${fixedSubfolderPath}/`);
+        
+        // 递归处理子文件夹的内容
         await addFilesToZip(subfolder, subfolderPath);
       }
     };
