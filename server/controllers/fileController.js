@@ -223,9 +223,11 @@ const checkStorageQuota = async (user, fileSize) => {
 // 递归删除文件夹及其内容
 const recursiveDelete = async (folderId, userStorageMap = {}) => {
   const folder = await File.findById(folderId);
-  if (!folder || !folder.isFolder) return 0;
+  if (!folder || !folder.isFolder) {
+    return 0;
+  }
 
-  // 获取文件夹下的所有文件和子文件夹
+  // 获取所有子项
   const children = await File.find({ parentFolder: folderId });
   let totalFreed = 0;
 
@@ -236,24 +238,51 @@ const recursiveDelete = async (folderId, userStorageMap = {}) => {
     } else {
       // 删除文件
       if (child.path && fs.existsSync(child.path)) {
-        fs.unlinkSync(child.path);
-        totalFreed += child.size;
-        
-        // 记录用户存储空间变化
-        if (child.owner) {
-          userStorageMap[child.owner] = (userStorageMap[child.owner] || 0) + child.size;
+        try {
+          fs.unlinkSync(child.path);
+          totalFreed += child.size;
+          
+          // 记录用户存储空间变化
+          if (child.owner) {
+            userStorageMap[child.owner] = (userStorageMap[child.owner] || 0) + child.size;
+          }
+        } catch (error) {
+          console.error(`删除文件 ${child.path} 失败:`, error);
         }
       }
       await File.deleteOne({ _id: child._id });
     }
   }
 
-  // 删除文件夹本身
+  // 删除文件夹本身 - 使用fs.rmSync强制删除非空文件夹
   if (folder.path && fs.existsSync(folder.path)) {
     try {
-      fs.rmdirSync(folder.path);
+      // 使用fs.rmSync强制删除文件夹及其所有内容
+      fs.rmSync(folder.path, { recursive: true, force: true });
+      console.log(`成功删除文件夹: ${folder.path}`);
     } catch (error) {
       console.error(`删除文件夹 ${folder.path} 失败:`, error);
+      // 如果rmSync失败，尝试手动删除
+      try {
+        const deleteFolderRecursively = (dirPath) => {
+          if (fs.existsSync(dirPath)) {
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+              const curPath = path.join(dirPath, file);
+              if (fs.lstatSync(curPath).isDirectory()) {
+                deleteFolderRecursively(curPath);
+              } else {
+                fs.unlinkSync(curPath);
+              }
+            }
+            fs.rmdirSync(dirPath);
+          }
+        };
+        deleteFolderRecursively(folder.path);
+        console.log(`手动删除文件夹成功: ${folder.path}`);
+      } catch (manualError) {
+        console.error(`手动删除文件夹 ${folder.path} 也失败:`, manualError);
+      }
     }
   }
   await File.deleteOne({ _id: folderId });

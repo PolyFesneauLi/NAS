@@ -1041,6 +1041,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [parsingProgress, setParsingProgress] = useState({});
   const [parsingFiles, setParsingFiles] = useState(new Set());
+  const [deletingProgress, setDeletingProgress] = useState({});
+  const [deletingFiles, setDeletingFiles] = useState(new Set());
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -1116,6 +1118,43 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }, 1000);
   };
 
+  // 删除进度动画函数
+  const startDeletingProgress = async (fileId, isFolder = false) => {
+    console.log(`开始删除${isFolder ? '文件夹' : '文件'}: ${fileId}`);
+    
+    // 设置初始进度
+    setDeletingProgress(prev => ({ ...prev, [fileId]: 0 }));
+    
+    // 根据文件类型设置不同的进度速度
+    const progressSteps = isFolder ? 20 : 15; // 文件夹更多步骤，文件较少步骤
+    let currentStep = 0;
+    
+    const progressInterval = setInterval(() => {
+      currentStep++;
+      const progress = Math.min(90, Math.round((currentStep / progressSteps) * 90)); // 最多到90%
+      
+      setDeletingProgress(prev => ({ ...prev, [fileId]: progress }));
+      console.log(`删除进度: ${progress}% - 正在${isFolder ? '清理文件夹结构' : '删除文件'}...`);
+      
+      if (currentStep >= progressSteps) {
+        clearInterval(progressInterval);
+        // 等待真实的删除操作完成
+        // 这里不立即设置100%，而是等待实际的删除API调用完成
+      }
+    }, 150); // 每150ms更新一次进度
+    
+    // 返回一个Promise，用于在删除完成后设置100%
+    return new Promise((resolve) => {
+      // 保存interval引用，以便在删除完成时清除
+      window.deleteProgressIntervals = window.deleteProgressIntervals || {};
+      window.deleteProgressIntervals[fileId] = progressInterval;
+      
+      // 保存resolve函数，以便在删除完成时调用
+      window.deleteProgressResolvers = window.deleteProgressResolvers || {};
+      window.deleteProgressResolvers[fileId] = resolve;
+    });
+  };
+
   const refreshFiles = async () => {
     try {
       setLoading(true);
@@ -1160,13 +1199,19 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedIds(files.map(f => f._id));
+      // 只选择当前显示的文件（排除正在删除的文件）
+      const availableFiles = files.filter(file => !deletingFiles.has(file._id));
+      setSelectedIds(availableFiles.map(f => f._id));
     } else {
       setSelectedIds([]);
     }
   };
 
   const handleSelect = (id) => {
+    // 如果文件正在删除中，不允许选择
+    if (deletingFiles.has(id)) {
+      return;
+    }
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
@@ -1182,6 +1227,55 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     if (!window.confirm(confirmMessage)) return;
 
     try {
+      // 设置批量删除状态
+      setDeletingFiles(prev => new Set([...prev, ...selectedIds]));
+      setDeletingProgress(prev => {
+        const newProgress = { ...prev };
+        selectedIds.forEach(id => {
+          newProgress[id] = 0;
+        });
+        return newProgress;
+      });
+      
+      // 开始批量删除进度动画
+      const progressPromises = [];
+      selectedIds.forEach(id => {
+        const file = files.find(f => f._id === id);
+        if (file) {
+          const progressPromise = startDeletingProgress(id, file.isFolder);
+          progressPromises.push(progressPromise);
+        }
+      });
+
+      // 执行实际的批量删除操作
+      await batchDeleteFiles(selectedIds);
+      
+      // 批量删除成功后，设置所有项目的进度为100%
+      selectedIds.forEach(id => {
+        setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
+        console.log(`批量删除完成: 100% - 项目 ${id} 已删除`);
+        
+        // 调用resolve函数完成进度Promise
+        if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
+          window.deleteProgressResolvers[id]();
+        }
+        
+        // 清除进度相关状态
+        if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
+          clearInterval(window.deleteProgressIntervals[id]);
+          delete window.deleteProgressIntervals[id];
+        }
+        if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
+          delete window.deleteProgressResolvers[id];
+        }
+      });
+
+      // 立即从文件列表中移除所有被删除的文件
+      setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+      
+      // 清空选中列表
+      setSelectedIds([]);
+
       const deletedPathFolder = selectedFiles.find(file => 
         file.isFolder && folderPath.some(f => f._id === file._id)
       );
@@ -1192,31 +1286,52 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           const parentFolder = folderPath[folderIndex - 1];
           onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
           
-          setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
-          setSelectedIds([]);
-          
-          await batchDeleteFiles(selectedIds);
-          
           const params = {
             folder: parentFolder ? parentFolder._id : null,
             sort: sortBy
           };
           const data = await getUserFiles(params);
           const filesArray = Array.isArray(data.files) ? data.files : [];
-                      setFiles(filesArray);
-          } else {
-            await batchDeleteFiles(selectedIds);
-            setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
-            setSelectedIds([]);
-          }
-
-        if (onDeleteSuccess) onDeleteSuccess();
+          setFiles(filesArray);
+        }
       }
+
+      if (onDeleteSuccess) onDeleteSuccess();
+      
+      // 批量删除完成后延迟清除状态
+      setTimeout(() => {
+        setDeletingFiles(prev => {
+          const newSet = new Set(prev);
+          selectedIds.forEach(id => newSet.delete(id));
+          return newSet;
+        });
+        setDeletingProgress(prev => {
+          const newProgress = { ...prev };
+          selectedIds.forEach(id => {
+            delete newProgress[id];
+          });
+          return newProgress;
+        });
+      }, 1000);
     } catch (err) {
       console.error('批量删除错误:', err);
       const errorMessage = err.response?.data?.error || err.message || '未知错误';
       setError(`批量删除失败: ${errorMessage}`);
       refreshFiles();
+      
+      // 清除删除状态
+      setDeletingFiles(prev => {
+        const newSet = new Set(prev);
+        selectedIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+      setDeletingProgress(prev => {
+        const newProgress = { ...prev };
+        selectedIds.forEach(id => {
+          delete newProgress[id];
+        });
+        return newProgress;
+      });
     }
   };
 
@@ -1943,7 +2058,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         }
       }
       
-      // 清除选择状态
+      // 下载完成后清空选中列表
       setSelectedIds([]);
       
     } catch (err) {
@@ -1976,9 +2091,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
     if (window.confirm(confirmMessage)) {
       try {
+        // 设置删除状态并开始进度动画
+        setDeletingFiles(prev => new Set(prev).add(id));
+        setDeletingProgress(prev => ({ ...prev, [id]: 0 }));
+        
+        // 开始删除进度动画，获取Promise
+        const progressPromise = startDeletingProgress(id, fileToDelete.isFolder);
+        
+        // 执行实际的删除操作
         await deleteFile(id);
         
+        // 删除成功后，设置进度为100%并完成
+        setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
+        console.log(`删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
+        
+        // 调用resolve函数完成进度Promise
+        if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
+          window.deleteProgressResolvers[id]();
+        }
+        
+        // 清除进度相关状态
+        if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
+          clearInterval(window.deleteProgressIntervals[id]);
+          delete window.deleteProgressIntervals[id];
+        }
+        if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
+          delete window.deleteProgressResolvers[id];
+        }
+        
+        // 立即从文件列表中移除被删除的文件
         setFiles(prevFiles => prevFiles.filter(file => file._id !== id));
+        
+        // 从选中列表中移除被删除的文件
+        setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
         
         if (fileToDelete.isFolder) {
           const folderIndex = folderPath.findIndex(f => f._id === id);
@@ -2003,8 +2148,43 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (onDeleteSuccess) {
           onDeleteSuccess();
         }
+        
+        // 删除完成后延迟清除状态
+        setTimeout(() => {
+          setDeletingFiles(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+          });
+          setDeletingProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[id];
+            return newProgress;
+          });
+        }, 1000);
+        
       } catch (err) {
         alert('删除失败: ' + (err.message || '未知错误'));
+        // 清除删除状态
+        setDeletingFiles(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+        setDeletingProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[id];
+          return newProgress;
+        });
+        
+        // 清除进度相关状态
+        if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
+          clearInterval(window.deleteProgressIntervals[id]);
+          delete window.deleteProgressIntervals[id];
+        }
+        if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
+          delete window.deleteProgressResolvers[id];
+        }
       }
     }
   };
@@ -2157,7 +2337,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                     <th>
                       <input 
                         type="checkbox" 
-                        checked={selectedIds.length === files.length && files.length > 0} 
+                        checked={selectedIds.length === files.filter(f => !deletingFiles.has(f._id)).length && files.filter(f => !deletingFiles.has(f._id)).length > 0} 
                         onChange={handleSelectAll}
                       />
                     </th>
@@ -2179,6 +2359,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           type="checkbox" 
                           checked={selectedIds.includes(file._id)} 
                           onChange={() => handleSelect(file._id)}
+                          disabled={deletingFiles.has(file._id)}
                         />
                       </td>
                     )}
@@ -2290,12 +2471,28 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         </>
                       )}
                       {userRole === 'admin' && (
-                        <button 
-                          className="btn btn-danger"
-                          onClick={() => handleDelete(file._id)}
-                        >
-                          删除
-                        </button>
+                        <>
+                          {deletingFiles.has(file._id) ? (
+                            <div className="download-progress-container">
+                              <div className="download-progress-bar">
+                                <div 
+                                  className="download-progress-fill deleting"
+                                  style={{ width: `${deletingProgress[file._id] || 0}%` }}
+                                ></div>
+                              </div>
+                              <span className="download-progress-text">
+                                {deletingProgress[file._id] || 0}%
+                              </span>
+                            </div>
+                          ) : (
+                            <button 
+                              className="btn btn-danger"
+                              onClick={() => handleDelete(file._id)}
+                            >
+                              删除
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

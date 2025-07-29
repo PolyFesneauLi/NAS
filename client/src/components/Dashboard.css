@@ -1531,6 +1531,21 @@ td:nth-child(2) {
   margin-top: 2px;
 } 
 
+/* 删除进度条样式 */
+.download-progress-fill.deleting {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  animation: deletingShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes deletingShimmer {
+  0%, 100% {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+  }
+  50% {
+    background: linear-gradient(90deg, #f87171, #fca5a5);
+  }
+}
+
 /* =========================================
    文件夹上传部分样式
    ========================================= */
