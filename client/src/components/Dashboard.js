@@ -633,6 +633,30 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     e.preventDefault();
     if (!folderFiles.length) return;
     
+    // 检测当前目录是否有同名文件夹
+    const currentFiles = await getUserFiles({ folder: selectedFolder });
+    const existingFiles = currentFiles.files || [];
+    
+    // 检查是否有同名文件夹
+    const hasSameNameFolder = existingFiles.some(file => 
+      file.isFolder && (file.originalName || file.filename) === folderName
+    );
+    
+    if (hasSameNameFolder) {
+      setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
+      return;
+    }
+    
+    // 检查是否有同名文件
+    const hasSameNameFile = existingFiles.some(file => 
+      !file.isFolder && (file.originalName || file.filename) === folderName
+    );
+    
+    if (hasSameNameFile) {
+      setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
+      return;
+    }
+    
     // 计算总文件大小
     const totalSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
     
@@ -1293,6 +1317,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           const data = await getUserFiles(params);
           const filesArray = Array.isArray(data.files) ? data.files : [];
           setFiles(filesArray);
+        } else {
+          const newPath = folderPath.filter(f => f._id !== deletedPathFolder._id);
+          onFolderChange(currentFolder, newPath);
         }
       }
 
