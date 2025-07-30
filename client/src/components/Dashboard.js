@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -2261,8 +2261,22 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleOpenTagModal = async (file) => {
     setSelectedFileForTags(file);
     try {
+      // 获取所有可用标签
       const response = await getAllTags();
       setAvailableTags(response.tags || []);
+      
+      // 重新获取文件的完整信息，包括最新的标签数据
+      const fileDetails = await getFileDetails(file._id);
+      if (fileDetails) {
+        setSelectedFileForTags(fileDetails);
+        
+        // 更新文件列表中的当前文件
+        setFiles(prevFiles => 
+          prevFiles.map(f => 
+            f._id === file._id ? fileDetails : f
+          )
+        );
+      }
     } catch (err) {
       console.error('获取标签失败:', err);
       setAvailableTags([]);
@@ -2273,92 +2287,137 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleCloseTagModal = () => {
     setShowTagModal(false);
     setSelectedFileForTags(null);
-    setNewTagName('');
+    if (newTagInputRef.current) {
+      newTagInputRef.current.value = '';
+      inputValueRef.current = '';
+    }
     setNewTagColor('#007bff');
   };
 
   const newTagInputRef = useRef(null);
   const [tagModalError, setTagModalError] = useState('');
+  const inputValueRef = useRef('');
   
   const handleAddNewTag = useCallback(async () => {
-    if (!newTagName.trim()) return;
+    const tagName = inputValueRef.current.trim();
+    if (!tagName) return;
     
-    // 检查是否已存在相同名称的标签
-    const existingTag = selectedFileForTags.tags?.find(tag => 
-      tag.name.toLowerCase() === newTagName.trim().toLowerCase()
-    );
-    
-    if (existingTag) {
-      setTagModalError(`标签 "${newTagName.trim()}" 已存在`);
-      // 3秒后清除错误信息
-      setTimeout(() => setTagModalError(''), 3000);
-      return;
-    }
-    
-    const newTag = {
-      name: newTagName.trim(),
-      color: newTagColor
-    };
+          // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
+      try {
+        const fileDetails = await getFileDetails(selectedFileForTags._id);
+        if (fileDetails && fileDetails.tags) {
+          // 检查是否已存在相同名称的标签
+          const existingTag = fileDetails.tags.find(tag => 
+            tag.name.toLowerCase() === tagName.toLowerCase()
+          );
+          
+          if (existingTag) {
+            setTagModalError(`标签 "${tagName}" 已存在`);
+            // 3秒后清除错误信息
+            setTimeout(() => setTagModalError(''), 3000);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('获取文件详情失败:', err);
+        // 如果获取失败，使用当前内存中的标签进行检查
+        const existingTag = selectedFileForTags.tags?.find(tag => 
+          tag.name.toLowerCase() === tagName.toLowerCase()
+        );
+        
+        if (existingTag) {
+          setTagModalError(`标签 "${tagName}" 已存在`);
+          setTimeout(() => setTagModalError(''), 3000);
+          return;
+        }
+      }
+      
+      const newTag = {
+        name: tagName,
+        color: newTagColor
+      };
     
     try {
+      // 先创建标签（如果不存在）
+      try {
+        await createTag(newTag);
+      } catch (err) {
+        // 如果标签已存在，继续执行
+        if (!err.message.includes('标签已存在')) {
+          throw err;
+        }
+      }
+      
+      // 然后添加到文件
       await addTags(selectedFileForTags._id, [newTag]);
       
-      // 更新当前文件的标签，而不是刷新整个文件列表
-      setSelectedFileForTags(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), newTag]
-      }));
+      // 重新获取文件的最新数据，确保显示正确的标签
+      const updatedFileDetails = await getFileDetails(selectedFileForTags._id);
+      if (updatedFileDetails) {
+        setSelectedFileForTags(updatedFileDetails);
+        
+        // 更新文件列表中的当前文件
+        setFiles(prevFiles => 
+          prevFiles.map(file => 
+            file._id === selectedFileForTags._id ? updatedFileDetails : file
+          )
+        );
+      }
       
-      // 更新文件列表中的当前文件
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file._id === selectedFileForTags._id 
-            ? { ...file, tags: [...(file.tags || []), newTag] }
-            : file
-        )
-      );
+      // 刷新可用标签列表
+      try {
+        const response = await getAllTags();
+        setAvailableTags(response.tags || []);
+      } catch (err) {
+        console.error('刷新可用标签失败:', err);
+      }
       
-      setNewTagName('');
+      // 清空输入框，但不强制聚焦，让用户自然继续输入
+      if (newTagInputRef.current) {
+        newTagInputRef.current.value = '';
+        inputValueRef.current = '';
+      }
       setNewTagColor('#007bff');
       setTagModalError('');
-      
-      // 保持输入框焦点 - 使用 requestAnimationFrame 确保在渲染后执行
-      requestAnimationFrame(() => {
-        if (newTagInputRef.current) {
-          newTagInputRef.current.focus();
-        }
-      });
     } catch (err) {
       console.error('添加新标签失败:', err);
       setTagModalError(`添加标签失败: ${err.message}`);
       // 3秒后清除错误信息
       setTimeout(() => setTagModalError(''), 3000);
     }
-  }, [newTagName, newTagColor, selectedFileForTags, setFiles]);
+  }, [newTagColor, selectedFileForTags, setFiles]);
 
   const handleRemoveTag = async (tagName) => {
     try {
       await removeTags(selectedFileForTags._id, [tagName]);
       
-      // 更新当前文件的标签
-      setSelectedFileForTags(prev => ({
-        ...prev,
-        tags: prev.tags.filter(tag => tag.name !== tagName)
-      }));
+      // 重新获取文件的最新数据，确保显示正确的标签
+      const updatedFileDetails = await getFileDetails(selectedFileForTags._id);
+      if (updatedFileDetails) {
+        setSelectedFileForTags(updatedFileDetails);
+        
+        // 更新文件列表中的当前文件
+        setFiles(prevFiles => 
+          prevFiles.map(file => 
+            file._id === selectedFileForTags._id ? updatedFileDetails : file
+          )
+        );
+      }
       
-      // 更新文件列表中的当前文件
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file._id === selectedFileForTags._id 
-            ? { ...file, tags: file.tags.filter(tag => tag.name !== tagName) }
-            : file
-        )
-      );
+      // 刷新可用标签列表
+      try {
+        const response = await getAllTags();
+        setAvailableTags(response.tags || []);
+      } catch (err) {
+        console.error('刷新可用标签失败:', err);
+      }
       
-      setError('');
+      setTagModalError('');
     } catch (err) {
       console.error('移除标签失败:', err);
-      setError(`移除标签失败: ${err.message}`);
+      setTagModalError(`移除标签失败: ${err.message}`);
+      // 3秒后清除错误信息
+      setTimeout(() => setTagModalError(''), 3000);
     }
   };
 
@@ -2453,21 +2512,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   // 标签模态框组件
   const TagModal = () => {
-    // 当弹窗打开时自动聚焦到输入框
+    // 只在弹窗打开时聚焦一次
     useEffect(() => {
       if (showTagModal && newTagInputRef.current) {
-        setTimeout(() => {
-          newTagInputRef.current.focus();
+        const timer = setTimeout(() => {
+          if (newTagInputRef.current) {
+            newTagInputRef.current.focus();
+          }
         }, 100);
+        return () => clearTimeout(timer);
       }
     }, [showTagModal]);
-    
-    // 监听 newTagName 变化，确保输入框保持焦点
-    useEffect(() => {
-      if (newTagInputRef.current && document.activeElement !== newTagInputRef.current) {
-        newTagInputRef.current.focus();
-      }
-    }, [newTagName]);
     
     if (!showTagModal || !selectedFileForTags) return null;
     
@@ -2529,12 +2584,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                   ref={newTagInputRef}
                   type="text"
                   placeholder="标签名称"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
+                  defaultValue=""
                   className="tag-name-input"
+                  onInput={(e) => {
+                    inputValueRef.current = e.target.value;
+                  }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      handleAddNewTag();
+                      const value = inputValueRef.current.trim();
+                      if (value) {
+                        handleAddNewTag();
+                      }
                     }
                   }}
                 />
@@ -2582,17 +2642,36 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         return;
                       }
                       
-                      // 检查是否已存在相同名称的标签
-                      const existingTag = selectedFileForTags.tags?.find(existingTag => 
-                        existingTag.name.toLowerCase() === tag.name.toLowerCase()
-                      );
-                      
-                      if (existingTag) {
-                        console.log('标签已存在，跳过添加');
-                        setTagModalError(`标签 "${tag.name}" 已存在`);
-                        // 3秒后清除错误信息
-                        setTimeout(() => setTagModalError(''), 3000);
-                        return;
+                      // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
+                      try {
+                        const fileDetails = await getFileDetails(selectedFileForTags._id);
+                        if (fileDetails && fileDetails.tags) {
+                          // 检查是否已存在相同名称的标签
+                          const existingTag = fileDetails.tags.find(existingTag => 
+                            existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                          );
+                          
+                          if (existingTag) {
+                            console.log('标签已存在，跳过添加');
+                            setTagModalError(`标签 "${tag.name}" 已存在`);
+                            // 3秒后清除错误信息
+                            setTimeout(() => setTagModalError(''), 3000);
+                            return;
+                          }
+                        }
+                      } catch (err) {
+                        console.error('获取文件详情失败:', err);
+                        // 如果获取失败，使用当前内存中的标签进行检查
+                        const existingTag = selectedFileForTags.tags?.find(existingTag => 
+                          existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                        );
+                        
+                        if (existingTag) {
+                          console.log('标签已存在，跳过添加');
+                          setTagModalError(`标签 "${tag.name}" 已存在`);
+                          setTimeout(() => setTagModalError(''), 3000);
+                          return;
+                        }
                       }
                       
                       try {
@@ -2601,29 +2680,24 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         console.log('8. addTags 调用成功，返回结果:', result);
                         
                         console.log('9. 开始更新 selectedFileForTags...');
-                        // 更新当前文件的标签
-                        setSelectedFileForTags(prev => {
-                          console.log('10. 更新前的 selectedFileForTags:', prev);
-                          const updated = {
-                            ...prev,
-                            tags: [...(prev.tags || []), tag]
-                          };
-                          console.log('11. 更新后的 selectedFileForTags:', updated);
-                          return updated;
-                        });
-                        
-                        console.log('12. 开始更新文件列表...');
-                        // 更新文件列表中的当前文件
-                        setFiles(prevFiles => {
-                          console.log('13. 更新前的文件列表长度:', prevFiles.length);
-                          const updated = prevFiles.map(file => 
-                            file._id === selectedFileForTags._id 
-                              ? { ...file, tags: [...(file.tags || []), tag] }
-                              : file
-                          );
-                          console.log('14. 更新后的文件列表长度:', updated.length);
-                          return updated;
-                        });
+                        // 重新获取文件的最新数据，确保显示正确的标签
+                        const updatedFileDetails = await getFileDetails(selectedFileForTags._id);
+                        if (updatedFileDetails) {
+                          console.log('10. 更新前的 selectedFileForTags:', selectedFileForTags);
+                          setSelectedFileForTags(updatedFileDetails);
+                          console.log('11. 更新后的 selectedFileForTags:', updatedFileDetails);
+                          
+                          console.log('12. 开始更新文件列表...');
+                          // 更新文件列表中的当前文件
+                          setFiles(prevFiles => {
+                            console.log('13. 更新前的文件列表长度:', prevFiles.length);
+                            const updated = prevFiles.map(file => 
+                              file._id === selectedFileForTags._id ? updatedFileDetails : file
+                            );
+                            console.log('14. 更新后的文件列表长度:', updated.length);
+                            return updated;
+                          });
+                        }
                         
                         console.log('15. 清除错误信息');
                         setTagModalError('');

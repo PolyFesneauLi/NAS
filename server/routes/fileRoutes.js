@@ -31,6 +31,9 @@ router.post('/upload-folder',
 // 获取用户文件
 router.get('/', auth.authenticate, fileController.getUserFiles);
 
+// 获取归档进度
+router.get('/archiving-progress', auth.authenticate, fileController.getArchivingProgress);
+
 // 下载文件
 router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 
@@ -40,11 +43,17 @@ router.get('/download-folder/:id', auth.authenticate, fileController.downloadFol
 // 检查文件夹下载状态
 router.get('/check-folder/:id', auth.authenticate, fileController.checkFolderDownloadStatus);
 
-// 获取归档进度
-router.get('/archiving-progress', auth.authenticate, fileController.getArchivingProgress);
-
 // 检查文件状态
 router.get('/check/:id', auth.authenticate, fileController.checkFileStatus);
+
+// 标签相关路由（仅 admin）
+router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileController.addTags);
+router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
+router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileController.createTag);
+router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
+
+// 获取单个文件详情（放在最后，避免与其他路由冲突）
+router.get('/:id', auth.authenticate, fileController.getFileDetails);
 
 // 删除所有云端文件（仅 admin）
 router.delete('/all', auth.authenticate, auth.requireRole('admin'), fileController.deleteAllFiles);
@@ -56,10 +65,5 @@ router.post('/batch-delete', auth.authenticate, auth.requireRole('admin'), fileC
 
 // 创建文件夹（仅 admin）
 router.post('/create-folder', auth.authenticate, auth.requireRole('admin'), fileController.createFolder);
-
-// 标签相关路由（仅 admin）
-router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileController.addTags);
-router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
-router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
 
 module.exports = router;

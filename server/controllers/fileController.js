@@ -1,5 +1,6 @@
 const File = require('../models/File');
 const User = require('../models/User');
+const Tag = require('../models/Tag');
 const fs = require('fs');
 const path = require('path');
 const { STORAGE_PATH } = process.env;
@@ -614,7 +615,7 @@ const getUserFiles = async (req, res) => {
     const files = await File.find(query)
       .collation({ locale: 'zh' })
       .sort(sortOption)
-      .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt');
+      .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt tags');
     res.json({ files });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1382,13 +1383,33 @@ const addTags = async (req, res) => {
       return res.status(400).json({ error: '没有有效的标签' });
     }
 
-    // 添加新标签，避免重复
+    // 添加新标签到文件，避免重复
+    const newTagsToAdd = [];
     validTags.forEach(newTag => {
       const existingTag = file.tags.find(tag => tag.name === newTag.name);
       if (!existingTag) {
         file.tags.push(newTag);
+        newTagsToAdd.push(newTag);
       }
     });
+
+    // 同时更新 Tag 模型
+    for (const tag of newTagsToAdd) {
+      let tagDoc = await Tag.findOne({ name: tag.name, createdBy: user._id });
+      if (!tagDoc) {
+        // 创建新标签
+        tagDoc = new Tag({
+          name: tag.name,
+          color: tag.color,
+          createdBy: user._id,
+          usageCount: 1
+        });
+      } else {
+        // 增加使用次数
+        tagDoc.usageCount += 1;
+      }
+      await tagDoc.save();
+    }
 
     await file.save();
     
@@ -1424,6 +1445,16 @@ const removeTags = async (req, res) => {
 
     // 移除指定的标签
     file.tags = file.tags.filter(tag => !tagNames.includes(tag.name));
+    
+    // 更新 Tag 模型的使用次数
+    for (const tagName of tagNames) {
+      const tagDoc = await Tag.findOne({ name: tagName, createdBy: user._id });
+      if (tagDoc && tagDoc.usageCount > 0) {
+        tagDoc.usageCount -= 1;
+        await tagDoc.save();
+      }
+    }
+    
     await file.save();
     
     res.json({ 
@@ -1437,6 +1468,47 @@ const removeTags = async (req, res) => {
   }
 };
 
+// 创建新标签
+const createTag = async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    
+    if (!name || !name.trim() || !color || !color.trim()) {
+      return res.status(400).json({ error: '标签名称和颜色不能为空' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以创建标签' });
+    }
+
+    // 检查标签是否已存在
+    const existingTag = await Tag.findOne({ name: name.trim(), createdBy: user._id });
+    if (existingTag) {
+      return res.status(400).json({ error: '标签已存在' });
+    }
+
+    // 创建新标签
+    const newTag = new Tag({
+      name: name.trim(),
+      color: color.trim(),
+      createdBy: user._id,
+      usageCount: 0
+    });
+
+    await newTag.save();
+    
+    res.json({ 
+      success: true, 
+      message: '标签创建成功',
+      tag: newTag 
+    });
+  } catch (error) {
+    console.error('创建标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 获取所有标签（用于标签选择器）
 const getAllTags = async (req, res) => {
   try {
@@ -1445,21 +1517,41 @@ const getAllTags = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以查看标签' });
     }
 
-    // 获取所有文件/文件夹的标签
-    const files = await File.find({ owner: user._id });
-    const allTags = new Set();
+    // 从 Tag 模型中获取所有标签
+    const tags = await Tag.find({ createdBy: user._id })
+      .sort({ usageCount: -1, name: 1 })
+      .select('name color usageCount createdAt');
     
-    files.forEach(file => {
-      file.tags.forEach(tag => {
-        allTags.add(JSON.stringify(tag));
-      });
-    });
-
-    const uniqueTags = Array.from(allTags).map(tagStr => JSON.parse(tagStr));
-    
-    res.json({ tags: uniqueTags });
+    res.json({ tags });
   } catch (error) {
     console.error('获取标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 获取单个文件详情
+const getFileDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user.id);
+    
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以查看文件详情' });
+    }
+
+    const file = await File.findById(id);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 检查文件是否属于当前用户
+    if (file.owner.toString() !== user._id.toString()) {
+      return res.status(403).json({ error: '无权访问此文件' });
+    }
+
+    res.json(file);
+  } catch (error) {
+    console.error('获取文件详情错误:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -1469,6 +1561,7 @@ module.exports = {
   uploadCadFile,
   uploadFolder,
   getUserFiles,
+  getFileDetails,
   downloadFile,
   downloadFolder,
   deleteFile,
@@ -1480,5 +1573,6 @@ module.exports = {
   getArchivingProgress,
   addTags,
   removeTags,
+  createTag,
   getAllTags
 };

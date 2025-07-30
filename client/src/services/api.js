@@ -86,6 +86,12 @@ export const getUserFiles = async (params = {}) => {
   return response.data;
 };
 
+// 获取单个文件的详细信息
+export const getFileDetails = async (fileId) => {
+  const response = await api.get(`/files/${fileId}`);
+  return response.data;
+};
+
 export const downloadFile = async (id, onProgress) => {
   // 获取当前的认证令牌
   const token = api.defaults.headers.common['Authorization'];
@@ -228,6 +234,11 @@ export const removeTags = async (fileId, tagNames) => {
 
 export const getAllTags = async () => {
   const response = await api.get('/files/tags');
+  return response.data;
+};
+
+export const createTag = async (tagData) => {
+  const response = await api.post('/files/create-tag', tagData);
   return response.data;
 };
 
