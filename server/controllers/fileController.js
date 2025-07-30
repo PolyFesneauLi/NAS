@@ -616,7 +616,20 @@ const getUserFiles = async (req, res) => {
       .collation({ locale: 'zh' })
       .sort(sortOption)
       .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt tags');
-    res.json({ files });
+    
+    // 获取按 order 排序的标签列表
+    const sortedTags = await Tag.find({ createdBy: req.user.id })
+      .sort({ order: 1, usageCount: -1, name: 1 })
+      .select('name color usageCount createdAt order');
+    
+    // 为每个文件添加排序后的标签信息
+    const filesWithSortedTags = files.map(file => {
+      const fileObj = file.toObject();
+      fileObj.sortedTags = sortedTags;
+      return fileObj;
+    });
+    
+    res.json({ files: filesWithSortedTags });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1590,7 +1603,16 @@ const getFileDetails = async (req, res) => {
       return res.status(403).json({ error: '无权访问此文件' });
     }
 
-    res.json(file);
+    // 获取按 order 排序的标签列表
+    const sortedTags = await Tag.find({ createdBy: user._id })
+      .sort({ order: 1, usageCount: -1, name: 1 })
+      .select('name color usageCount createdAt order');
+
+    // 将排序后的标签信息添加到文件对象中
+    const fileWithSortedTags = file.toObject();
+    fileWithSortedTags.sortedTags = sortedTags;
+
+    res.json(fileWithSortedTags);
   } catch (error) {
     console.error('获取文件详情错误:', error);
     res.status(500).json({ error: error.message });

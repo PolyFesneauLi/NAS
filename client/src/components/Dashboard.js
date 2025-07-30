@@ -44,18 +44,18 @@ const getPreviewType = (filename) => {
 const compareChar = (charA, charB) => {
   const isChineseA = /[\u4e00-\u9fff]/.test(charA);
   const isChineseB = /[\u4e00-\u9fff]/.test(charB);
-
+  
   if (isChineseA && isChineseB) {
     return charA.localeCompare(charB, 'zh-CN');
   }
-
+  
   if (isChineseA && !isChineseB) {
     return 1;
   }
   if (!isChineseA && isChineseB) {
     return -1;
   }
-
+  
   return charA.charCodeAt(0) - charB.charCodeAt(0);
 };
 
@@ -64,16 +64,16 @@ const charByCharSort = (a, b) => {
   const lenA = a.length;
   const lenB = b.length;
   const maxLen = Math.max(lenA, lenB);
-
+  
   for (let i = 0; i < maxLen; i++) {
     const charA = i < lenA ? a[i] : '';
     const charB = i < lenB ? b[i] : '';
-
+    
     if (charA !== charB) {
       return compareChar(charA, charB);
     }
   }
-
+  
   return lenA - lenB;
 };
 
@@ -92,13 +92,13 @@ const sortFilesByExtension = (files, ascending = true) => {
   return [...files].sort((a, b) => {
     const extA = getFileExtension(a.originalName || a.filename);
     const extB = getFileExtension(b.originalName || b.filename);
-
+    
     if (extA === extB) {
       const nameA = a.originalName || a.filename;
       const nameB = b.originalName || b.filename;
       return ascending ? charByCharSort(nameA, nameB) : charByCharSort(nameB, nameA);
     }
-
+    
     const extResult = charByCharSort(extA, extB);
     return ascending ? extResult : -extResult;
   });
@@ -109,13 +109,13 @@ const sortFilesBySize = (files, ascending = true) => {
   return [...files].sort((a, b) => {
     const sizeA = Number(a.size) || 0;
     const sizeB = Number(b.size) || 0;
-
+    
     if (sizeA === sizeB) {
       const nameA = a.originalName || a.filename;
       const nameB = b.originalName || b.filename;
       return ascending ? charByCharSort(nameA, nameB) : charByCharSort(nameB, nameA);
     }
-
+    
     return ascending ? sizeA - sizeB : sizeB - sizeA;
   });
 };
@@ -162,7 +162,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
     try {
       const response = await downloadFile(file._id, null); // 预览不需要进度回调
       const previewType = getPreviewType(file.originalName || file.filename);
-
+      
       if (previewType === 'image') {
         const blob = new Blob([response.data], { type: response.headers['content-type'] });
         const url = URL.createObjectURL(blob);
@@ -212,12 +212,12 @@ const FilePreview = ({ file, isOpen, onClose }) => {
   // 拖拽过程中
   const handleDragMove = useCallback((e) => {
     if (!isDragging) return;
-
+    
     const deltaX = e.clientX - dragStartX;
     const windowWidth = window.innerWidth;
     const deltaPercent = (deltaX / windowWidth) * 100;
     const newWidth = Math.max(20, Math.min(80, dragStartWidth + deltaPercent)); // 限制在20%-80%之间
-
+    
     setPanelWidth(newWidth);
   }, [isDragging, dragStartX, dragStartWidth]);
 
@@ -252,11 +252,11 @@ const FilePreview = ({ file, isOpen, onClose }) => {
     if (loading) {
       return <div className="preview-loading">正在加载预览...</div>;
     }
-
+    
     if (error) {
       return <div className="preview-error">{error}</div>;
     }
-
+    
     // 根据 previewUrl 的值来判断显示内容
     if (previewUrl === 'office-document') {
       return (
@@ -269,7 +269,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
         </div>
       );
     }
-
+    
     if (previewUrl === 'cad-document') {
       return (
         <div className="preview-cad">
@@ -286,7 +286,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
         </div>
       );
     }
-
+    
     // 其他文件类型的预览
     const previewType = getPreviewType(file.originalName || file.filename);
     switch (previewType) {
@@ -305,7 +305,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
 
   return (
     <div className={`file-preview-overlay ${isOpen ? 'open' : ''}`}>
-      <div
+      <div 
         className="file-preview-panel"
         style={{ width: `${panelWidth}%` }}
       >
@@ -320,7 +320,7 @@ const FilePreview = ({ file, isOpen, onClose }) => {
         <div className="preview-content">
           {renderPreviewContent()}
         </div>
-        <div
+        <div 
           className="resize-handle"
           onMouseDown={handleDragStart}
         />
@@ -347,7 +347,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [folderFiles, setFolderFiles] = useState([]);
   const [folderName, setFolderName] = useState('');
   const dropdownRef = useRef(null);
-
+  
   // 新增：归档进度状态
   const [archivingProgress, setArchivingProgress] = useState({});
   const [archivingFiles, setArchivingFiles] = useState(new Set());
@@ -379,9 +379,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
-    regular: ['.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.html', '.json', '.jpg', '.jpeg', '.png', '.svg', '.bak', '.log', '.err', '.bmp'],
-    cad: ['.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm', '.dwl', ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".smbx", '.dgn', '.dst', '.dwl2', '.sbp', '.ovkml', '.ovobj'],
-    code: ['.c', '.cpp', '.h', '.java', '.js', '.py', '.php', '.sh', '.css', '.json', '.xml']
+    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp'],
+    cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl',".zip",".rar",".7z",".tar",".gz",".bz2",".smbx",'.dgn','.dst','.dwl2','.sbp','.ovkml','.ovobj'],
+    code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
 
   // 合并所有文件类型为统一的accept属性
@@ -394,20 +394,20 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     try {
       const data = await getUserFiles({ folder: parentId });
       const foldersList = data.files.filter(f => f.isFolder);
-
+      
       foldersList.sort((a, b) => {
         const nameA = (a.originalName || a.filename).toLowerCase();
         const nameB = (b.originalName || b.filename).toLowerCase();
         return nameA.localeCompare(nameB);
       });
-
+      
       const structure = await Promise.all(foldersList.map(async folder => {
-        const currentPath = parentPath === 'Home' ?
-          `${parentPath}/${folder.originalName || folder.filename}` :
+        const currentPath = parentPath === 'Home' ? 
+          `${parentPath}/${folder.originalName || folder.filename}` : 
           `${parentPath}/${folder.originalName || folder.filename}`;
-
+        
         setFolderPaths(prev => new Map(prev).set(folder._id, currentPath));
-
+        
         const children = await buildFolderStructure(folder._id, level + 1, currentPath);
         return {
           ...folder,
@@ -450,7 +450,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleDropdownClick = async () => {
     const newState = !isDropdownOpen;
     setIsDropdownOpen(newState);
-
+    
     if (newState) {
       // console.log('[FOLDER] 刷新文件夹结构');
       try {
@@ -467,7 +467,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const FolderOption = ({ folder, level = 0 }) => {
     return (
       <div className="cascading-option-wrapper">
-        <div
+        <div 
           className={`cascading-option ${selectedFolder === folder._id ? 'selected' : ''}`}
           onClick={() => handleFolderSelect(folder._id, folderPaths.get(folder._id))}
         >
@@ -480,10 +480,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         {folder.children && folder.children.length > 0 && (
           <div className="cascading-submenu">
             {folder.children.map(childFolder => (
-              <FolderOption
-                key={childFolder._id}
-                folder={childFolder}
-                level={level + 1}
+              <FolderOption 
+                key={childFolder._id} 
+                folder={childFolder} 
+                level={level + 1} 
               />
             ))}
           </div>
@@ -496,7 +496,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
     // console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
-
+    
     const validFiles = [];
     for (const f of selectedFiles) {
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
@@ -527,7 +527,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const firstFile = files[0];
     const pathParts = firstFile.webkitRelativePath.split('/');
     const folderName = pathParts[0];
-
+    
     if (!folderName) {
       setError('无法获取文件夹名称');
       return;
@@ -558,19 +558,19 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   // 归档进度动画函数
   const startArchivingProgress = async (folderName, totalFiles) => {
     console.log(`开始归档文件夹: ${folderName}，共 ${totalFiles} 个文件`);
-
+    
     // 设置初始进度
     setArchivingProgress(prev => ({ ...prev, [folderName]: 0 }));
-
+    
     // 使用轮询方式获取真实进度
     const pollProgress = async () => {
       try {
         const response = await getArchivingProgress(folderName);
         const progress = response.progress || 0;
-
+        
         setArchivingProgress(prev => ({ ...prev, [folderName]: progress }));
         console.log(`归档进度: ${progress}% - 正在整理文件结构...`);
-
+        
         if (progress < 100 && response.status !== 'completed') {
           // 继续轮询
           setTimeout(pollProgress, 200);
@@ -578,7 +578,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           // 归档完成
           setArchivingProgress(prev => ({ ...prev, [folderName]: 100 }));
           console.log(`归档完成: 100% - 文件夹结构整理完成`);
-
+          
           // 归档完成后延迟清除状态
           setTimeout(() => {
             setArchivingFiles(prev => {
@@ -600,9 +600,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         const progressInterval = setInterval(() => {
           const increment = Math.max(1, Math.floor(totalFiles / 50));
           currentProgress = Math.min(98, currentProgress + increment);
-
+          
           setArchivingProgress(prev => ({ ...prev, [folderName]: currentProgress }));
-
+          
           if (currentProgress >= 98) {
             clearInterval(progressInterval);
             setTimeout(() => {
@@ -624,7 +624,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         }, 150);
       }
     };
-
+    
     // 开始轮询
     setTimeout(pollProgress, 500);
   };
@@ -632,34 +632,34 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleFolderUpload = async (e) => {
     e.preventDefault();
     if (!folderFiles.length) return;
-
+    
     // 检测当前目录是否有同名文件夹
     const currentFiles = await getUserFiles({ folder: selectedFolder });
     const existingFiles = currentFiles.files || [];
-
+    
     // 检查是否有同名文件夹
-    const hasSameNameFolder = existingFiles.some(file =>
+    const hasSameNameFolder = existingFiles.some(file => 
       file.isFolder && (file.originalName || file.filename) === folderName
     );
-
+    
     if (hasSameNameFolder) {
       setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
       return;
     }
-
+    
     // 检查是否有同名文件
-    const hasSameNameFile = existingFiles.some(file =>
+    const hasSameNameFile = existingFiles.some(file => 
       !file.isFolder && (file.originalName || file.filename) === folderName
     );
-
+    
     if (hasSameNameFile) {
       setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
       return;
     }
-
+    
     // 计算总文件大小
     const totalSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
-
+    
     // 检查存储空间
     const hasEnoughSpace = await checkStorageSpace(totalSize);
     if (!hasEnoughSpace) {
@@ -674,7 +674,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     try {
       const formData = new FormData();
       formData.append('folderName', folderName);
-
+      
       if (selectedFolder) {
         formData.append('folderId', selectedFolder);
       }
@@ -694,7 +694,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress({ [folderName]: percentCompleted });
-
+          
           // 当上传达到100%时，立即切换到归档阶段
           if (percentCompleted >= 100) {
             // 立即切换到归档阶段，不等待
@@ -703,11 +703,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               delete newProgress[folderName];
               return newProgress;
             });
-
+            
             // 设置归档状态并立即开始进度
             setArchivingFiles(prev => new Set(prev).add(folderName));
             setArchivingProgress(prev => ({ ...prev, [folderName]: 0 }));
-
+            
             // 立即开始归档进度动画，传递一个立即完成的 Promise
             startArchivingProgress(folderName, folderFiles.length);
           }
@@ -716,7 +716,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
       setUploadComplete(true);
       setSuccessMessage(`文件夹 "${folderName}" 上传成功！包含 ${response.files.length} 个文件`);
-
+      
       if (onUploadSuccess) {
         onUploadSuccess();
       }
@@ -749,10 +749,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       const response = await getAdminStorageUsage();
       const { totalUsedStorage, totalQuota } = response;
       const remaining = totalQuota - totalUsedStorage;
-      console.log('[USED] 使用空间', totalUsedStorage);
-      console.log('[QUOTA] 总容量', totalQuota);
-      console.log('[REMAINING] 剩余空间', remaining);
-
+      console.log('[USED] 使用空间',totalUsedStorage);
+      console.log('[QUOTA] 总容量',totalQuota);
+      console.log('[REMAINING] 剩余空间',remaining);
+      
       if (totalSize > remaining) {
         const errorMsg = `上传失败 云空间不足 只剩余${formatBytes(remaining)}`;
         setError(errorMsg);
@@ -768,35 +768,35 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!files.length) return;
-
+    
     // 计算总文件大小
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-
+    
     // 检查存储空间
     const hasEnoughSpace = await checkStorageSpace(totalSize);
     if (!hasEnoughSpace) {
       return; // 错误信息已在checkStorageSpace中设置
     }
-
+    
     // console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
     // console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
     setIsUploading(true);
     setError('');
     setUploadComplete(false);
     setSuccessMessage('');
-
+    
     // 设置全局上传状态
     if (window.uploadState) {
       window.uploadState.isUploading = true;
     }
-
+    
     // 初始化所有文件的进度条为0
     const initialProgress = {};
     files.forEach(file => {
       initialProgress[file.name] = 0;
     });
     setProgress(initialProgress);
-
+    
     try {
       const uploadPromises = files.map(async (file) => {
         // console.log(`[UPLOAD] 开始处理文件: ${file.name}`);
@@ -804,7 +804,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         const isCadFile = allAcceptedExtensions.cad.includes(fileExt);
         // console.log(`[UPLOAD] 文件类型: ${isCadFile ? 'CAD文件' : '普通文件'}`);
         const uploadApi = isCadFile ? uploadCadFile : uploadFile;
-
+        
         const config = {
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -839,14 +839,14 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           throw error;
         }
       });
-
+      
       // 等待所有文件上传完成
       await Promise.all(uploadPromises);
-
+      
       // console.log('[UPLOAD] 🎉 所有文件上传完成!');
       setUploadComplete(true);
       setSuccessMessage(`共成功上传${formatBytes(totalSize)}文件`);
-
+      
       // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
         setFiles([]);
@@ -855,15 +855,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         setProgress({});
         setUploadComplete(false);
         setSuccessMessage('');
-
+        
         // 重置全局上传状态
         if (window.uploadState) {
           window.uploadState.isUploading = false;
         }
-
+        
         onUploadSuccess();
       }, 2000);
-
+      
     } catch (err) {
       // console.log('[UPLOAD] ❌ 上传过程中发生错误:', err);
       setError(err.response?.data?.error || `上传失败: ${err.message || '未知错误'}`);
@@ -872,7 +872,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     } finally {
       // console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
-
+      
       // 重置全局上传状态
       if (window.uploadState) {
         window.uploadState.isUploading = false;
@@ -883,11 +883,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   return (
     <div className={`file-upload ${fileType}`}>
       <h3>上传文件</h3>
-
+      
       <div className="folder-controls" ref={dropdownRef}>
         <label className="path-select-label">上传路径选择</label>
         <div className="custom-select">
-          <div
+          <div 
             className="selected-value"
             onClick={handleDropdownClick}
           >
@@ -896,7 +896,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </div>
           {isDropdownOpen && (
             <div className="cascading-container">
-              <div
+              <div 
                 className="cascading-option"
                 onClick={() => handleFolderSelect(null, 'Home')}
               >
@@ -904,8 +904,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                 <span className="folder-name">Home</span>
               </div>
               {folderStructure.map(folder => (
-                <FolderOption
-                  key={folder._id}
+                <FolderOption 
+                  key={folder._id} 
                   folder={folder}
                 />
               ))}
@@ -913,13 +913,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           )}
         </div>
       </div>
-
+      
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
           <label className="file-label">
             {files.length ? files.map(f => f.name).join(', ') : '选择文件'}
-            <input
-              type="file"
+            <input 
+              type="file" 
               onChange={handleFileChange}
               accept={unifiedAccept}
               multiple
@@ -937,7 +937,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                   <span>{f.name} | <strong>{(f.size / 1024 / 1024).toFixed(2)} MB</strong></span>
                   {(progress[f.name] > 0 || uploadComplete) && (
                     <div className="progress-bar-container">
-                      <div
+                      <div 
                         className="progress-bar"
                         style={{ width: `${progress[f.name] || 0}%` }}
                       />
@@ -947,25 +947,25 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                 </div>
               ))}
             </div>
-
+            
             {successMessage && (
               <div className="success-message">
                 {successMessage}
               </div>
             )}
-
+            
             {!uploadComplete && (
-              <button
-                type="submit"
-                disabled={isUploading}
-                className="upload-button"
-              >
-                {isUploading ? '上传中...' : '开始上传'}
-              </button>
+            <button 
+              type="submit" 
+              disabled={isUploading}
+              className="upload-button"
+            >
+              {isUploading ? '上传中...' : '开始上传'}
+            </button>
             )}
           </>
         )}
-
+        
         {error && (
           <div className="error-message">
             {error}
@@ -980,8 +980,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           <div className="folder-input-container">
             <label className="folder-label">
               {folderFiles.length ? `${folderFiles.length} 个文件` : '选择文件夹'}
-              <input
-                type="file"
+              <input 
+                type="file" 
                 onChange={handleFolderChange}
                 webkitdirectory=""
                 directory=""
@@ -999,7 +999,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                   <span>文件夹: {folderName} | <strong>{folderFiles.length} 个文件</strong></span>
                   {(progress[folderName] > 0 || uploadComplete) && (
                     <div className="progress-bar-container">
-                      <div
+                      <div 
                         className="progress-bar"
                         style={{ width: `${progress[folderName] || 0}%` }}
                       />
@@ -1008,7 +1008,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                   )}
                   {archivingFiles.has(folderName) && (
                     <div className="archiving-progress-container">
-                      <div
+                      <div 
                         className="archiving-progress-fill"
                         style={{ width: `${archivingProgress[folderName] || 0}%` }}
                       />
@@ -1022,16 +1022,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                   )}
                 </div>
               </div>
-
+              
               {successMessage && (
                 <div className="success-message">
                   {successMessage}
                 </div>
               )}
-
+              
               {!uploadComplete && (
-                <button
-                  type="submit"
+                <button 
+                  type="submit" 
                   disabled={isUploading}
                   className="upload-button"
                 >
@@ -1067,7 +1067,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [parsingFiles, setParsingFiles] = useState(new Set());
   const [deletingProgress, setDeletingProgress] = useState({});
   const [deletingFiles, setDeletingFiles] = useState(new Set());
-
+  
   // 标签相关状态
   const [showTagModal, setShowTagModal] = useState(false);
   const [selectedFileForTags, setSelectedFileForTags] = useState(null);
@@ -1079,44 +1079,44 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const startParsingProgress = async (fileId, closePromise) => {
     const parsingSteps = 48; // 48步到80%
     const baseDelay = 150; // 基础延迟时间
-
+    
     // 第一阶段：平滑进度到80%
     for (let i = 1; i <= parsingSteps; i++) {
       const delay = baseDelay + Math.random() * 100; // 150-250ms随机延迟
       await new Promise(resolve => setTimeout(resolve, delay));
-
+      
       const progress = Math.round((i / parsingSteps) * 80); // 只到80%
       setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
-
+      
       // 在关键节点添加一些变化，让用户感受到系统在工作
       if (i % 8 === 0) {
         console.log(`解析进度: ${progress}% - 正在处理文件...`);
       }
     }
-
+    
     // 第二阶段：等待文件写入完成（writable.close()）
     console.log(`解析进度: 80% - 等待文件写入完成...`);
-
+    
     // 等待真正的 writable.close() 完成
     if (closePromise) {
       await closePromise;
       console.log(`writable.close() 已完成`);
     }
-
+    
     // 最后20%快速完成
     // for (let i = 1; i <= 10; i++) {
     //   await new Promise(resolve => setTimeout(resolve, 100));
     //   const progress = 80 + Math.round((i / 10) * 20); // 80%到100%
     //   setParsingProgress(prev => ({ ...prev, [fileId]: progress }));
     // }
-
+    
     console.log(`解析完成: 100% - 文件写入完成`);
-
+    
     // 重置登录倒计时 - 在解析完成后
     if (window.resetIdleTimer) {
       window.resetIdleTimer();
     }
-
+    
     // 解析完成后延迟清除状态
     setTimeout(() => {
       if (fileId === 'batch') {
@@ -1152,34 +1152,34 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 删除进度动画函数
   const startDeletingProgress = async (fileId, isFolder = false) => {
     console.log(`开始删除${isFolder ? '文件夹' : '文件'}: ${fileId}`);
-
+    
     // 设置初始进度
     setDeletingProgress(prev => ({ ...prev, [fileId]: 0 }));
-
+    
     // 根据文件类型设置不同的进度速度
     const progressSteps = isFolder ? 20 : 15; // 文件夹更多步骤，文件较少步骤
     let currentStep = 0;
-
+    
     const progressInterval = setInterval(() => {
       currentStep++;
       const progress = Math.min(90, Math.round((currentStep / progressSteps) * 90)); // 最多到90%
-
+      
       setDeletingProgress(prev => ({ ...prev, [fileId]: progress }));
       console.log(`删除进度: ${progress}% - 正在${isFolder ? '清理文件夹结构' : '删除文件'}...`);
-
+      
       if (currentStep >= progressSteps) {
         clearInterval(progressInterval);
         // 等待真实的删除操作完成
         // 这里不立即设置100%，而是等待实际的删除API调用完成
       }
     }, 150); // 每150ms更新一次进度
-
+    
     // 返回一个Promise，用于在删除完成后设置100%
     return new Promise((resolve) => {
       // 保存interval引用，以便在删除完成时清除
       window.deleteProgressIntervals = window.deleteProgressIntervals || {};
       window.deleteProgressIntervals[fileId] = progressInterval;
-
+      
       // 保存resolve函数，以便在删除完成时调用
       window.deleteProgressResolvers = window.deleteProgressResolvers || {};
       window.deleteProgressResolvers[fileId] = resolve;
@@ -1194,13 +1194,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       if (sortBy) params.sort = sortBy;
       if (searchTerm) params.search = searchTerm;
       if (currentFolder) params.folder = currentFolder;
-
+      
       const data = await getUserFiles(params);
-
+      
       const filesArray = Array.isArray(data.files) ? data.files : [];
-
+      
       let sortedFiles = filesArray;
-
+      
       if (sortBy === 'name_asc') {
         sortedFiles = sortFilesByName(filesArray, true);
       } else if (sortBy === 'name_desc') {
@@ -1214,7 +1214,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } else if (sortBy === 'size_desc') {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
-
+      
       setFiles(sortedFiles);
     } catch (err) {
       setError('获取文件列表失败: ' + (err.message || '未知错误'));
@@ -1267,7 +1267,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         });
         return newProgress;
       });
-
+      
       // 开始批量删除进度动画
       const progressPromises = [];
       selectedIds.forEach(id => {
@@ -1280,17 +1280,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
       // 执行实际的批量删除操作
       await batchDeleteFiles(selectedIds);
-
+      
       // 批量删除成功后，设置所有项目的进度为100%
       selectedIds.forEach(id => {
         setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
         console.log(`批量删除完成: 100% - 项目 ${id} 已删除`);
-
+        
         // 调用resolve函数完成进度Promise
         if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
           window.deleteProgressResolvers[id]();
         }
-
+        
         // 清除进度相关状态
         if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
           clearInterval(window.deleteProgressIntervals[id]);
@@ -1303,11 +1303,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
       // 立即从文件列表中移除所有被删除的文件
       setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
-
+      
       // 清空选中列表
       setSelectedIds([]);
 
-      const deletedPathFolder = selectedFiles.find(file =>
+      const deletedPathFolder = selectedFiles.find(file => 
         file.isFolder && folderPath.some(f => f._id === file._id)
       );
 
@@ -1316,7 +1316,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (folderIndex !== -1) {
           const parentFolder = folderPath[folderIndex - 1];
           onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
-
+          
           const params = {
             folder: parentFolder ? parentFolder._id : null,
             sort: sortBy
@@ -1331,7 +1331,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
 
       if (onDeleteSuccess) onDeleteSuccess();
-
+      
       // 批量删除完成后延迟清除状态
       setTimeout(() => {
         setDeletingFiles(prev => {
@@ -1352,7 +1352,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       const errorMessage = err.response?.data?.error || err.message || '未知错误';
       setError(`批量删除失败: ${errorMessage}`);
       refreshFiles();
-
+      
       // 清除删除状态
       setDeletingFiles(prev => {
         const newSet = new Set(prev);
@@ -1377,36 +1377,36 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     //   isFolder: folder.isFolder,
     //   parentFolder: folder.parentFolder
     // });
-
+    
     try {
       // console.log('1. 设置加载状态为 true');
       setLoading(true);
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
       // console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
-
+      
       // 通知父组件状态变化
       onFolderChange(folder._id, newFolderPath);
-
+      
       // console.log('4. 重置选择和搜索状态');
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
-
+      
       // console.log('5. 准备获取文件夹内容');
       const params = {
         folder: folder._id,
         sort: sortBy
       };
       // console.log('请求参数:', params);
-
+      
       // console.log('6. 调用 API 获取文件夹内容');
       const data = await getUserFiles(params);
       // console.log('API 返回数据:', {
       //   fileCount: data.files?.length || 0,
       //   currentFolder: params.folder
       // });
-
+      
       const filesArray = Array.isArray(data.files) ? data.files : [];
       // console.log('7. 处理返回的文件列表');
       // console.log('文件总数:', filesArray.length);
@@ -1414,7 +1414,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       //   folders: filesArray.filter(f => f.isFolder).length,
       //   files: filesArray.filter(f => !f.isFolder).length
       // });
-
+      
       // console.log('8. 应用排序规则:', sortBy);
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
@@ -1430,11 +1430,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } else if (sortBy === 'size_desc') {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
-
+      
       // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
       // console.log('文件列表更新完成');
-
+      
     } catch (err) {
       // console.error('❌ 文件夹操作失败:', err);
       // console.error('错误详情:', {
@@ -1453,14 +1453,14 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     // console.log('========== 开始处理导航路径点击 ==========');
     // console.log('点击的路径索引:', index);
     // console.log('当前完整路径:', folderPath.map(f => f.originalName || f.filename).join(' > '));
-
+    
     try {
       // console.log('1. 设置加载状态为 true');
       setLoading(true);
-
+      
       let targetFolder = null;
       let newPath = [];
-
+      
       if (index === -1) {
         // console.log('2.1 返回 home 目录');
         onFolderChange(null, []);
@@ -1475,26 +1475,26 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // });
         onFolderChange(targetFolder._id, newPath);
       }
-
+      
       // console.log('3. 重置选择和搜索状态');
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
-
+      
       // console.log('4. 准备获取文件夹内容');
       const params = {
         folder: targetFolder ? targetFolder._id : null,
         sort: sortBy
       };
       // console.log('请求参数:', params);
-
+      
       // console.log('5. 调用 API 获取文件夹内容');
       const data = await getUserFiles(params);
       // console.log('API 返回数据:', {
       //   fileCount: data.files?.length || 0,
       //   currentFolder: params.folder
       // });
-
+      
       const filesArray = Array.isArray(data.files) ? data.files : [];
       // console.log('7. 处理返回的文件列表');
       // console.log('文件总数:', filesArray.length);
@@ -1502,7 +1502,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       //   folders: filesArray.filter(f => f.isFolder).length,
       //   files: filesArray.filter(f => !f.isFolder).length
       // });
-
+      
       // console.log('8. 应用排序规则:', sortBy);
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
@@ -1518,11 +1518,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } else if (sortBy === 'size_desc') {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
-
+      
       // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
       // console.log('文件列表更新完成');
-
+      
     } catch (err) {
       // console.error('❌ 导航操作失败:', err);
       // console.error('错误详情:', {
@@ -1574,14 +1574,14 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (sortBy) params.sort = sortBy;
         if (searchTerm) params.search = searchTerm;
         if (currentFolder) params.folder = currentFolder;
-
+        
         // console.log('Fetching files with params:', params);
         const data = await getUserFiles(params);
-
+        
         const filesArray = Array.isArray(data.files) ? data.files : [];
-
+        
         let sortedFiles = filesArray;
-
+        
         if (sortBy === 'name_asc') {
           sortedFiles = sortFilesByName(filesArray, true);
         } else if (sortBy === 'name_desc') {
@@ -1595,7 +1595,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         } else if (sortBy === 'size_desc') {
           sortedFiles = sortFilesBySize(filesArray, false);
         }
-
+        
         setFiles(sortedFiles);
       } catch (err) {
         setError('获取文件列表失败: ' + (err.message || '未知错误'));
@@ -1624,11 +1624,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleDownload = async (id, filename) => {
     try {
       let downloadFilename = fixEncoding(filename);
-
+      
       // 设置下载状态
       setDownloadingFiles(prev => new Set(prev).add(id));
       setDownloadProgress(prev => ({ ...prev, [id]: 0 }));
-
+      
       // 检查浏览器是否支持 showSaveFilePicker API
       if ('showSaveFilePicker' in window) {
         try {
@@ -1637,7 +1637,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             suggestedName: downloadFilename,
             types: [{
               description: 'All Files',
-              accept: { '*/*': [] }
+              accept: {'*/*': []}
             }],
           });
 
@@ -1645,7 +1645,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           const response = await downloadFile(id, (progress, loaded, total) => {
             setDownloadProgress(prev => ({ ...prev, [id]: progress }));
             console.log(`下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
-
+            
             // 当下载达到100%时，立即切换到解析阶段
             if (progress === 100) {
               // 立即切换到解析阶段，不等待
@@ -1659,16 +1659,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                 delete newProgress[id];
                 return newProgress;
               });
-
+              
               // 设置解析状态并立即开始进度
               setParsingFiles(prev => new Set(prev).add(id));
               setParsingProgress(prev => ({ ...prev, [id]: 0 }));
-
+              
               // 立即开始解析进度动画，传递一个立即完成的 Promise
               startParsingProgress(id, Promise.resolve());
             }
           });
-
+          
           // 从响应头中获取文件名（如果后端设置了的话）
           const contentDisposition = response.headers['content-disposition'];
           if (contentDisposition) {
@@ -1679,30 +1679,30 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           }
 
           const writable = await handle.createWritable();
-
+          
           // 统一处理文件写入，无论大小
           console.log(`开始下载文件: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
-
+          
           // 验证blob数据完整性
           if (!response.data || response.data.size === 0) {
             throw new Error('下载的文件数据为空');
           }
-
+          
           // 直接写入文件，进度已经在下载阶段处理
           await writable.write(response.data);
-
+          
           // 创建 close Promise，但不立即等待
           const closePromise = writable.close();
-
+          
           // 立即开始解析进度动画，传递 close Promise
           startParsingProgress(id, closePromise);
-
+          
           // 等待 close 完成
           await closePromise;
           console.log(`文件写入完成: ${downloadFilename}`);
-
+          
           console.log(`文件已保存到用户选择的位置: ${downloadFilename}`);
-
+          
         } catch (err) {
           if (err.name === 'AbortError') {
             return; // 用户取消了选择
@@ -1746,7 +1746,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         const response = await downloadFile(id, (progress, loaded, total) => {
           setDownloadProgress(prev => ({ ...prev, [id]: progress }));
           console.log(`传统下载进度: ${progress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
-
+          
           // 当下载达到100%时，立即切换到解析阶段
           if (progress === 100) {
             // 立即切换到解析阶段
@@ -1760,16 +1760,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               delete newProgress[id];
               return newProgress;
             });
-
+            
             // 设置解析状态并立即开始进度
             setParsingFiles(prev => new Set(prev).add(id));
             setParsingProgress(prev => ({ ...prev, [id]: 0 }));
-
+            
             // 立即开始解析进度动画，传递一个立即完成的 Promise
             startParsingProgress(id, Promise.resolve());
           }
         });
-
+        
         // 从响应头中获取文件名（如果后端设置了的话）
         const contentDisposition = response.headers['content-disposition'];
         if (contentDisposition) {
@@ -1778,7 +1778,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             downloadFilename = filenameMatch[1].replace(/['"]/g, '');
           }
         }
-
+        
         // 直接使用response.data作为blob，避免重复创建
         const url = window.URL.createObjectURL(response.data);
         const link = document.createElement('a');
@@ -1789,15 +1789,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
         console.log(`传统下载完成: ${downloadFilename}`);
-
+        
         // 解析进度已经在startParsingProgress函数中处理
-
+        
         // 解析状态会在startParsingProgress中自动清除
       }
     } catch (err) {
       console.error('下载失败:', err);
       alert('下载失败: ' + (err.message || '未知错误'));
-
+      
       // 清除下载和解析状态
       setDownloadingFiles(prev => {
         const newSet = new Set(prev);
@@ -1825,11 +1825,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleDownloadFolder = async (id, folderName) => {
     try {
       let downloadFilename = fixEncoding(folderName) + '.zip';
-
+      
       // 设置下载状态
       setDownloadingFiles(prev => new Set(prev).add(id));
       setDownloadProgress(prev => ({ ...prev, [id]: 0 }));
-
+      
       // 检查浏览器是否支持 showSaveFilePicker API
       let handle = null;
       if ('showSaveFilePicker' in window) {
@@ -1839,7 +1839,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             suggestedName: downloadFilename,
             types: [{
               description: 'ZIP Files',
-              accept: { 'application/zip': ['.zip'] }
+              accept: {'application/zip': ['.zip']}
             }],
           });
         } catch (err) {
@@ -1860,17 +1860,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           throw err;
         }
       }
-
+      
       // 预检查文件夹状态
       console.log(`开始检查文件夹状态: ${folderName}`);
       const folderStatus = await checkFolderDownloadStatus(id);
       console.log(`文件夹状态:`, folderStatus);
-
+      
       // 显示预检查进度（模拟）
       setDownloadProgress(prev => ({ ...prev, [id]: 5 }));
       await new Promise(resolve => setTimeout(resolve, 500));
       setDownloadProgress(prev => ({ ...prev, [id]: 10 }));
-
+      
       if (handle) {
         // 使用 showSaveFilePicker API
         try {
@@ -1880,7 +1880,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             const actualProgress = 10 + Math.round((progress * 90) / 100);
             setDownloadProgress(prev => ({ ...prev, [id]: actualProgress }));
             console.log(`文件夹下载进度: ${actualProgress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
-
+            
             // 当下载达到100%时，立即切换到解析阶段
             if (actualProgress >= 100) {
               // 立即切换到解析阶段，不等待
@@ -1894,16 +1894,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                 delete newProgress[id];
                 return newProgress;
               });
-
+              
               // 设置解析状态并立即开始进度
               setParsingFiles(prev => new Set(prev).add(id));
               setParsingProgress(prev => ({ ...prev, [id]: 0 }));
-
+              
               // 立即开始解析进度动画，传递一个立即完成的 Promise
               startParsingProgress(id, Promise.resolve());
             }
           });
-
+          
           // 从响应头中获取文件名（如果后端设置了的话）
           const contentDisposition = response.headers['content-disposition'];
           if (contentDisposition) {
@@ -1914,30 +1914,30 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           }
 
           const writable = await handle.createWritable();
-
+          
           // 统一处理文件写入，无论大小
           console.log(`开始下载文件夹: ${downloadFilename} (${(response.data.size / 1024 / 1024).toFixed(2)}MB)`);
-
+          
           // 验证blob数据完整性
           if (!response.data || response.data.size === 0) {
             throw new Error('下载的文件夹数据为空');
           }
-
+          
           // 直接写入文件，进度已经在下载阶段处理
           await writable.write(response.data);
-
+          
           // 创建 close Promise，但不立即等待
           const closePromise = writable.close();
-
+          
           // 立即开始解析进度动画，传递 close Promise
           startParsingProgress(id, closePromise);
-
+          
           // 等待 close 完成
           await closePromise;
           console.log(`文件夹写入完成: ${downloadFilename}`);
-
+          
           console.log(`文件夹已保存到用户选择的位置: ${downloadFilename}`);
-
+          
         } catch (err) {
           console.error('文件夹下载过程中发生错误:', err);
           console.error('错误详情:', {
@@ -1980,7 +1980,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           const actualProgress = 10 + Math.round((progress * 90) / 100);
           setDownloadProgress(prev => ({ ...prev, [id]: actualProgress }));
           console.log(`传统文件夹下载进度: ${actualProgress}% (${(loaded / 1024 / 1024).toFixed(2)}MB / ${(total / 1024 / 1024).toFixed(2)}MB)`);
-
+          
           // 当下载达到100%时，立即切换到解析阶段
           if (actualProgress >= 100) {
             // 立即切换到解析阶段
@@ -1994,16 +1994,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               delete newProgress[id];
               return newProgress;
             });
-
+            
             // 设置解析状态并立即开始进度
             setParsingFiles(prev => new Set(prev).add(id));
             setParsingProgress(prev => ({ ...prev, [id]: 0 }));
-
+            
             // 立即开始解析进度动画，传递一个立即完成的 Promise
             startParsingProgress(id, Promise.resolve());
           }
         });
-
+        
         // 从响应头中获取文件名（如果后端设置了的话）
         const contentDisposition = response.headers['content-disposition'];
         if (contentDisposition) {
@@ -2012,7 +2012,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             downloadFilename = filenameMatch[1].replace(/['"]/g, '');
           }
         }
-
+        
         // 直接使用response.data作为blob，避免重复创建
         const url = window.URL.createObjectURL(response.data);
         const link = document.createElement('a');
@@ -2023,15 +2023,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
         console.log(`传统文件夹下载完成: ${downloadFilename}`);
-
+        
         // 解析进度已经在startParsingProgress函数中处理
-
+        
         // 解析状态会在startParsingProgress中自动清除
       }
     } catch (err) {
       console.error('文件夹下载失败:', err);
       alert('文件夹下载失败: ' + (err.message || '未知错误'));
-
+      
       // 清除下载和解析状态
       setDownloadingFiles(prev => {
         const newSet = new Set(prev);
@@ -2065,7 +2065,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
       // 获取选中的文件和文件夹信息
       const selectedItems = files.filter(file => selectedIds.includes(file._id));
-
+      
       // 设置下载状态
       setDownloadingFiles(prev => new Set([...prev, ...selectedIds]));
       setDownloadProgress(prev => {
@@ -2075,7 +2075,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         });
         return newProgress;
       });
-
+      
       // 逐个处理选中的项目
       for (const file of selectedItems) {
         try {
@@ -2091,10 +2091,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           alert(`下载失败: ${file.originalName || file.filename}`);
         }
       }
-
+      
       // 下载完成后清空选中列表
       setSelectedIds([]);
-
+      
     } catch (err) {
       console.error('批量下载失败:', err);
       alert('批量下载失败: ' + (err.message || '未知错误'));
@@ -2119,8 +2119,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     const fileToDelete = files.find(file => file._id === id);
     if (!fileToDelete) return;
 
-    const confirmMessage = fileToDelete.isFolder ?
-      '确定要删除这个文件夹及其所有内容吗？' :
+    const confirmMessage = fileToDelete.isFolder ? 
+      '确定要删除这个文件夹及其所有内容吗？' : 
       '确定要删除这个文件吗？';
 
     if (window.confirm(confirmMessage)) {
@@ -2128,22 +2128,22 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // 设置删除状态并开始进度动画
         setDeletingFiles(prev => new Set(prev).add(id));
         setDeletingProgress(prev => ({ ...prev, [id]: 0 }));
-
+        
         // 开始删除进度动画，获取Promise
         startDeletingProgress(id, fileToDelete.isFolder);
-
+        
         // 执行实际的删除操作
         await deleteFile(id);
-
+        
         // 删除成功后，设置进度为100%并完成
         setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
         console.log(`删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
-
+        
         // 调用resolve函数完成进度Promise
         if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
           window.deleteProgressResolvers[id]();
         }
-
+        
         // 清除进度相关状态
         if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
           clearInterval(window.deleteProgressIntervals[id]);
@@ -2152,13 +2152,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
           delete window.deleteProgressResolvers[id];
         }
-
+        
         // 立即从文件列表中移除被删除的文件
         setFiles(prevFiles => prevFiles.filter(file => file._id !== id));
-
+        
         // 从选中列表中移除被删除的文件
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
-
+        
         if (fileToDelete.isFolder) {
           const folderIndex = folderPath.findIndex(f => f._id === id);
           if (folderIndex !== -1) {
@@ -2172,17 +2172,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               const data = await getUserFiles(params);
               const filesArray = Array.isArray(data.files) ? data.files : [];
               setFiles(filesArray);
-            } else {
-              const newPath = folderPath.filter(f => f._id !== id);
-              onFolderChange(currentFolder, newPath);
-            }
+                          } else {
+                const newPath = folderPath.filter(f => f._id !== id);
+                onFolderChange(currentFolder, newPath);
+              }
           }
         }
 
         if (onDeleteSuccess) {
           onDeleteSuccess();
         }
-
+        
         // 删除完成后延迟清除状态
         setTimeout(() => {
           setDeletingFiles(prev => {
@@ -2196,7 +2196,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             return newProgress;
           });
         }, 1000);
-
+        
       } catch (err) {
         alert('删除失败: ' + (err.message || '未知错误'));
         // 清除删除状态
@@ -2210,7 +2210,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           delete newProgress[id];
           return newProgress;
         });
-
+        
         // 清除进度相关状态
         if (window.deleteProgressIntervals && window.deleteProgressIntervals[id]) {
           clearInterval(window.deleteProgressIntervals[id]);
@@ -2264,16 +2264,36 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       // 获取所有可用标签
       const response = await getAllTags();
       setAvailableTags(response.tags || []);
-
-      // 重新获取文件的完整信息，包括最新的标签数据
+      
+      // 重新获取文件的完整信息，包括最新的标签数据和排序后的标签
       const fileDetails = await getFileDetails(file._id);
       if (fileDetails) {
-        setSelectedFileForTags(fileDetails);
-
+        // 使用排序后的标签来更新文件信息
+        const updatedFile = {
+          ...fileDetails,
+          // 如果有排序后的标签，使用它们来重新排序当前文件的标签
+          tags: fileDetails.sortedTags ? 
+            fileDetails.tags.sort((a, b) => {
+              const aIndex = fileDetails.sortedTags.findIndex(t => t.name === a.name);
+              const bIndex = fileDetails.sortedTags.findIndex(t => t.name === b.name);
+              // 如果标签在排序列表中，按排序位置排序；否则按名称排序
+              if (aIndex !== -1 && bIndex !== -1) {
+                return aIndex - bIndex;
+              } else if (aIndex !== -1) {
+                return -1;
+              } else if (bIndex !== -1) {
+                return 1;
+              }
+              return a.name.localeCompare(b.name);
+            }) : fileDetails.tags
+        };
+        
+        setSelectedFileForTags(updatedFile);
+        
         // 更新文件列表中的当前文件
-        setFiles(prevFiles =>
-          prevFiles.map(f =>
-            f._id === file._id ? fileDetails : f
+        setFiles(prevFiles => 
+          prevFiles.map(f => 
+            f._id === file._id ? updatedFile : f
           )
         );
       }
@@ -2294,7 +2314,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const newTagInputRef = useRef(null);
   const [tagModalError, setTagModalError] = useState('');
   const inputValueRef = useRef('');
-
+  
   const handleAddNewTag = useCallback(async () => {
     const tagName = inputValueRef.current.trim();
     if (!tagName) {
@@ -2303,42 +2323,42 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setTimeout(() => setTagModalError(''), 3000);
       return;
     }
-
-    // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
-    try {
-      const fileDetails = await getFileDetails(selectedFileForTags._id);
-      if (fileDetails && fileDetails.tags) {
-        // 检查是否已存在相同名称的标签
-        const existingTag = fileDetails.tags.find(tag =>
+    
+          // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
+      try {
+        const fileDetails = await getFileDetails(selectedFileForTags._id);
+        if (fileDetails && fileDetails.tags) {
+          // 检查是否已存在相同名称的标签
+          const existingTag = fileDetails.tags.find(tag => 
+            tag.name.toLowerCase() === tagName.toLowerCase()
+          );
+          
+          if (existingTag) {
+            setTagModalError(`标签 "${tagName}" 已存在`);
+            // 3秒后清除错误信息
+            setTimeout(() => setTagModalError(''), 3000);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('获取文件详情失败:', err);
+        // 如果获取失败，使用当前内存中的标签进行检查
+        const existingTag = selectedFileForTags.tags?.find(tag => 
           tag.name.toLowerCase() === tagName.toLowerCase()
         );
-
+        
         if (existingTag) {
           setTagModalError(`标签 "${tagName}" 已存在`);
-          // 3秒后清除错误信息
           setTimeout(() => setTagModalError(''), 3000);
           return;
         }
       }
-    } catch (err) {
-      console.error('获取文件详情失败:', err);
-      // 如果获取失败，使用当前内存中的标签进行检查
-      const existingTag = selectedFileForTags.tags?.find(tag =>
-        tag.name.toLowerCase() === tagName.toLowerCase()
-      );
-
-      if (existingTag) {
-        setTagModalError(`标签 "${tagName}" 已存在`);
-        setTimeout(() => setTagModalError(''), 3000);
-        return;
-      }
-    }
-
-    const newTag = {
-      name: tagName,
-      color: newTagColor
-    };
-
+      
+      const newTag = {
+        name: tagName,
+        color: newTagColor
+      };
+    
     try {
       // 先创建标签（如果不存在）
       try {
@@ -2349,30 +2369,30 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           throw err;
         }
       }
-
+      
       // 然后添加到文件
       await addTags(selectedFileForTags._id, [newTag]);
-
-      // 更新当前文件的标签，避免重新获取
-      setSelectedFileForTags(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), newTag],
-        tagOrder: [...(prev.tagOrder || []), newTag.name]
-      }));
-
-      // 更新文件列表中的当前文件
-      setFiles(prevFiles =>
-        prevFiles.map(file =>
-          file._id === selectedFileForTags._id
-            ? {
-              ...file,
-              tags: [...(file.tags || []), newTag],
-              tagOrder: [...(file.tagOrder || []), newTag.name]
-            }
-            : file
-        )
-      );
-
+      
+             // 更新当前文件的标签，避免重新获取
+       setSelectedFileForTags(prev => ({
+         ...prev,
+         tags: [...(prev.tags || []), newTag],
+         tagOrder: [...(prev.tagOrder || []), newTag.name]
+       }));
+        
+        // 更新文件列表中的当前文件
+        setFiles(prevFiles => 
+          prevFiles.map(file => 
+           file._id === selectedFileForTags._id 
+             ? { 
+                 ...file, 
+                 tags: [...(file.tags || []), newTag],
+                 tagOrder: [...(file.tagOrder || []), newTag.name]
+               }
+             : file
+         )
+       );
+      
       // 不清空输入框，让用户可以继续输入
       setNewTagColor('#007bff');
       setTagModalError('');
@@ -2387,27 +2407,27 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleRemoveTag = async (tagName) => {
     try {
       await removeTags(selectedFileForTags._id, [tagName]);
-
-      // 更新当前文件的标签，避免重新获取
-      setSelectedFileForTags(prev => ({
-        ...prev,
-        tags: prev.tags.filter(tag => tag.name !== tagName),
-        tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
-      }));
-
-      // 更新文件列表中的当前文件
-      setFiles(prevFiles =>
-        prevFiles.map(file =>
-          file._id === selectedFileForTags._id
-            ? {
-              ...file,
-              tags: file.tags.filter(tag => tag.name !== tagName),
-              tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-            }
-            : file
-        )
-      );
-
+      
+             // 更新当前文件的标签，避免重新获取
+       setSelectedFileForTags(prev => ({
+         ...prev,
+         tags: prev.tags.filter(tag => tag.name !== tagName),
+         tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
+       }));
+        
+        // 更新文件列表中的当前文件
+        setFiles(prevFiles => 
+          prevFiles.map(file => 
+           file._id === selectedFileForTags._id 
+             ? { 
+                 ...file, 
+                 tags: file.tags.filter(tag => tag.name !== tagName),
+                 tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+               }
+             : file
+         )
+       );
+      
       setTagModalError('');
     } catch (err) {
       console.error('移除标签失败:', err);
@@ -2420,23 +2440,23 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 处理标签重新排序
   const handleTagReorder = (fromIndex, toIndex) => {
     // 获取当前按顺序排列的标签
-    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0
+    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
       ? selectedFileForTags.tagOrder.map(tagName => {
-        const tag = selectedFileForTags.tags.find(t => t.name === tagName);
-        return tag;
-      }).filter(Boolean)
+          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
+          return tag;
+        }).filter(Boolean)
       : selectedFileForTags.tags;
-
+    
     const newOrderedTags = [...currentOrderedTags];
     const [movedTag] = newOrderedTags.splice(fromIndex, 1);
     newOrderedTags.splice(toIndex, 0, movedTag);
-
+    
     // 更新本地状态
     setSelectedFileForTags(prev => ({
       ...prev,
       tagOrder: newOrderedTags.map(tag => tag.name)
     }));
-
+    
     // 立即更新数据库
     const tagOrder = newOrderedTags.map(tag => tag.name);
     updateTagOrder(selectedFileForTags._id, tagOrder).catch(err => {
@@ -2446,10 +2466,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   };
 
   // 标签显示组件
-  const TagDisplay = ({ tags }) => {
+  const TagDisplay = ({ tags, sortedTags }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const dropdownRef = useRef(null);
-
+    
     // 点击外部关闭下拉框
     useEffect(() => {
       const handleClickOutside = (event) => {
@@ -2457,23 +2477,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           setIsExpanded(false);
         }
       };
-
+      
       if (isExpanded) {
         document.addEventListener('mousedown', handleClickOutside);
       }
-
+      
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }, [isExpanded]);
-
+    
     if (!tags || tags.length === 0) return null;
-
-    if (tags.length <= 2) {
+    
+    // 如果有排序后的标签，使用它们来排序当前标签
+    const sortedTagsList = sortedTags ? 
+      tags.sort((a, b) => {
+        const aIndex = sortedTags.findIndex(t => t.name === a.name);
+        const bIndex = sortedTags.findIndex(t => t.name === b.name);
+        // 如果标签在排序列表中，按排序位置排序；否则按名称排序
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        } else if (aIndex !== -1) {
+          return -1;
+        } else if (bIndex !== -1) {
+          return 1;
+        }
+        return a.name.localeCompare(b.name);
+      }) : tags;
+    
+    if (sortedTagsList.length <= 2) {
       // 如果标签数量少于等于2个，直接显示
       return (
         <div className="tags-display">
-          {tags.map((tag, index) => (
+          {sortedTagsList.map((tag, index) => (
             <span
               key={index}
               className="tag"
@@ -2486,12 +2522,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         </div>
       );
     }
-
+    
     // 如果标签数量大于2个，使用下拉框格式
     return (
       <div className="tags-dropdown-container" ref={dropdownRef}>
         <div className="tags-preview">
-          {tags.slice(0, 2).map((tag, index) => (
+          {sortedTagsList.slice(0, 2).map((tag, index) => (
             <span
               key={index}
               className="tag"
@@ -2504,15 +2540,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           <button
             className="tags-expand-btn"
             onClick={() => setIsExpanded(!isExpanded)}
-            title={`显示全部 ${tags.length} 个标签`}
+            title={`显示全部 ${sortedTagsList.length} 个标签`}
           >
-            +{tags.length - 2}
+            +{sortedTagsList.length - 2}
           </button>
         </div>
-
+        
         {isExpanded && (
           <div className="tags-dropdown">
-            {tags.map((tag, index) => (
+            {sortedTagsList.map((tag, index) => (
               <span
                 key={index}
                 className="tag"
@@ -2535,17 +2571,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   return (
     <div className="file-list">
-      <FilePreview
+      <FilePreview 
         file={previewFile}
         isOpen={isPreviewOpen}
         onClose={handleClosePreview}
       />
-
+      
       <h3>云端文件</h3>
-
+      
       <div className="folder-navigation">
-        <button
-          onClick={() => handlePathClick(-1)}
+        <button 
+          onClick={() => handlePathClick(-1)} 
           className="back-btn"
           style={{ visibility: currentFolder ? 'visible' : 'hidden' }}
         >
@@ -2554,7 +2590,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         <div className="folder-path">
           <span
             onClick={() => handlePathClick(-1)}
-            style={{
+            style={{ 
               cursor: 'pointer',
               color: !currentFolder ? 'inherit' : '#4361ee'
             }}
@@ -2566,7 +2602,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               <span className="folder-path-separator">/</span>
               <span
                 onClick={() => handlePathClick(index)}
-                style={{
+                style={{ 
                   cursor: 'pointer',
                   color: index === folderPath.length - 1 ? 'inherit' : '#4361ee'
                 }}
@@ -2577,7 +2613,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           ))}
         </div>
       </div>
-
+      
       <div className="file-controls">
         <div className="search-box">
           <input
@@ -2614,7 +2650,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               </>
             )}
             {!showFolderInput ? (
-              <button
+              <button 
                 type="button"
                 onClick={() => setShowFolderInput(true)}
                 className="create-folder-btn"
@@ -2632,8 +2668,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                   autoFocus
                 />
                 <button type="submit" className="confirm-folder-btn">确认</button>
-                <button
-                  type="button"
+                <button 
+                  type="button" 
                   onClick={() => {
                     setShowFolderInput(false);
                     setFolderName('');
@@ -2662,9 +2698,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                 <tr>
                   {userRole === 'admin' && (
                     <th>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.length === files.filter(f => !deletingFiles.has(f._id)).length && files.filter(f => !deletingFiles.has(f._id)).length > 0}
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.length === files.filter(f => !deletingFiles.has(f._id)).length && files.filter(f => !deletingFiles.has(f._id)).length > 0} 
                         onChange={handleSelectAll}
                       />
                     </th>
@@ -2683,26 +2719,26 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                   <tr key={file._id} className={file.isFolder ? 'folder-row' : ''}>
                     {userRole === 'admin' && (
                       <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(file._id)}
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(file._id)} 
                           onChange={() => handleSelect(file._id)}
                           disabled={deletingFiles.has(file._id)}
                         />
                       </td>
                     )}
                     <td style={{ width: '100px', maxWidth: '100px', overflow: 'hidden' }}>
-                      <TagDisplay tags={file.tags} />
+                      <TagDisplay tags={file.tags} sortedTags={file.sortedTags} />
                     </td>
                     <td>
                       {file.isFolder ? (
-                        <button
+                        <button 
                           className="folder-name-btn"
                           onClick={() => handleFolderClick(file)}
                         >
                           <span className="folder-icon">📁</span>
                           <span className="folder-name-text">
-                            {fixEncoding(file.originalName || file.filename)}
+                          {fixEncoding(file.originalName || file.filename)}
                           </span>
                         </button>
                       ) : (
@@ -2728,7 +2764,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       {!file.isFolder && (
                         <>
                           {isSupportedForPreview(file.originalName || file.filename) && (
-                            <button
+                            <button 
                               className="btn btn-preview"
                               onClick={() => handlePreview(file)}
                               title="预览文件"
@@ -2740,7 +2776,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           {downloadingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
-                                <div
+                                <div 
                                   className="download-progress-fill"
                                   style={{ width: `${downloadProgress[file._id] || 0}%` }}
                                 ></div>
@@ -2752,7 +2788,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           ) : parsingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
-                                <div
+                                <div 
                                   className="download-progress-fill parsing"
                                   style={{ width: `${parsingProgress[file._id] || 0}%` }}
                                 ></div>
@@ -2763,7 +2799,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               <span className="parsing-text">解析中</span>
                             </div>
                           ) : (
-                            <button
+                            <button 
                               className="btn btn-primary"
                               onClick={() => handleDownload(file._id, file.originalName || file.filename)}
                             >
@@ -2777,7 +2813,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           {downloadingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
-                                <div
+                                <div 
                                   className="download-progress-fill"
                                   style={{ width: `${downloadProgress[file._id] || 0}%` }}
                                 ></div>
@@ -2789,7 +2825,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           ) : parsingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
-                                <div
+                                <div 
                                   className="download-progress-fill parsing"
                                   style={{ width: `${parsingProgress[file._id] || 0}%` }}
                                 ></div>
@@ -2800,7 +2836,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               <span className="parsing-text">解析中</span>
                             </div>
                           ) : (
-                            <button
+                            <button 
                               className="btn btn-primary"
                               onClick={() => handleDownloadFolder(file._id, file.originalName || file.filename)}
                               title="下载文件夹（ZIP格式）"
@@ -2815,7 +2851,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           {deletingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
-                                <div
+                                <div 
                                   className="download-progress-fill deleting"
                                   style={{ width: `${deletingProgress[file._id] || 0}%` }}
                                 ></div>
@@ -2825,7 +2861,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               </span>
                             </div>
                           ) : (
-                            <button
+                            <button 
                               className="btn btn-danger"
                               onClick={() => handleDelete(file._id)}
                             >
@@ -2847,15 +2883,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 });
 
 // 标签模态框组件
-const TagModal = ({
-  showTagModal,
-  selectedFileForTags,
-  availableTags,
-  newTagColor,
-  setNewTagColor,
-  tagModalError,
-  handleCloseTagModal,
-  handleAddNewTag,
+const TagModal = ({ 
+  showTagModal, 
+  selectedFileForTags, 
+  availableTags, 
+  newTagColor, 
+  setNewTagColor, 
+  tagModalError, 
+  handleCloseTagModal, 
+  handleAddNewTag, 
   handleRemoveTag,
   newTagInputRef,
   inputValueRef,
@@ -2875,9 +2911,9 @@ const TagModal = ({
       return () => clearTimeout(timer);
     }
   }, [showTagModal, newTagInputRef]);
-
+  
   if (!showTagModal || !selectedFileForTags) return null;
-
+  
   return (
     <div className="modal-overlay" onClick={handleCloseTagModal}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -2885,7 +2921,7 @@ const TagModal = ({
           <h3>管理标签 - {fixEncoding(selectedFileForTags.originalName || selectedFileForTags.filename)}</h3>
           <button className="close-btn" onClick={handleCloseTagModal}>×</button>
         </div>
-
+        
         <div className="modal-body">
           {/* 标签弹窗内的错误信息显示 */}
           {tagModalError && (
@@ -2901,94 +2937,106 @@ const TagModal = ({
               {tagModalError}
             </div>
           )}
-          {/* 当前标签 */}
-          <div className="current-tags">
-            <h4>当前标签: (可拖拽排序)</h4>
-            {selectedFileForTags.tags && selectedFileForTags.tags.length > 0 ? (
-              <div
-                className="tags-list"
-                id="sortable-tags"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                  const toIndex = selectedFileForTags.tags.length; // 拖到末尾
-
-                  if (fromIndex !== toIndex) {
-                    handleTagReorder(fromIndex, toIndex);
-                  }
-                }}
-              >
-                {(selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0
-                  ? selectedFileForTags.tagOrder.map(tagName => {
-                    const tag = selectedFileForTags.tags.find(t => t.name === tagName);
-                    return tag;
-                  }).filter(Boolean)
-                  : selectedFileForTags.tags
-                ).map((tag, index) => (
-                  <span
-                    key={`${tag.name}-${index}`}
-                    className="tag-item draggable-tag"
-                    draggable="true"
-                    data-index={index}
-                    data-tag-name={tag.name}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', index.toString());
-                      e.dataTransfer.effectAllowed = 'move';
-                      e.currentTarget.classList.add('dragging');
-                    }}
-                    onDragEnd={(e) => {
-                      e.currentTarget.classList.remove('dragging');
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                      const toIndex = parseInt(e.currentTarget.dataset.index);
-
-                      if (fromIndex !== toIndex) {
-                        handleTagReorder(fromIndex, toIndex);
+                      {/* 当前标签 */}
+            <div className="current-tags">
+              <h4>当前标签: (可拖拽排序)</h4>
+              {selectedFileForTags.tags && selectedFileForTags.tags.length > 0 ? (
+                <div 
+                  className="tags-list" 
+                  id="sortable-tags"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIndex = selectedFileForTags.tags.length; // 拖到末尾
+                    
+                    if (fromIndex !== toIndex) {
+                      handleTagReorder(fromIndex, toIndex);
+                    }
+                  }}
+                >
+                  {(selectedFileForTags.sortedTags ? 
+                    selectedFileForTags.tags.sort((a, b) => {
+                      const aIndex = selectedFileForTags.sortedTags.findIndex(t => t.name === a.name);
+                      const bIndex = selectedFileForTags.sortedTags.findIndex(t => t.name === b.name);
+                      // 如果标签在排序列表中，按排序位置排序；否则按名称排序
+                      if (aIndex !== -1 && bIndex !== -1) {
+                        return aIndex - bIndex;
+                      } else if (aIndex !== -1) {
+                        return -1;
+                      } else if (bIndex !== -1) {
+                        return 1;
                       }
-                    }}
-                    onDragEnter={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.style.opacity = '0.5';
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.style.opacity = '1';
-                    }}
-                  >
-                    {/* 我现在要让显示顺序按照tag的order排序 */}
-
-                    <span
-                      className="tag"
-                      style={{ backgroundColor: tag.color }}
-                      title={tag.name}
+                      return a.name.localeCompare(b.name);
+                    })
+                    : selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
+                      ? selectedFileForTags.tagOrder.map(tagName => {
+                          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
+                          return tag;
+                        }).filter(Boolean)
+                      : selectedFileForTags.tags
+                  ).map((tag, index) => (
+                    <span 
+                      key={`${tag.name}-${index}`} 
+                      className="tag-item draggable-tag"
+                      draggable="true"
+                      data-index={index}
+                      data-tag-name={tag.name}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', index.toString());
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.currentTarget.classList.add('dragging');
+                      }}
+                      onDragEnd={(e) => {
+                        e.currentTarget.classList.remove('dragging');
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        const toIndex = parseInt(e.currentTarget.dataset.index);
+                        
+                        if (fromIndex !== toIndex) {
+                          handleTagReorder(fromIndex, toIndex);
+                        }
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.style.opacity = '0.5';
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.style.opacity = '1';
+                      }}
                     >
-                      {tag.name}
+                      <span
+                        className="tag"
+                        style={{ backgroundColor: tag.color }}
+                        title={tag.name}
+                      >
+                        {tag.name}
+                      </span>
+                      <button
+                        className="remove-tag-btn"
+                        onClick={() => handleRemoveTag(tag.name)}
+                        title={`删除标签 "${tag.name}"`}
+                      >
+                        ×
+                      </button>
                     </span>
-                    <button
-                      className="remove-tag-btn"
-                      onClick={() => handleRemoveTag(tag.name)}
-                      title={`删除标签 "${tag.name}"`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p>暂无标签</p>
-            )}
-          </div>
-
+                  ))}
+                </div>
+              ) : (
+                <p>暂无标签</p>
+              )}
+            </div>
+          
           {/* 添加新标签 */}
           <div className="add-tag-section">
             <h4>添加新标签:</h4>
@@ -3029,7 +3077,7 @@ const TagModal = ({
               </button>
             </div>
           </div>
-
+          
           {/* 可用标签 */}
           <div className="available-tags">
             <h4>可用标签:</h4>
@@ -3040,48 +3088,70 @@ const TagModal = ({
                   className="tag"
                   style={{ backgroundColor: tag.color }}
                   onClick={async () => {
+                    console.log('=== 标签点击调试信息 ===');
+                    console.log('1. 点击的标签:', tag);
+                    console.log('2. selectedFileForTags:', selectedFileForTags);
+                    console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
+                    console.log('4. 准备调用 addTags 函数');
+                    console.log('5. addTags 函数类型:', typeof addTags);
+                    console.log('6. addTags 函数内容:', addTags);
+                    
                     if (!selectedFileForTags || !selectedFileForTags._id) {
+                      console.error('错误: selectedFileForTags 或 _id 为空');
                       return;
                     }
-
+                    
                     // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
                     try {
                       const fileDetails = await getFileDetails(selectedFileForTags._id);
                       if (fileDetails && fileDetails.tags) {
                         // 检查是否已存在相同名称的标签
-                        const existingTag = fileDetails.tags.find(existingTag =>
+                        const existingTag = fileDetails.tags.find(existingTag => 
                           existingTag.name.toLowerCase() === tag.name.toLowerCase()
                         );
-
+                        
                         if (existingTag) {
+                          console.log('标签已存在，跳过添加');
                           setTagModalError(`标签 "${tag.name}" 已存在`);
                           setTimeout(() => setTagModalError(''), 3000);
                           return;
                         }
                       }
                     } catch (err) {
+                      console.error('获取文件详情失败:', err);
                       // 如果获取失败，使用当前内存中的标签进行检查
-                      const existingTag = selectedFileForTags.tags?.find(existingTag =>
+                      const existingTag = selectedFileForTags.tags?.find(existingTag => 
                         existingTag.name.toLowerCase() === tag.name.toLowerCase()
                       );
-
+                      
                       if (existingTag) {
+                        console.log('标签已存在，跳过添加');
                         setTagModalError(`标签 "${tag.name}" 已存在`);
                         setTimeout(() => setTagModalError(''), 3000);
                         return;
                       }
                     }
-
+                    
                     try {
+                      console.log('7. 开始调用 addTags...');
                       const result = await addTags(selectedFileForTags._id, [tag]);
-
-                      // 立即更新弹窗内的当前标签显示
-                      setSelectedFileForTags(prev => ({
-                        ...prev,
-                        tags: [...(prev.tags || []), tag],
-                        tagOrder: [...(prev.tagOrder || []), tag.name]
-                      }));
+                      console.log('8. addTags 调用成功，返回结果:', result);
+                      
+                      console.log('9. 开始更新 selectedFileForTags...');
+                                     // 立即更新弹窗内的当前标签显示
+               setSelectedFileForTags(prev => ({
+                 ...prev,
+                 tags: [...(prev.tags || []), tag],
+                 tagOrder: [...(prev.tagOrder || []), tag.name]
+               }));
+                      
+                      console.log('15. 清除错误信息');
+                      console.log('16. 标签添加完成！');
                     } catch (err) {
+                      console.error('=== 添加标签失败 ===');
+                      console.error('错误详情:', err);
+                      console.error('错误消息:', err.message);
+                      console.error('错误堆栈:', err.stack);
                     }
                   }}
                   title={`点击添加标签: ${tag.name}`}
@@ -3108,7 +3178,7 @@ const Dashboard = () => {
   const fileListRef = useRef(null);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderPath, setFolderPath] = useState([]);
-
+  
   // 标签相关状态 - 从 FileList 组件移到这里
   const [showTagModal, setShowTagModal] = useState(false);
   const [selectedFileForTags, setSelectedFileForTags] = useState(null);
@@ -3117,7 +3187,7 @@ const Dashboard = () => {
   const [tagModalError, setTagModalError] = useState('');
   const newTagInputRef = useRef(null);
   const inputValueRef = useRef('');
-
+  
   // 标签颜色选择器
   const tagColors = [
     '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
@@ -3130,7 +3200,7 @@ const Dashboard = () => {
       try {
         const response = await getCurrentUser();
         setCurrentUser(response);
-
+        
         // 获取服务器配置中的显示用户信息开关
         try {
           const configResponse = await fetch('/api/config');
@@ -3175,7 +3245,7 @@ const Dashboard = () => {
     setSelectedFileForTags(null);
     setNewTagColor('#007bff');
     setTagModalError('');
-
+    
     // 关闭标签弹窗后刷新文件列表
     if (fileListRef.current) {
       fileListRef.current.refresh();
@@ -3190,16 +3260,16 @@ const Dashboard = () => {
       setTimeout(() => setTagModalError(''), 3000);
       return;
     }
-
+    
     // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
     try {
       const fileDetails = await getFileDetails(selectedFileForTags._id);
       if (fileDetails && fileDetails.tags) {
         // 检查是否已存在相同名称的标签
-        const existingTag = fileDetails.tags.find(tag =>
+        const existingTag = fileDetails.tags.find(tag => 
           tag.name.toLowerCase() === tagName.toLowerCase()
         );
-
+        
         if (existingTag) {
           setTagModalError(`标签 "${tagName}" 已存在`);
           // 3秒后清除错误信息
@@ -3210,22 +3280,22 @@ const Dashboard = () => {
     } catch (err) {
       console.error('获取文件详情失败:', err);
       // 如果获取失败，使用当前内存中的标签进行检查
-      const existingTag = selectedFileForTags.tags?.find(tag =>
+      const existingTag = selectedFileForTags.tags?.find(tag => 
         tag.name.toLowerCase() === tagName.toLowerCase()
       );
-
+      
       if (existingTag) {
         setTagModalError(`标签 "${tagName}" 已存在`);
         setTimeout(() => setTagModalError(''), 3000);
         return;
       }
     }
-
+    
     const newTag = {
       name: tagName,
       color: newTagColor
     };
-
+  
     try {
       // 先创建标签（如果不存在）
       try {
@@ -3236,20 +3306,20 @@ const Dashboard = () => {
           throw err;
         }
       }
-
+      
       // 然后添加到文件
       await addTags(selectedFileForTags._id, [newTag]);
-
+      
       // 更新当前文件的标签，避免重新获取
       setSelectedFileForTags(prev => ({
         ...prev,
         tags: [...(prev.tags || []), newTag]
       }));
-
+      
       // 不清空输入框，让用户可以继续输入
       setNewTagColor('#007bff');
       setTagModalError('');
-
+      
       // 添加标签后刷新文件列表
       if (fileListRef.current) {
         fileListRef.current.refresh();
@@ -3265,14 +3335,14 @@ const Dashboard = () => {
   const handleRemoveTag = async (tagName) => {
     try {
       await removeTags(selectedFileForTags._id, [tagName]);
-
+      
       // 更新当前文件的标签，避免重新获取
       setSelectedFileForTags(prev => ({
         ...prev,
         tags: prev.tags.filter(tag => tag.name !== tagName),
         tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
       }));
-
+      
       setTagModalError('');
     } catch (err) {
       console.error('移除标签失败:', err);
@@ -3285,23 +3355,23 @@ const Dashboard = () => {
   // 处理标签重新排序
   const handleTagReorder = (fromIndex, toIndex) => {
     // 获取当前按顺序排列的标签
-    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0
+    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
       ? selectedFileForTags.tagOrder.map(tagName => {
-        const tag = selectedFileForTags.tags.find(t => t.name === tagName);
-        return tag;
-      }).filter(Boolean)
+          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
+          return tag;
+        }).filter(Boolean)
       : selectedFileForTags.tags;
-
+    
     const newOrderedTags = [...currentOrderedTags];
     const [movedTag] = newOrderedTags.splice(fromIndex, 1);
     newOrderedTags.splice(toIndex, 0, movedTag);
-
+    
     // 更新本地状态
     setSelectedFileForTags(prev => ({
       ...prev,
       tagOrder: newOrderedTags.map(tag => tag.name)
     }));
-
+    
     // 立即更新数据库
     const tagOrder = newOrderedTags.map(tag => tag.name);
     updateTagOrder(selectedFileForTags._id, tagOrder).catch(err => {
@@ -3330,10 +3400,10 @@ const Dashboard = () => {
           )}
         </div>
       )}
-
+      
       <div className="file-management">
         {/* 文件列表组件 */}
-        <FileList
+        <FileList 
           ref={fileListRef}
           userRole={currentUser?.role}
           onDeleteSuccess={() => {
@@ -3349,10 +3419,10 @@ const Dashboard = () => {
           }}
           onOpenTagModal={handleOpenTagModal}
         />
-
+        
         {/* 上传文件组件 - 移到文件列表下方 */}
         {isAdmin && (
-          <FileUpload
+          <FileUpload 
             onUploadSuccess={handleUploadSuccess}
             currentFolder={currentFolder}
             folderPath={folderPath}
@@ -3363,9 +3433,9 @@ const Dashboard = () => {
           />
         )}
       </div>
-
+      
       {/* 标签模态框组件 */}
-      <TagModal
+      <TagModal 
         showTagModal={showTagModal}
         selectedFileForTags={selectedFileForTags}
         availableTags={availableTags}
