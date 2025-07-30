@@ -215,4 +215,20 @@ export const getAdminStorageUsage = async () => {
   return response.data;
 };
 
+// 标签相关API
+export const addTags = async (fileId, tags) => {
+  const response = await api.post('/files/add-tags', { fileId, tags });
+  return response.data;
+};
+
+export const removeTags = async (fileId, tagNames) => {
+  const response = await api.post('/files/remove-tags', { fileId, tagNames });
+  return response.data;
+};
+
+export const getAllTags = async () => {
+  const response = await api.get('/files/tags');
+  return response.data;
+};
+
 export default api;

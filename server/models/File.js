@@ -39,6 +39,17 @@ const FileSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  tags: [{
+    name: {
+      type: String,
+      required: true
+    },
+    color: {
+      type: String,
+      required: true,
+      default: '#007bff'
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

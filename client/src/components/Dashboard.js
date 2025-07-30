@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -1067,6 +1067,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [parsingFiles, setParsingFiles] = useState(new Set());
   const [deletingProgress, setDeletingProgress] = useState({});
   const [deletingFiles, setDeletingFiles] = useState(new Set());
+  
+  // 标签相关状态
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [selectedFileForTags, setSelectedFileForTags] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#007bff');
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -1262,10 +1269,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       });
       
       // 开始批量删除进度动画
+      const progressPromises = [];
       selectedIds.forEach(id => {
         const file = files.find(f => f._id === id);
         if (file) {
-          startDeletingProgress(id, file.isFolder);
+          const progressPromise = startDeletingProgress(id, file.isFolder);
+          progressPromises.push(progressPromise);
         }
       });
 
@@ -2228,6 +2237,420 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
+  // 标签相关函数
+  const handleAddTags = async (fileId, tags) => {
+    try {
+      await addTags(fileId, tags);
+      refreshFiles();
+      setError('');
+    } catch (err) {
+      setError(`添加标签失败: ${err.message}`);
+    }
+  };
+
+  const handleRemoveTags = async (fileId, tagNames) => {
+    try {
+      await removeTags(fileId, tagNames);
+      refreshFiles();
+      setError('');
+    } catch (err) {
+      setError(`移除标签失败: ${err.message}`);
+    }
+  };
+
+  const handleOpenTagModal = async (file) => {
+    setSelectedFileForTags(file);
+    try {
+      const response = await getAllTags();
+      setAvailableTags(response.tags || []);
+    } catch (err) {
+      console.error('获取标签失败:', err);
+      setAvailableTags([]);
+    }
+    setShowTagModal(true);
+  };
+
+  const handleCloseTagModal = () => {
+    setShowTagModal(false);
+    setSelectedFileForTags(null);
+    setNewTagName('');
+    setNewTagColor('#007bff');
+  };
+
+  const newTagInputRef = useRef(null);
+  const [tagModalError, setTagModalError] = useState('');
+  
+  const handleAddNewTag = useCallback(async () => {
+    if (!newTagName.trim()) return;
+    
+    // 检查是否已存在相同名称的标签
+    const existingTag = selectedFileForTags.tags?.find(tag => 
+      tag.name.toLowerCase() === newTagName.trim().toLowerCase()
+    );
+    
+    if (existingTag) {
+      setTagModalError(`标签 "${newTagName.trim()}" 已存在`);
+      // 3秒后清除错误信息
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
+    
+    const newTag = {
+      name: newTagName.trim(),
+      color: newTagColor
+    };
+    
+    try {
+      await addTags(selectedFileForTags._id, [newTag]);
+      
+      // 更新当前文件的标签，而不是刷新整个文件列表
+      setSelectedFileForTags(prev => ({
+        ...prev,
+        tags: [...(prev.tags || []), newTag]
+      }));
+      
+      // 更新文件列表中的当前文件
+      setFiles(prevFiles => 
+        prevFiles.map(file => 
+          file._id === selectedFileForTags._id 
+            ? { ...file, tags: [...(file.tags || []), newTag] }
+            : file
+        )
+      );
+      
+      setNewTagName('');
+      setNewTagColor('#007bff');
+      setTagModalError('');
+      
+      // 保持输入框焦点 - 使用 requestAnimationFrame 确保在渲染后执行
+      requestAnimationFrame(() => {
+        if (newTagInputRef.current) {
+          newTagInputRef.current.focus();
+        }
+      });
+    } catch (err) {
+      console.error('添加新标签失败:', err);
+      setTagModalError(`添加标签失败: ${err.message}`);
+      // 3秒后清除错误信息
+      setTimeout(() => setTagModalError(''), 3000);
+    }
+  }, [newTagName, newTagColor, selectedFileForTags, setFiles]);
+
+  const handleRemoveTag = async (tagName) => {
+    try {
+      await removeTags(selectedFileForTags._id, [tagName]);
+      
+      // 更新当前文件的标签
+      setSelectedFileForTags(prev => ({
+        ...prev,
+        tags: prev.tags.filter(tag => tag.name !== tagName)
+      }));
+      
+      // 更新文件列表中的当前文件
+      setFiles(prevFiles => 
+        prevFiles.map(file => 
+          file._id === selectedFileForTags._id 
+            ? { ...file, tags: file.tags.filter(tag => tag.name !== tagName) }
+            : file
+        )
+      );
+      
+      setError('');
+    } catch (err) {
+      console.error('移除标签失败:', err);
+      setError(`移除标签失败: ${err.message}`);
+    }
+  };
+
+  // 标签颜色选择器
+  const tagColors = [
+    '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
+    '#6f42c1', '#fd7e14', '#e83e8c', '#20c997', '#6c757d'
+  ];
+
+  // 标签显示组件
+  const TagDisplay = ({ tags }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const dropdownRef = useRef(null);
+    
+    // 点击外部关闭下拉框
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setIsExpanded(false);
+        }
+      };
+      
+      if (isExpanded) {
+        document.addEventListener('mousedown', handleClickOutside);
+      }
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [isExpanded]);
+    
+    if (!tags || tags.length === 0) return null;
+    
+    if (tags.length <= 2) {
+      // 如果标签数量少于等于2个，直接显示
+      return (
+        <div className="tags-display">
+          {tags.map((tag, index) => (
+            <span
+              key={index}
+              className="tag"
+              style={{ backgroundColor: tag.color }}
+              title={tag.name}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    
+    // 如果标签数量大于2个，使用下拉框格式
+    return (
+      <div className="tags-dropdown-container" ref={dropdownRef}>
+        <div className="tags-preview">
+          {tags.slice(0, 2).map((tag, index) => (
+            <span
+              key={index}
+              className="tag"
+              style={{ backgroundColor: tag.color }}
+              title={tag.name}
+            >
+              {tag.name}
+            </span>
+          ))}
+          <button
+            className="tags-expand-btn"
+            onClick={() => setIsExpanded(!isExpanded)}
+            title={`显示全部 ${tags.length} 个标签`}
+          >
+            +{tags.length - 2}
+          </button>
+        </div>
+        
+        {isExpanded && (
+          <div className="tags-dropdown">
+            {tags.map((tag, index) => (
+              <span
+                key={index}
+                className="tag"
+                style={{ backgroundColor: tag.color }}
+                title={tag.name}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 标签模态框组件
+  const TagModal = () => {
+    // 当弹窗打开时自动聚焦到输入框
+    useEffect(() => {
+      if (showTagModal && newTagInputRef.current) {
+        setTimeout(() => {
+          newTagInputRef.current.focus();
+        }, 100);
+      }
+    }, [showTagModal]);
+    
+    // 监听 newTagName 变化，确保输入框保持焦点
+    useEffect(() => {
+      if (newTagInputRef.current && document.activeElement !== newTagInputRef.current) {
+        newTagInputRef.current.focus();
+      }
+    }, [newTagName]);
+    
+    if (!showTagModal || !selectedFileForTags) return null;
+    
+    return (
+      <div className="modal-overlay" onClick={handleCloseTagModal}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>管理标签 - {selectedFileForTags.originalName || selectedFileForTags.filename}</h3>
+            <button className="close-btn" onClick={handleCloseTagModal}>×</button>
+          </div>
+          
+          <div className="modal-body">
+            {/* 标签弹窗内的错误信息显示 */}
+            {tagModalError && (
+              <div className="tag-modal-error" style={{
+                backgroundColor: '#fee',
+                color: '#c33',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                marginBottom: '12px',
+                fontSize: '14px',
+                border: '1px solid #fcc'
+              }}>
+                {tagModalError}
+              </div>
+            )}
+            {/* 当前标签 */}
+            <div className="current-tags">
+              <h4>当前标签:</h4>
+              {selectedFileForTags.tags && selectedFileForTags.tags.length > 0 ? (
+                <div className="tags-list">
+                  {selectedFileForTags.tags.map((tag, index) => (
+                    <span key={index} className="tag-item">
+                      <span
+                        className="tag"
+                        style={{ backgroundColor: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                      <button
+                        className="remove-tag-btn"
+                        onClick={() => handleRemoveTag(tag.name)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p>暂无标签</p>
+              )}
+            </div>
+            
+            {/* 添加新标签 */}
+            <div className="add-tag-section">
+              <h4>添加新标签:</h4>
+              <div className="add-tag-form">
+                <input
+                  ref={newTagInputRef}
+                  type="text"
+                  placeholder="标签名称"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  className="tag-name-input"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddNewTag();
+                    }
+                  }}
+                />
+                <div className="color-picker">
+                  {tagColors.map((color, index) => (
+                    <button
+                      key={index}
+                      className={`color-option ${newTagColor === color ? 'selected' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setNewTagColor(color)}
+                    />
+                  ))}
+                </div>
+                <button
+                  className="add-tag-btn"
+                  onClick={handleAddNewTag}
+                  disabled={!newTagName.trim()}
+                >
+                  添加标签
+                </button>
+              </div>
+            </div>
+            
+            {/* 可用标签 */}
+            <div className="available-tags">
+              <h4>可用标签:</h4>
+              <div className="tags-list">
+                {availableTags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="tag"
+                    style={{ backgroundColor: tag.color }}
+                    onClick={async () => {
+                      console.log('=== 标签点击调试信息 ===');
+                      console.log('1. 点击的标签:', tag);
+                      console.log('2. selectedFileForTags:', selectedFileForTags);
+                      console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
+                      console.log('4. 准备调用 addTags 函数');
+                      console.log('5. addTags 函数类型:', typeof addTags);
+                      console.log('6. addTags 函数内容:', addTags);
+                      
+                      if (!selectedFileForTags || !selectedFileForTags._id) {
+                        console.error('错误: selectedFileForTags 或 _id 为空');
+                        setError('无法添加标签：文件信息不完整');
+                        return;
+                      }
+                      
+                      // 检查是否已存在相同名称的标签
+                      const existingTag = selectedFileForTags.tags?.find(existingTag => 
+                        existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                      );
+                      
+                      if (existingTag) {
+                        console.log('标签已存在，跳过添加');
+                        setTagModalError(`标签 "${tag.name}" 已存在`);
+                        // 3秒后清除错误信息
+                        setTimeout(() => setTagModalError(''), 3000);
+                        return;
+                      }
+                      
+                      try {
+                        console.log('7. 开始调用 addTags...');
+                        const result = await addTags(selectedFileForTags._id, [tag]);
+                        console.log('8. addTags 调用成功，返回结果:', result);
+                        
+                        console.log('9. 开始更新 selectedFileForTags...');
+                        // 更新当前文件的标签
+                        setSelectedFileForTags(prev => {
+                          console.log('10. 更新前的 selectedFileForTags:', prev);
+                          const updated = {
+                            ...prev,
+                            tags: [...(prev.tags || []), tag]
+                          };
+                          console.log('11. 更新后的 selectedFileForTags:', updated);
+                          return updated;
+                        });
+                        
+                        console.log('12. 开始更新文件列表...');
+                        // 更新文件列表中的当前文件
+                        setFiles(prevFiles => {
+                          console.log('13. 更新前的文件列表长度:', prevFiles.length);
+                          const updated = prevFiles.map(file => 
+                            file._id === selectedFileForTags._id 
+                              ? { ...file, tags: [...(file.tags || []), tag] }
+                              : file
+                          );
+                          console.log('14. 更新后的文件列表长度:', updated.length);
+                          return updated;
+                        });
+                        
+                        console.log('15. 清除错误信息');
+                        setTagModalError('');
+                        console.log('16. 标签添加完成！');
+                      } catch (err) {
+                        console.error('=== 添加标签失败 ===');
+                        console.error('错误详情:', err);
+                        console.error('错误消息:', err.message);
+                        console.error('错误堆栈:', err.stack);
+                        setTagModalError(`添加标签失败: ${err.message}`);
+                        // 3秒后清除错误信息
+                        setTimeout(() => setTagModalError(''), 3000);
+                      }
+                    }}
+                    title={`点击添加标签: ${tag.name}`}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return <div className="loading">加载文件中...</div>;
   if (error) return <div className="error-message">{error}</div>;
 
@@ -2367,6 +2790,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       />
                     </th>
                   )}
+                  <th style={{ textAlign: 'center', width: '100px' }}>标签</th>
                   <th style={{ textAlign: 'center' }}>名称</th>
                   <th style={{ textAlign: 'center' }}>类型</th>
                   <th style={{ textAlign: 'center' }}>大小</th>
@@ -2388,6 +2812,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         />
                       </td>
                     )}
+                    <td style={{ width: '100px', maxWidth: '100px', overflow: 'hidden' }}>
+                      <TagDisplay tags={file.tags} />
+                    </td>
                     <td>
                       {file.isFolder ? (
                         <button 
@@ -2410,6 +2837,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                     {/* {userRole === 'admin' && <td>{formatBeijingTime(file.createdAt)}</td>} */}
                     {userRole === 'admin' && <td style={{ textAlign: 'center' }}>{formatBeijingTime(file.updatedAt)}</td>}
                     <td className="action-buttons">
+                      {userRole === 'admin' && (
+                        <button
+                          className="btn btn-tag"
+                          onClick={() => handleOpenTagModal(file)}
+                          title="管理标签"
+                        >
+                          🏷️
+                        </button>
+                      )}
                       {!file.isFolder && (
                         <>
                           {isSupportedForPreview(file.originalName || file.filename) && (
@@ -2422,39 +2858,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               预览
                             </button>
                           )}
-                        {downloadingFiles.has(file._id) ? (
-                          <div className="download-progress-container">
-                            <div className="download-progress-bar">
-                              <div 
-                                className="download-progress-fill"
-                                style={{ width: `${downloadProgress[file._id] || 0}%` }}
-                              ></div>
+                          {downloadingFiles.has(file._id) ? (
+                            <div className="download-progress-container">
+                              <div className="download-progress-bar">
+                                <div 
+                                  className="download-progress-fill"
+                                  style={{ width: `${downloadProgress[file._id] || 0}%` }}
+                                ></div>
+                              </div>
+                              <span className="download-progress-text">
+                                {downloadProgress[file._id] || 0}%
+                              </span>
                             </div>
-                            <span className="download-progress-text">
-                              {downloadProgress[file._id] || 0}%
-                            </span>
-                          </div>
-                        ) : parsingFiles.has(file._id) ? (
-                          <div className="download-progress-container">
-                            <div className="download-progress-bar">
-                              <div 
-                                className="download-progress-fill parsing"
-                                style={{ width: `${parsingProgress[file._id] || 0}%` }}
-                              ></div>
+                          ) : parsingFiles.has(file._id) ? (
+                            <div className="download-progress-container">
+                              <div className="download-progress-bar">
+                                <div 
+                                  className="download-progress-fill parsing"
+                                  style={{ width: `${parsingProgress[file._id] || 0}%` }}
+                                ></div>
+                              </div>
+                              <span className="download-progress-text">
+                                {parsingProgress[file._id] || 0}%
+                              </span>
+                              <span className="parsing-text">解析中</span>
                             </div>
-                            <span className="download-progress-text">
-                              {parsingProgress[file._id] || 0}%
-                            </span>
-                            <span className="parsing-text">解析中</span>
-                          </div>
-                        ) : (
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => handleDownload(file._id, file.originalName || file.filename)}
-                          >
-                            下载
-                          </button>
-                        )}
+                          ) : (
+                            <button 
+                              className="btn btn-primary"
+                              onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                            >
+                              下载
+                            </button>
+                          )}
                         </>
                       )}
                       {file.isFolder && (
@@ -2527,6 +2963,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           </div>
         )}
       </div>
+      <TagModal />
     </div>
   );
 });

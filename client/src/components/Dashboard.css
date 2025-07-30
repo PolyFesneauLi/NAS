@@ -1620,3 +1620,368 @@ td:nth-child(2) {
   color: #667eea;
   font-weight: 600;
 }
+
+/* 标签相关样式 */
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag:hover {
+  opacity: 0.8;
+}
+
+.btn-tag {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.btn-tag:hover {
+  background: #5a6268;
+}
+
+/* 标签模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 10px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #374151;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.close-btn:hover {
+  color: #374151;
+}
+
+.modal-body h4 {
+  margin: 10px 0;
+  color: #374151;
+  font-size: 14px;
+}
+
+.current-tags, .add-tag-section, .available-tags {
+  margin-bottom: 20px;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.remove-tag-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-tag-btn:hover {
+  background: #c82333;
+}
+
+.add-tag-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.tag-name-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.9);
+  font-family: inherit;
+  color: #2c3e50;
+}
+
+.tag-name-input:focus {
+  outline: none;
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+}
+
+.tag-name-input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.tag-name-input:hover {
+  border-color: #4361ee;
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+}
+
+.color-picker {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.color-option {
+  width: 28px;
+  height: 28px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-option.selected {
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+  transform: scale(1.05);
+}
+
+.add-tag-btn {
+  background: #4361ee;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  align-self: flex-start;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+}
+
+.add-tag-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.add-tag-btn:hover:not(:disabled) {
+  background: #3730a3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+}
+
+.add-tag-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+}
+
+/* 操作按钮容器 */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================
+   标签下拉框样式
+   ========================================= */
+
+/* 标签下拉框容器 */
+.tags-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+/* 标签预览区域 */
+.tags-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+
+/* 展开按钮 */
+.tags-expand-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tags-expand-btn:hover {
+  background: #5a6268;
+  transform: scale(1.05);
+}
+
+/* 标签下拉框 */
+.tags-dropdown {
+  position: relative;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: 8px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 下拉框中的标签样式 */
+.tags-dropdown .tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  margin: 0;
+}
+
+/* 滚动条样式 */
+.tags-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tags-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.tags-dropdown::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.tags-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 标签显示优化 */
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tags-display .tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  margin: 0;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 标签列宽度限制 */
+td[style*="width: 100px"] .tags-display {
+  max-width: 90px;
+}
+
+td[style*="width: 100px"] .tags-dropdown-container {
+  max-width: 90px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .tags-dropdown {
+    max-height: 150px;
+  }
+  
+  .tags-expand-btn {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+} 

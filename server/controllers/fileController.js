@@ -1354,6 +1354,116 @@ const uploadCadFile = async (req, res) => {
   }
 };
 
+// 添加标签到文件/文件夹
+const addTags = async (req, res) => {
+  try {
+    const { fileId, tags } = req.body;
+    
+    if (!fileId || !tags || !Array.isArray(tags)) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以添加标签' });
+    }
+
+    const file = await File.findById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 验证标签格式
+    const validTags = tags.filter(tag => 
+      tag.name && tag.name.trim() && tag.color && tag.color.trim()
+    );
+
+    if (validTags.length === 0) {
+      return res.status(400).json({ error: '没有有效的标签' });
+    }
+
+    // 添加新标签，避免重复
+    validTags.forEach(newTag => {
+      const existingTag = file.tags.find(tag => tag.name === newTag.name);
+      if (!existingTag) {
+        file.tags.push(newTag);
+      }
+    });
+
+    await file.save();
+    
+    res.json({ 
+      success: true, 
+      message: '标签添加成功',
+      tags: file.tags 
+    });
+  } catch (error) {
+    console.error('添加标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 移除文件/文件夹的标签
+const removeTags = async (req, res) => {
+  try {
+    const { fileId, tagNames } = req.body;
+    
+    if (!fileId || !tagNames || !Array.isArray(tagNames)) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以移除标签' });
+    }
+
+    const file = await File.findById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 移除指定的标签
+    file.tags = file.tags.filter(tag => !tagNames.includes(tag.name));
+    await file.save();
+    
+    res.json({ 
+      success: true, 
+      message: '标签移除成功',
+      tags: file.tags 
+    });
+  } catch (error) {
+    console.error('移除标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 获取所有标签（用于标签选择器）
+const getAllTags = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以查看标签' });
+    }
+
+    // 获取所有文件/文件夹的标签
+    const files = await File.find({ owner: user._id });
+    const allTags = new Set();
+    
+    files.forEach(file => {
+      file.tags.forEach(tag => {
+        allTags.add(JSON.stringify(tag));
+      });
+    });
+
+    const uniqueTags = Array.from(allTags).map(tagStr => JSON.parse(tagStr));
+    
+    res.json({ tags: uniqueTags });
+  } catch (error) {
+    console.error('获取标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
@@ -1367,5 +1477,8 @@ module.exports = {
   createFolder,
   checkFileStatus,
   checkFolderDownloadStatus,
-  getArchivingProgress
+  getArchivingProgress,
+  addTags,
+  removeTags,
+  getAllTags
 };

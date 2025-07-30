@@ -57,4 +57,9 @@ router.post('/batch-delete', auth.authenticate, auth.requireRole('admin'), fileC
 // 创建文件夹（仅 admin）
 router.post('/create-folder', auth.authenticate, auth.requireRole('admin'), fileController.createFolder);
 
+// 标签相关路由（仅 admin）
+router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileController.addTags);
+router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
+router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
+
 module.exports = router;
