@@ -28,6 +28,10 @@ const tagSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  order: {
+    type: Number,
+    default: 0
   }
 });
 

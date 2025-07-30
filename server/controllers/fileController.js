@@ -1006,7 +1006,7 @@ const uploadFolder = async (req, res) => {
         
         // 更新处理进度
         processedFiles++;
-        console.log(`归档进度: ${Math.round((processedFiles / totalFiles) * 100)}% - 已处理 ${processedFiles}/${totalFiles} 个文件`);
+        // console.log(`归档进度: ${Math.round((processedFiles / totalFiles) * 100)}% - 已处理 ${processedFiles}/${totalFiles} 个文件`);
         
         // console.log("[DEBUG] 创建文件记录:", fileName, "在文件夹:", currentParentFolder);
 
@@ -1393,16 +1393,44 @@ const addTags = async (req, res) => {
       }
     });
 
+    // 更新标签顺序数组
+    if (newTagsToAdd.length > 0) {
+      if (!file.tagOrder) {
+        file.tagOrder = [];
+      }
+      // 将新标签添加到顺序数组的末尾
+      newTagsToAdd.forEach(tag => {
+        if (!file.tagOrder.includes(tag.name)) {
+          file.tagOrder.push(tag.name);
+        }
+      });
+      
+      // 确保所有现有标签都在顺序数组中
+      file.tags.forEach(tag => {
+        if (!file.tagOrder.includes(tag.name)) {
+          file.tagOrder.push(tag.name);
+        }
+      });
+    }
+
     // 同时更新 Tag 模型
     for (const tag of newTagsToAdd) {
       let tagDoc = await Tag.findOne({ name: tag.name, createdBy: user._id });
       if (!tagDoc) {
+        // 获取当前最大的 order 值
+        const maxOrderTag = await Tag.findOne({ createdBy: user._id })
+          .sort({ order: -1 })
+          .select('order');
+        
+        const nextOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+        
         // 创建新标签
         tagDoc = new Tag({
           name: tag.name,
           color: tag.color,
           createdBy: user._id,
-          usageCount: 1
+          usageCount: 1,
+          order: nextOrder
         });
       } else {
         // 增加使用次数
@@ -1446,6 +1474,11 @@ const removeTags = async (req, res) => {
     // 移除指定的标签
     file.tags = file.tags.filter(tag => !tagNames.includes(tag.name));
     
+    // 更新标签顺序数组
+    if (file.tagOrder) {
+      file.tagOrder = file.tagOrder.filter(tagName => !tagNames.includes(tagName));
+    }
+    
     // 更新 Tag 模型的使用次数
     for (const tagName of tagNames) {
       const tagDoc = await Tag.findOne({ name: tagName, createdBy: user._id });
@@ -1488,12 +1521,20 @@ const createTag = async (req, res) => {
       return res.status(400).json({ error: '标签已存在' });
     }
 
+    // 获取当前最大的 order 值
+    const maxOrderTag = await Tag.findOne({ createdBy: user._id })
+      .sort({ order: -1 })
+      .select('order');
+    
+    const nextOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+    
     // 创建新标签
     const newTag = new Tag({
       name: name.trim(),
       color: color.trim(),
       createdBy: user._id,
-      usageCount: 0
+      usageCount: 0,
+      order: nextOrder
     });
 
     await newTag.save();
@@ -1517,10 +1558,10 @@ const getAllTags = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以查看标签' });
     }
 
-    // 从 Tag 模型中获取所有标签
+    // 从 Tag 模型中获取所有标签，按顺序排序
     const tags = await Tag.find({ createdBy: user._id })
-      .sort({ usageCount: -1, name: 1 })
-      .select('name color usageCount createdAt');
+      .sort({ order: 1, usageCount: -1, name: 1 })
+      .select('name color usageCount createdAt order');
     
     res.json({ tags });
   } catch (error) {
@@ -1556,6 +1597,59 @@ const getFileDetails = async (req, res) => {
   }
 };
 
+// 更新文件标签顺序
+const updateTagOrder = async (req, res) => {
+  try {
+    const { fileId, tagOrder } = req.body;
+    
+    if (!fileId || !tagOrder || !Array.isArray(tagOrder)) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以更新标签顺序' });
+    }
+
+    const file = await File.findById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 验证标签顺序数组是否与当前标签匹配
+    const currentTagNames = file.tags.map(tag => tag.name);
+    const isValidOrder = tagOrder.every(tagName => currentTagNames.includes(tagName)) &&
+                        currentTagNames.every(tagName => tagOrder.includes(tagName));
+
+    if (!isValidOrder) {
+      return res.status(400).json({ error: '标签顺序数组与当前标签不匹配' });
+    }
+
+    // 更新标签顺序
+    file.tagOrder = tagOrder;
+    await file.save();
+
+    // 同时更新全局标签顺序（如果标签是全局的）
+    for (let i = 0; i < tagOrder.length; i++) {
+      const tagName = tagOrder[i];
+      await Tag.findOneAndUpdate(
+        { name: tagName, createdBy: user._id },
+        { order: i },
+        { new: true }
+      );
+    }
+
+    res.json({ 
+      success: true, 
+      message: '标签顺序更新成功',
+      tagOrder: file.tagOrder 
+    });
+  } catch (error) {
+    console.error('更新标签顺序错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
@@ -1574,5 +1668,6 @@ module.exports = {
   addTags,
   removeTags,
   createTag,
-  getAllTags
+  getAllTags,
+  updateTagOrder
 };

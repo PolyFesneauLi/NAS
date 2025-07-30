@@ -242,4 +242,9 @@ export const createTag = async (tagData) => {
   return response.data;
 };
 
+export const updateTagOrder = async (fileId, tagOrder) => {
+  const response = await api.post('/files/update-tag-order', { fileId, tagOrder });
+  return response.data;
+};
+
 export default api;

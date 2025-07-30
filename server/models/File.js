@@ -50,6 +50,10 @@ const FileSchema = new mongoose.Schema({
       default: '#007bff'
     }
   }],
+  tagOrder: [{
+    type: String,
+    default: []
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

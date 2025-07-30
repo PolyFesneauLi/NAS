@@ -1639,9 +1639,13 @@ td:nth-child(2) {
   cursor: pointer;
   transition: opacity 0.2s;
   max-width: 80px;
+  height: 20px;
+  line-height: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .tag:hover {
@@ -1748,6 +1752,8 @@ td:nth-child(2) {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .remove-tag-btn:hover {
@@ -1984,4 +1990,48 @@ td[style*="width: 100px"] .tags-dropdown-container {
     font-size: 10px;
     padding: 1px 6px;
   }
+}
+
+/* 拖拽排序相关样式 */
+.draggable-tag {
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.draggable-tag:active {
+  cursor: grabbing;
+  transform: scale(1.05);
+  z-index: 1000;
+}
+
+.draggable-tag.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+.tags-list {
+  min-height: 40px;
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s ease;
+}
+
+.tags-list.drag-over {
+  background: rgba(102, 126, 234, 0.1);
+  border: 2px dashed #667eea;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  margin: 2px;
+  transition: all 0.2s ease;
+  gap: 4px;
+}
+
+.tag-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 } 
