@@ -62,6 +62,9 @@ const FileSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+}, {
+  // 禁用版本控制以避免并发冲突
+  versionKey: false
 });
 
 // 在保存前自动更新updatedAt字段

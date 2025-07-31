@@ -3372,12 +3372,29 @@ const Dashboard = () => {
       tagOrder: newOrderedTags.map(tag => tag.name)
     }));
     
-    // 立即更新数据库
+    // 立即更新数据库，带重试机制
     const tagOrder = newOrderedTags.map(tag => tag.name);
-    updateTagOrder(selectedFileForTags._id, tagOrder).catch(err => {
-      console.error('更新标签顺序失败:', err);
-      setTagModalError('更新标签顺序失败');
-    });
+    const updateWithRetry = async (retries = 3) => {
+      try {
+        await updateTagOrder(selectedFileForTags._id, tagOrder);
+      } catch (err) {
+        console.error(`更新标签顺序失败 (尝试 ${4 - retries}/3):`, err);
+        if (retries > 1) {
+          // 等待短暂时间后重试
+          await new Promise(resolve => setTimeout(resolve, 100));
+          return updateWithRetry(retries - 1);
+        } else {
+          setTagModalError('更新标签顺序失败，请重试');
+          // 恢复原始状态
+          setSelectedFileForTags(prev => ({
+            ...prev,
+            tagOrder: currentOrderedTags.map(tag => tag.name)
+          }));
+        }
+      }
+    };
+    
+    updateWithRetry();
   };
 
   if (loading) return <div>Loading...</div>;

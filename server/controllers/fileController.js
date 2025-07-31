@@ -1633,7 +1633,19 @@ const updateTagOrder = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以更新标签顺序' });
     }
 
-    const file = await File.findById(fileId);
+    // 使用findOneAndUpdate避免版本冲突
+    const file = await File.findOneAndUpdate(
+      { _id: fileId },
+      { 
+        $set: { tagOrder: tagOrder },
+        $currentDate: { updatedAt: true }
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
     if (!file) {
       return res.status(404).json({ error: '文件不存在' });
     }
@@ -1646,10 +1658,6 @@ const updateTagOrder = async (req, res) => {
     if (!isValidOrder) {
       return res.status(400).json({ error: '标签顺序数组与当前标签不匹配' });
     }
-
-    // 更新标签顺序
-    file.tagOrder = tagOrder;
-    await file.save();
 
     // 同时更新全局标签顺序（如果标签是全局的）
     for (let i = 0; i < tagOrder.length; i++) {
