@@ -2437,29 +2437,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
-  // 处理标签重新排序
+  // 处理标签重新排序 - 完全重写
   const handleTagReorder = (fromIndex, toIndex) => {
-    // 获取当前按顺序排列的标签
-    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
-      ? selectedFileForTags.tagOrder.map(tagName => {
-          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
-          return tag;
-        }).filter(Boolean)
-      : selectedFileForTags.tags;
+    console.log(`重排序: ${fromIndex} -> ${toIndex}`);
     
-    const newOrderedTags = [...currentOrderedTags];
-    const [movedTag] = newOrderedTags.splice(fromIndex, 1);
-    newOrderedTags.splice(toIndex, 0, movedTag);
+    // 获取当前标签数组
+    const currentTags = [...selectedFileForTags.tags];
+    console.log('原始顺序:', currentTags.map(t => t.name));
+    
+    // 移除要移动的标签
+    const [movedTag] = currentTags.splice(fromIndex, 1);
+    
+    // 计算正确的插入位置
+    let insertIndex = toIndex;
+    if (fromIndex < toIndex) {
+      // 如果从前往后移动，插入位置需要减1
+      insertIndex = toIndex - 1;
+    }
+    
+    // 插入标签到新位置
+    currentTags.splice(insertIndex, 0, movedTag);
+    
+    console.log('新顺序:', currentTags.map(t => t.name));
     
     // 更新本地状态
+    const newTagOrder = currentTags.map(tag => tag.name);
     setSelectedFileForTags(prev => ({
       ...prev,
-      tagOrder: newOrderedTags.map(tag => tag.name)
+      tags: currentTags,
+      tagOrder: newTagOrder
     }));
     
     // 立即更新数据库
-    const tagOrder = newOrderedTags.map(tag => tag.name);
-    updateTagOrder(selectedFileForTags._id, tagOrder).catch(err => {
+    updateTagOrder(selectedFileForTags._id, newTagOrder).catch(err => {
       console.error('更新标签顺序失败:', err);
       setTagModalError('更新标签顺序失败');
     });
@@ -2900,11 +2910,11 @@ const TagModal = ({
   setSelectedFileForTags,
   handleTagReorder
 }) => {
-  // 拖拽状态 - 基于网格位置计算
+  // 拖拽状态 - 简化版本
   const [dragState, setDragState] = useState({
     isDragging: false,
     draggedIndex: null,
-    moveToIndex: null,
+    targetIndex: null,
     draggedTag: null
   });
 
@@ -2920,22 +2930,12 @@ const TagModal = ({
     }
   }, [showTagModal, newTagInputRef]);
 
-  // 初始化标签列表 - 计算每个标签的位置
-  const initTagList = (tags) => {
-    return tags.map((tag, index) => ({
-      ...tag,
-      x: index, // 水平位置（索引）
-      y: 0,     // 垂直位置（单行）
-      key: Math.random() + index
-    }));
-  };
-
   // 处理拖拽开始
   const handleDragStart = (e, index, tag) => {
     setDragState({
       isDragging: true,
       draggedIndex: index,
-      moveToIndex: null,
+      targetIndex: null,
       draggedTag: tag
     });
     e.dataTransfer.setData('text/plain', index.toString());
@@ -2947,89 +2947,73 @@ const TagModal = ({
     setDragState({
       isDragging: false,
       draggedIndex: null,
-      moveToIndex: null,
+      targetIndex: null,
       draggedTag: null
     });
   };
 
-  // 处理拖拽移动 - 基于网格位置计算
+  // 处理拖拽移动 - 简化算法
   const handleDragOver = (e, index) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     
     if (dragState.isDragging && dragState.draggedIndex !== index) {
-      // 获取容器和标签的尺寸信息
-      const container = e.currentTarget.closest('.tags-list');
       const tagElement = e.currentTarget;
+      const tagRect = tagElement.getBoundingClientRect();
+      const mouseX = e.clientX;
       
-      if (container && tagElement) {
-        const containerRect = container.getBoundingClientRect();
-        const tagRect = tagElement.getBoundingClientRect();
-        const mouseX = e.clientX;
-        
-        // 计算标签宽度（平均宽度）
-        const tagWidth = tagRect.width;
-        const containerWidth = containerRect.width;
-        
-        // 计算当前鼠标位置对应的索引
-        const relativeX = mouseX - containerRect.left;
-        const currentX = Math.floor(relativeX / tagWidth);
-        
-        // 计算目标位置
-        let moveToIndex = Math.min(currentX, selectedFileForTags.tags.length - 1);
-        moveToIndex = Math.max(0, moveToIndex);
-        
-        // 根据鼠标在标签内的位置调整
-        const tagCenterX = tagRect.left + tagRect.width / 2;
-        if (mouseX > tagCenterX) {
-          moveToIndex = index + 1;
-        } else {
-          moveToIndex = index;
-        }
-        
-        setDragState(prev => ({
-          ...prev,
-          moveToIndex
-        }));
+      // 简单的左右判断
+      const tagCenterX = tagRect.left + tagRect.width / 2;
+      let targetIndex = index;
+      
+      if (mouseX > tagCenterX) {
+        targetIndex = index + 1;
       }
+      
+      // 边界检查
+      targetIndex = Math.max(0, Math.min(targetIndex, selectedFileForTags.tags.length));
+      
+      setDragState(prev => ({
+        ...prev,
+        targetIndex
+      }));
     }
   };
 
-  // 处理拖拽放置
+  // 处理拖拽放置 - 简化算法
   const handleDrop = (e, toIndex) => {
     e.preventDefault();
     const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
     
-    // 获取鼠标位置，精确计算目标位置
-    const container = e.currentTarget.closest('.tags-list');
     const tagElement = e.currentTarget;
+    const tagRect = tagElement.getBoundingClientRect();
+    const mouseX = e.clientX;
     
-    if (container && tagElement) {
-      const containerRect = container.getBoundingClientRect();
-      const tagRect = tagElement.getBoundingClientRect();
-      const mouseX = e.clientX;
-      
-      // 计算最终目标位置
-      let finalToIndex = toIndex;
-      const tagCenterX = tagRect.left + tagRect.width / 2;
-      if (mouseX > tagCenterX) {
-        finalToIndex = toIndex + 1;
-      }
-      
-      if (fromIndex !== finalToIndex) {
-        handleTagReorder(fromIndex, finalToIndex);
-      }
+    // 计算目标位置
+    let finalToIndex = toIndex;
+    const tagCenterX = tagRect.left + tagRect.width / 2;
+    
+    if (mouseX > tagCenterX) {
+      finalToIndex = toIndex + 1;
+    }
+    
+    // 边界检查
+    finalToIndex = Math.max(0, Math.min(finalToIndex, selectedFileForTags.tags.length));
+    
+    // 只有当位置真正改变时才执行重排序
+    if (fromIndex !== finalToIndex) {
+      handleTagReorder(fromIndex, finalToIndex);
     }
     
     setDragState({
       isDragging: false,
       draggedIndex: null,
-      moveToIndex: null,
+      targetIndex: null,
       draggedTag: null
     });
   };
 
-  // 获取标签样式 - 基于网格位置的可视化
+  // 获取标签样式 - 重写可视化算法
   const getTagStyle = (index) => {
     const style = {};
     
@@ -3040,9 +3024,9 @@ const TagModal = ({
         style.zIndex = 1000;
         style.opacity = 0.8;
         style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.3)';
-      } else if (dragState.moveToIndex !== null) {
+      } else if (dragState.targetIndex !== null) {
         const draggedIndex = dragState.draggedIndex;
-        const moveToIndex = dragState.moveToIndex;
+        const targetIndex = dragState.targetIndex;
         
         // 获取被拖动标签的宽度
         const draggedElement = document.querySelector(`[data-index="${draggedIndex}"]`);
@@ -3051,16 +3035,16 @@ const TagModal = ({
           draggedWidth = draggedElement.offsetWidth;
         }
         
-        // 基于网格位置计算移动
-        if (draggedIndex < moveToIndex) {
-          // 向前拖动，后面的标签向左移动
-          if (index > draggedIndex && index <= moveToIndex) {
+        // 重新设计移动逻辑
+        if (draggedIndex < targetIndex) {
+          // 向前拖动：中间标签向左移动
+          if (index > draggedIndex && index < targetIndex) {
             style.transform = `translateX(-${Math.max(draggedWidth, 20)}px)`;
             style.transition = 'transform 0.2s ease';
           }
-        } else if (draggedIndex > moveToIndex) {
-          // 向后拖动，前面的标签向右移动
-          if (index >= moveToIndex && index < draggedIndex) {
+        } else if (draggedIndex > targetIndex) {
+          // 向后拖动：中间标签向右移动
+          if (index >= targetIndex && index < draggedIndex) {
             style.transform = `translateX(${Math.max(draggedWidth, 20)}px)`;
             style.transition = 'transform 0.2s ease';
           }
@@ -3116,7 +3100,24 @@ const TagModal = ({
                       if (mouseX > containerRect.right - 50) {
                         setDragState(prev => ({
                           ...prev,
-                          moveToIndex: selectedFileForTags.tags.length
+                          targetIndex: selectedFileForTags.tags.length
+                        }));
+                      } else {
+                        // 计算在标签之间的位置
+                        const tagElements = e.currentTarget.querySelectorAll('.tag-item');
+                        let closestIndex = selectedFileForTags.tags.length;
+                        
+                        for (let i = 0; i < tagElements.length; i++) {
+                          const tagRect = tagElements[i].getBoundingClientRect();
+                          if (mouseX < tagRect.left + tagRect.width / 2) {
+                            closestIndex = i;
+                            break;
+                          }
+                        }
+                        
+                        setDragState(prev => ({
+                          ...prev,
+                          targetIndex: closestIndex
                         }));
                       }
                     }
@@ -3134,17 +3135,29 @@ const TagModal = ({
                     if (mouseX > containerRect.right - 50) {
                       toIndex = selectedFileForTags.tags.length; // 拖到末尾
                     } else {
-                      toIndex = selectedFileForTags.tags.length; // 默认拖到末尾
+                      // 修复：不要总是拖到末尾，而是根据实际位置计算
+                      const tagElements = e.currentTarget.querySelectorAll('.tag-item');
+                      let closestIndex = selectedFileForTags.tags.length;
+                      
+                      for (let i = 0; i < tagElements.length; i++) {
+                        const tagRect = tagElements[i].getBoundingClientRect();
+                        if (mouseX < tagRect.left + tagRect.width / 2) {
+                          closestIndex = i;
+                          break;
+                        }
+                      }
+                      toIndex = closestIndex;
                     }
                     
                     if (fromIndex !== toIndex) {
+                      console.log(`容器拖拽: ${fromIndex} -> ${toIndex}`);
                       handleTagReorder(fromIndex, toIndex);
                     }
                     
                     setDragState({
                       isDragging: false,
                       draggedIndex: null,
-                      moveToIndex: null,
+                      targetIndex: null,
                       draggedTag: null
                     });
                   }}
