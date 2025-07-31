@@ -1997,6 +1997,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
   cursor: grab;
   transition: all 0.2s ease;
   user-select: none;
+  position: relative;
 }
 
 .draggable-tag:active {
@@ -2006,8 +2007,52 @@ td[style*="width: 100px"] .tags-dropdown-container {
 }
 
 .draggable-tag.dragging {
-  opacity: 0.5;
-  transform: rotate(5deg);
+  opacity: 0.8;
+  transform: scale(1.1) rotate(5deg);
+  z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease;
+}
+
+.draggable-tag.gap-indicator {
+  transform: scale(1.05);
+  background-color: rgba(102, 126, 234, 0.1);
+  border: 2px dashed #667eea;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.draggable-tag.gap-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background-color: #667eea;
+  border-radius: 50%;
+  animation: gapPulse 1s ease-in-out infinite;
+}
+
+@keyframes gapPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+
+.draggable-tag.shift-left {
+  transition: transform 0.2s ease;
+}
+
+.draggable-tag.shift-right {
+  transition: transform 0.2s ease;
 }
 
 .tags-list {
@@ -2016,6 +2061,16 @@ td[style*="width: 100px"] .tags-dropdown-container {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
   transition: background-color 0.2s ease;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tags-list.drag-active {
+  background: rgba(102, 126, 234, 0.05);
+  border: 2px dashed rgba(102, 126, 234, 0.3);
+  transition: all 0.2s ease;
 }
 
 .tags-list.drag-over {
@@ -2029,9 +2084,111 @@ td[style*="width: 100px"] .tags-dropdown-container {
   margin: 2px;
   transition: all 0.2s ease;
   gap: 4px;
+  border-radius: 6px;
+  padding: 2px;
 }
 
 .tag-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 拖拽时的视觉指示器 */
+.tag-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.tag-item.dragging::before {
+  opacity: 1;
+  animation: dragPulse 1s ease-in-out infinite;
+}
+
+@keyframes dragPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* 拖拽时的标签容器样式 */
+.tags-list.drag-active .tag-item:not(.dragging) {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 拖拽悬停时的标签样式 */
+.tag-item.gap-indicator {
+  background-color: rgba(102, 126, 234, 0.1);
+  border: 2px dashed #667eea;
+  border-radius: 6px;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  position: relative;
+}
+
+.tag-item.gap-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background-color: #667eea;
+  border-radius: 50%;
+  animation: gapPulse 1s ease-in-out infinite;
+}
+
+/* 标签移动动画 */
+/* 标签移动动画 */
+.tag-item.shift-left {
+  transition: transform 0.2s ease;
+}
+
+.tag-item.shift-right {
+  transition: transform 0.2s ease;
+}
+
+/* 拖拽时的标签文本样式 */
+.tag-item.dragging .tag {
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖拽时的删除按钮样式 */
+.tag-item.dragging .remove-tag-btn {
+  opacity: 0.8;
+  transform: scale(0.9);
+}
+
+/* 响应式拖拽样式 */
+@media (max-width: 768px) {
+  .tag-item {
+    margin: 1px;
+    gap: 2px;
+  }
+  
+  .tag-item.dragging {
+    transform: scale(1.05) rotate(3deg);
+  }
+  
+  .tag-item.shift-left {
+    /* 移动距离由JavaScript动态计算 */
+  }
+  
+  .tag-item.shift-right {
+    /* 移动距离由JavaScript动态计算 */
+  }
 } 
