@@ -554,16 +554,51 @@ const getUserFiles = async (req, res) => {
     // }
     // // 普通用户不限制owner，可以看到所有文件
 
-    // 全局搜索时，不限制文件夹
+
+
+    // 全局搜索时，搜索当前路径及其所有子文件夹
     if (globalSearch === 'true') {
-      // 全局搜索：搜索所有文件夹和文件，不限制当前路径
-      // 不设置 parentFolder 条件，搜索所有文件
+      // 全局搜索：搜索当前路径及其所有子文件夹中的文件
+      // 我们需要获取所有在当前路径及其子文件夹中的文件
+      // 首先获取当前路径下的所有文件夹ID
+      const getSubfolderIds = async (parentId) => {
+        const subfolders = await File.find({ 
+          parentFolder: parentId, 
+          isFolder: true 
+        });
+        let allIds = [parentId];
+        for (const subfolder of subfolders) {
+          const subIds = await getSubfolderIds(subfolder._id);
+          allIds = allIds.concat(subIds);
+        }
+        return allIds;
+      };
+
+      let targetFolderId;
+      if (folderId) {
+        targetFolderId = folderId;
+      } else {
+        const homeFolder = await File.findOne({ 
+          isFolder: true, 
+          parentFolder: null,
+          filename: "home"
+        });
+        if (!homeFolder) {
+          return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+        }
+        targetFolderId = homeFolder._id;
+      }
+
+      // 获取所有子文件夹ID
+      const allFolderIds = await getSubfolderIds(targetFolderId);
+      
+      // 查询所有在这些文件夹中的文件
+      query.parentFolder = { $in: allFolderIds };
     } else {
       // 普通搜索：只搜索当前文件夹
       if (folderId) {
         query.parentFolder = folderId;
       } else {
-        // 如果没有指定文件夹，获取home目录下的文件
         const homeFolder = await File.findOne({ 
           isFolder: true, 
           parentFolder: null,
