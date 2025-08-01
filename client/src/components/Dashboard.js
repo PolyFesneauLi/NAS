@@ -1078,6 +1078,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [hotTags, setHotTags] = useState([]); // 热门标签
   const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
   const [globalSearch, setGlobalSearch] = useState(false); // 全局搜索开关
+  const [searchLoading, setSearchLoading] = useState(false); // 搜索加载状态
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -2278,6 +2279,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     // 如果有搜索条件或标签，重新搜索
     if (searchInput || searchTags.length > 0) {
       try {
+        setSearchLoading(true);
         const searchParams = {
           search: searchInput,
           tags: searchTags,
@@ -2291,10 +2293,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } catch (error) {
         console.error('排序搜索失败:', error);
         setError('排序搜索失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
       }
     } else {
       // 如果没有搜索条件，重新获取文件列表
       try {
+        setSearchLoading(true);
         const params = {
           folder: currentFolder,
           sort: newSortBy,
@@ -2306,6 +2311,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } catch (error) {
         console.error('获取文件列表失败:', error);
         setError('获取文件列表失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
       }
     }
   };
@@ -2321,6 +2328,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     // 如果有搜索条件或标签，重新搜索
     if (searchInput || searchTags.length > 0) {
       try {
+        setSearchLoading(true);
         const searchParams = {
           search: searchInput,
           tags: searchTags,
@@ -2334,10 +2342,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } catch (error) {
         console.error('全局搜索切换失败:', error);
         setError('全局搜索切换失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
       }
     } else {
       // 如果没有搜索条件，重新获取文件列表
       try {
+        setSearchLoading(true);
         const params = {
           folder: currentFolder,
           sort: sortBy,
@@ -2349,6 +2360,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } catch (error) {
         console.error('获取文件列表失败:', error);
         setError('获取文件列表失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
       }
     }
   };
@@ -2356,6 +2369,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleSearchSubmit = async (e) => {
     if (e.key === 'Enter') {
       try {
+        setSearchLoading(true);
         // 文件名搜索 + 标签筛选
         const searchParams = {
           search: searchInput, // 搜索文件名
@@ -2371,6 +2385,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } catch (error) {
         console.error('搜索文件失败:', error);
         setError('搜索文件失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
       }
     }
   };
@@ -2387,6 +2403,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
     const handleSearchWithTags = async () => {
     try {
+      setSearchLoading(true);
       // 文件名搜索 + 标签筛选
       const searchParams = {
         search: searchInput, // 搜索文件名
@@ -2401,6 +2418,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     } catch (error) {
       console.error('搜索文件失败:', error);
       setError('搜索文件失败: ' + error.message);
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -2587,6 +2606,14 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       <div className="file-controls">
         {/* 搜索和排序控制栏 */}
         <div className="search-sort-row">
+          {/* 搜索加载指示器 */}
+          {searchLoading && (
+            <div className="search-loading-spinner">
+              <div className="spinner"></div>
+              <span>搜索中...</span>
+            </div>
+          )}
+          
           {/* 主搜索框 */}
           <div className="search-box">
             <input
