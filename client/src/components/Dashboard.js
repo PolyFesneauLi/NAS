@@ -1077,6 +1077,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [tagInputValue, setTagInputValue] = useState(''); // 标签输入框的值
   const [hotTags, setHotTags] = useState([]); // 热门标签
   const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
+  const [globalSearch, setGlobalSearch] = useState(false); // 全局搜索开关
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -2276,6 +2277,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setSearchInput(e.target.value);
   };
 
+  const handleGlobalSearchChange = (e) => {
+    setGlobalSearch(e.target.checked);
+  };
+
   const handleSearchSubmit = async (e) => {
     if (e.key === 'Enter') {
       try {
@@ -2284,7 +2289,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           search: searchInput, // 搜索文件名
           tags: searchTags,    // 标签筛选
           folder: currentFolder,
-          sort: sortBy
+          sort: sortBy,
+          globalSearch: globalSearch // 全局搜索参数
         };
         
         const response = await searchFiles(searchParams);
@@ -2314,7 +2320,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         search: searchInput, // 搜索文件名
         tags: searchTags,    // 标签筛选
         folder: currentFolder,
-        sort: sortBy
+        sort: sortBy,
+        globalSearch: globalSearch // 全局搜索参数
       };
       
       const response = await searchFiles(searchParams);
@@ -2506,9 +2513,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       </div>
       
       <div className="file-controls">
-        {/* 标签搜索组件 */}
-        <div className="tag-search-container">
-          {/* 主搜索框 - 可以输入自定义标签 */}
+        {/* 搜索和排序控制栏 */}
+        <div className="search-sort-row">
+          {/* 主搜索框 */}
           <div className="search-box">
             <input
               type="text"
@@ -2520,6 +2527,82 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             />
           </div>
           
+          {/* 全局搜索复选框 */}
+          <div className="global-search-box">
+            <label className="global-search-label">
+              <input
+                type="checkbox"
+                checked={globalSearch}
+                onChange={handleGlobalSearchChange}
+                className="global-search-checkbox"
+              />
+              <span className="global-search-text">全局搜索</span>
+            </label>
+          </div>
+          
+          {/* 排序下拉框 */}
+          <div className="sort-box">
+            <select value={sortBy} onChange={handleSortChange} className="sort-select">
+              <option value="time_desc">更新时间（最新）</option>
+              <option value="time_asc">更新时间（最早）</option>
+              <option value="size_desc">文件大小（从大到小）</option>
+              <option value="size_asc">文件大小（从小到大）</option>
+              <option value="name_asc">文件名（A-Z）</option>
+              <option value="name_desc">文件名（Z-A）</option>
+              <option value="extension_asc">文件后缀（A-Z）</option>
+              <option value="extension_desc">文件后缀（Z-A）</option>
+            </select>
+          </div>
+          {userRole === 'admin' && (
+          <div className="admin-controls">
+            {selectedIds.length > 0 && (
+              <>
+                <button className="btn btn-primary" onClick={handleBatchDownload}>
+                  批量下载({selectedIds.length})
+                </button>
+                <button className="btn btn-danger" onClick={handleBatchDelete}>
+                  批量删除({selectedIds.length})
+                </button>
+              </>
+            )}
+            {!showFolderInput ? (
+              <button 
+                type="button"
+                onClick={() => setShowFolderInput(true)}
+                className="create-folder-btn"
+              >
+                新建文件夹
+              </button>
+            ) : (
+              <form onSubmit={handleCreateFolder} className="folder-form">
+                <input
+                  type="text"
+                  value={folderName}
+                  onChange={(e) => setFolderName(e.target.value)}
+                  placeholder="输入文件夹名称"
+                  className="folder-input"
+                  autoFocus
+                />
+                <button type="submit" className="confirm-folder-btn">确认</button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowFolderInput(false);
+                    setFolderName('');
+                    setError('');
+                  }}
+                  className="cancel-folder-btn"
+                >
+                  取消
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+        </div>
+        
+        {/* 标签搜索组件 */}
+        <div className="tag-search-container">
           {/* 已选标签显示 - 一直存在 */}
           <div className="selected-tags-container">
             <span className="selected-tags-label">已选标签:</span>
@@ -2591,64 +2674,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             </div>
           )}
         </div>
-        <div className="sort-box">
-          <select value={sortBy} onChange={handleSortChange} className="sort-select">
-            <option value="time_desc">更新时间（最新）</option>
-            <option value="time_asc">更新时间（最早）</option>
-            <option value="size_desc">文件大小（从大到小）</option>
-            <option value="size_asc">文件大小（从小到大）</option>
-            <option value="name_asc">文件名（A-Z）</option>
-            <option value="name_desc">文件名（Z-A）</option>
-            <option value="extension_asc">文件后缀（A-Z）</option>
-            <option value="extension_desc">文件后缀（Z-A）</option>
-          </select>
-        </div>
-        {userRole === 'admin' && (
-          <div className="admin-controls">
-            {selectedIds.length > 0 && (
-              <>
-                <button className="btn btn-primary" onClick={handleBatchDownload}>
-                  批量下载({selectedIds.length})
-                </button>
-                <button className="btn btn-danger" onClick={handleBatchDelete}>
-                  批量删除({selectedIds.length})
-                </button>
-              </>
-            )}
-            {!showFolderInput ? (
-              <button 
-                type="button"
-                onClick={() => setShowFolderInput(true)}
-                className="create-folder-btn"
-              >
-                新建文件夹
-              </button>
-            ) : (
-              <form onSubmit={handleCreateFolder} className="folder-form">
-                <input
-                  type="text"
-                  value={folderName}
-                  onChange={(e) => setFolderName(e.target.value)}
-                  placeholder="输入文件夹名称"
-                  className="folder-input"
-                  autoFocus
-                />
-                <button type="submit" className="confirm-folder-btn">确认</button>
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setShowFolderInput(false);
-                    setFolderName('');
-                    setError('');
-                  }}
-                  className="cancel-folder-btn"
-                >
-                  取消
-                </button>
-              </form>
-            )}
-          </div>
-        )}
       </div>
 
       {error && <div className="error-message">{error}</div>}

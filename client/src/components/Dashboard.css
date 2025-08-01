@@ -494,13 +494,19 @@
 /* 排序和搜索控制栏 */
 .file-controls {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 16px;
   margin-bottom: 16px;
-  /* gap: 15px; */
   position: relative;
   z-index: 2; /* 确保控制栏在文件列表内容之上 */
   flex-shrink: 0; /* 防止控制栏被压缩 */
+}
+
+/* 搜索和排序控制栏 */
+.search-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -508,6 +514,40 @@
 .search-box {
   flex: 1;
   min-width: 200px;
+}
+
+/* 全局搜索复选框样式 */
+.global-search-box {
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.global-search-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: #2c3e50;
+  transition: color 0.3s ease;
+}
+
+.global-search-label:hover {
+  color: #667eea;
+}
+
+.global-search-checkbox {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+.global-search-text {
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .search-input {
@@ -1366,8 +1406,21 @@ td:nth-child(2) {
     flex-direction: column;
   }
 
+  .search-sort-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .search-box {
-    width: 100%;
+    width: 60%;
+  }
+
+  .global-search-box {
+    margin-right: 10px;
+  }
+
+  .global-search-text {
+    font-size: 12px;
   }
 
   .sort-box {
@@ -2192,6 +2245,8 @@ td[style*="width: 100px"] .tags-dropdown-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-sizing: content-box;
+  max-width: 100%;
 }
 
 /* 热门标签容器 */
@@ -2200,6 +2255,8 @@ td[style*="width: 100px"] .tags-dropdown-container {
   align-items: center;
   gap: 8px;
   padding: 8px 0;
+  box-sizing: content-box;
+  max-width: 100%;
 }
 
 .hot-tags-label {
@@ -2244,6 +2301,8 @@ td[style*="width: 100px"] .tags-dropdown-container {
   gap: 8px;
   padding: 8px 0;
   flex-wrap: wrap;
+  box-sizing: content-box;
+  max-width: 100%;
 }
 
 /* 标签输入框容器 */

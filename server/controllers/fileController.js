@@ -545,7 +545,7 @@ const createFolder = async (req, res) => {
 const getUserFiles = async (req, res) => {
   try {
     const folderId = req.query.folder;
-    const { sort, search, tags } = req.query;
+    const { sort, search, tags, globalSearch } = req.query;
     const query = {};
 
     // // 普通用户可以看到所有文件，管理员只能看到自己的文件
@@ -554,19 +554,26 @@ const getUserFiles = async (req, res) => {
     // }
     // // 普通用户不限制owner，可以看到所有文件
 
-    if (folderId) {
-      query.parentFolder = folderId;
+    // 全局搜索时，不限制文件夹
+    if (globalSearch === 'true') {
+      // 全局搜索：搜索所有文件夹和文件，不限制当前路径
+      // 不设置 parentFolder 条件，搜索所有文件
     } else {
-      // 如果没有指定文件夹，获取home目录下的文件
-      const homeFolder = await File.findOne({ 
-        isFolder: true, 
-        parentFolder: null,
-        filename: "home"
-      });
-      if (!homeFolder) {
-        return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+      // 普通搜索：只搜索当前文件夹
+      if (folderId) {
+        query.parentFolder = folderId;
+      } else {
+        // 如果没有指定文件夹，获取home目录下的文件
+        const homeFolder = await File.findOne({ 
+          isFolder: true, 
+          parentFolder: null,
+          filename: "home"
+        });
+        if (!homeFolder) {
+          return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+        }
+        query.parentFolder = homeFolder._id;
       }
-      query.parentFolder = homeFolder._id;
     }
 
     // 搜索功能 - 文件名部分匹配（支持文件夹和文件）

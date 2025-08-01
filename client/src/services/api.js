@@ -257,6 +257,7 @@ export const searchFiles = async (params = {}) => {
   if (params.sort) queryParams.append('sort', params.sort);
   if (params.search) queryParams.append('search', encodeURIComponent(params.search));
   if (params.folder) queryParams.append('folder', params.folder);
+  if (params.globalSearch) queryParams.append('globalSearch', params.globalSearch);
   if (params.tags && params.tags.length > 0) {
     queryParams.append('tags', encodeURIComponent(JSON.stringify(params.tags)));
   }
