@@ -1071,6 +1071,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 标签相关状态
   const [selectedFileForTags, setSelectedFileForTags] = useState(null);
   const [newTagColor, setNewTagColor] = useState('#007bff');
+  
+  // 标签搜索相关状态
+  const [searchTags, setSearchTags] = useState([]); // 已选择的搜索标签
+  const [customTagInput, setCustomTagInput] = useState(''); // 主搜索框输入
+  const [tagInputValue, setTagInputValue] = useState(''); // 标签输入框的值
+  const [hotTags, setHotTags] = useState([]); // 热门标签
+  const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -1603,6 +1610,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     };
     fetchFilesData();
   }, [sortBy, searchTerm, currentFolder]);
+
+  // 获取热门标签
+  useEffect(() => {
+    // 从所有文件的标签中统计热门标签
+    const tagCounts = {};
+    files.forEach(file => {
+      if (file.tags && file.tags.length > 0) {
+        file.tags.forEach(tag => {
+          tagCounts[tag.name] = (tagCounts[tag.name] || 0) + 1;
+        });
+      }
+    });
+    
+    const sortedTags = Object.entries(tagCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([name]) => name);
+    
+    setHotTags(sortedTags);
+  }, [files]);
+
+  // 获取所有可用标签
+  useEffect(() => {
+    const allTags = new Set();
+    files.forEach(file => {
+      if (file.tags && file.tags.length > 0) {
+        file.tags.forEach(tag => {
+          allTags.add(tag.name);
+        });
+      }
+    });
+    setAvailableTagsForSearch(Array.from(allTags));
+  }, [files]);
 
   useEffect(() => {
     if (!loading && (searchTerm || sortBy !== 'time_desc')) {
@@ -2234,6 +2274,53 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
+  // 标签搜索相关函数
+  const handleCustomTagInputChange = (e) => {
+    setCustomTagInput(e.target.value);
+  };
+
+  const handleCustomTagSubmit = (e) => {
+    if (e.key === 'Enter' && customTagInput.trim()) {
+      const newTag = customTagInput.trim();
+      if (!searchTags.includes(newTag)) {
+        setSearchTags([...searchTags, newTag]);
+      }
+      setCustomTagInput('');
+    }
+  };
+
+  const handleAddSearchTag = (tagName) => {
+    if (!searchTags.includes(tagName)) {
+      setSearchTags([...searchTags, tagName]);
+    }
+  };
+
+  const handleRemoveSearchTag = (tagName) => {
+    setSearchTags(searchTags.filter(tag => tag !== tagName));
+  };
+
+  const handleSearchWithTags = () => {
+    // 这里可以结合文件名搜索和标签搜索
+    console.log('搜索标签:', searchTags);
+    console.log('搜索文本:', searchInput);
+    // TODO: 实现实际的搜索逻辑
+  };
+
+  // 标签输入框处理函数
+  const handleTagInputChange = (e) => {
+    setTagInputValue(e.target.value);
+  };
+
+  const handleTagInputSubmit = (e) => {
+    if (e.key === 'Enter' && tagInputValue.trim()) {
+      const newTag = tagInputValue.trim();
+      if (!searchTags.includes(newTag)) {
+        setSearchTags([...searchTags, newTag]);
+      }
+      setTagInputValue('');
+    }
+  };
+
   // 标签相关函数
 
 
@@ -2400,15 +2487,73 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       </div>
       
       <div className="file-controls">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="搜索文件名... (按回车搜索)"
-            value={searchInput}
-            onChange={handleSearchChange}
-            onKeyDown={handleSearchSubmit}
-            className="search-input"
-          />
+        {/* 标签搜索组件 */}
+        <div className="tag-search-container">
+          {/* 主搜索框 - 可以输入自定义标签 */}
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="输入自定义标签或搜索文件名... (按回车添加标签)"
+              value={customTagInput}
+              onChange={handleCustomTagInputChange}
+              onKeyDown={handleCustomTagSubmit}
+              className="search-input"
+            />
+          </div>
+          
+          {/* 已选标签显示 - 一直存在 */}
+          <div className="selected-tags-container">
+            <span className="selected-tags-label">已选标签:</span>
+            {/* 标签输入框 */}
+            <input
+              type="text"
+              placeholder="输入标签..."
+              value={tagInputValue}
+              onChange={handleTagInputChange}
+              onKeyDown={handleTagInputSubmit}
+              className="tag-input-small"
+            />
+            <div className="selected-tags-list">
+              {searchTags.map((tag, index) => (
+                <span key={index} className="selected-tag">
+                  {tag}
+                  <button
+                    className="remove-tag-btn-small"
+                    onClick={() => handleRemoveSearchTag(tag)}
+                    title={`移除标签: ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <button
+              className="search-with-tags-btn"
+              onClick={handleSearchWithTags}
+              title="使用选中的标签进行搜索"
+            >
+              搜索
+            </button>
+          </div>
+          
+          {/* 热门标签提示行 */}
+          {hotTags.length > 0 && (
+            <div className="hot-tags-container">
+              <span className="hot-tags-label">热门标签:</span>
+              <div className="hot-tags-list">
+                {hotTags.map((tag, index) => (
+                  <button
+                    key={index}
+                    className="hot-tag-btn"
+                    onClick={() => handleAddSearchTag(tag)}
+                    title={`添加标签: ${tag}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="sort-box">
           <select value={sortBy} onChange={handleSortChange} className="sort-select">
@@ -3215,6 +3360,16 @@ const Dashboard = () => {
     '#6f42c1', '#fd7e14', '#e83e8c', '#20c997', '#6c757d'
   ];
 
+  // 标签搜索相关状态
+  const [searchTags, setSearchTags] = useState([]); // 已选择的搜索标签
+  const [customTagInput, setCustomTagInput] = useState(''); // 自定义标签输入
+  const [hotTags, setHotTags] = useState([]); // 热门标签
+  const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
+  
+  // 搜索和排序相关状态
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('time_desc');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -3431,6 +3586,71 @@ const Dashboard = () => {
     
     updateWithRetry();
   };
+
+  // 标签搜索相关函数
+  const handleCustomTagInputChange = (e) => {
+    setCustomTagInput(e.target.value);
+  };
+
+  const handleCustomTagSubmit = (e) => {
+    if (e.key === 'Enter' && customTagInput.trim()) {
+      const newTag = customTagInput.trim();
+      if (!searchTags.includes(newTag)) {
+        setSearchTags([...searchTags, newTag]);
+      }
+      setCustomTagInput('');
+    }
+  };
+
+  const handleAddSearchTag = (tagName) => {
+    if (!searchTags.includes(tagName)) {
+      setSearchTags([...searchTags, tagName]);
+    }
+  };
+
+  const handleRemoveSearchTag = (tagName) => {
+    setSearchTags(searchTags.filter(tag => tag !== tagName));
+  };
+
+  const handleSearchWithTags = () => {
+    // 这里可以结合文件名搜索和标签搜索
+    console.log('搜索标签:', searchTags);
+    console.log('搜索文本:', searchInput);
+    // TODO: 实现实际的搜索逻辑
+  };
+
+  // 获取热门标签（这里暂时使用模拟数据）
+  useEffect(() => {
+    // 从所有文件的标签中统计热门标签
+    const tagCounts = {};
+    files.forEach(file => {
+      if (file.tags && file.tags.length > 0) {
+        file.tags.forEach(tag => {
+          tagCounts[tag.name] = (tagCounts[tag.name] || 0) + 1;
+        });
+      }
+    });
+    
+    const sortedTags = Object.entries(tagCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([name]) => name);
+    
+    setHotTags(sortedTags);
+  }, [files]);
+
+  // 获取所有可用标签
+  useEffect(() => {
+    const allTags = new Set();
+    files.forEach(file => {
+      if (file.tags && file.tags.length > 0) {
+        file.tags.forEach(tag => {
+          allTags.add(tag.name);
+        });
+      }
+    });
+    setAvailableTagsForSearch(Array.from(allTags));
+  }, [files]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
