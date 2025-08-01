@@ -2183,14 +2183,6 @@ td[style*="width: 100px"] .tags-dropdown-container {
   .tag-item.dragging {
     transform: scale(1.05) rotate(3deg);
   }
-  
-  .tag-item.shift-left {
-    /* 移动距离由JavaScript动态计算 */
-  }
-  
-  .tag-item.shift-right {
-    /* 移动距离由JavaScript动态计算 */
-  }
 } 
 
 /* 标签搜索组件样式 */

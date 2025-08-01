@@ -1074,7 +1074,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   
   // 标签搜索相关状态
   const [searchTags, setSearchTags] = useState([]); // 已选择的搜索标签
-  const [customTagInput, setCustomTagInput] = useState(''); // 主搜索框输入
   const [tagInputValue, setTagInputValue] = useState(''); // 标签输入框的值
   const [hotTags, setHotTags] = useState([]); // 热门标签
   const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
@@ -2280,10 +2279,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleSearchSubmit = async (e) => {
     if (e.key === 'Enter') {
       try {
-        // 结合文件名搜索和标签搜索
+        // 文件名搜索 + 标签筛选
         const searchParams = {
-          search: searchInput,
-          tags: searchTags,
+          search: searchInput, // 搜索文件名
+          tags: searchTags,    // 标签筛选
           folder: currentFolder,
           sort: sortBy
         };
@@ -2298,21 +2297,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
-  // 标签搜索相关函数
-  const handleCustomTagInputChange = (e) => {
-    setCustomTagInput(e.target.value);
-  };
-
-  const handleCustomTagSubmit = (e) => {
-    if (e.key === 'Enter' && customTagInput.trim()) {
-      const newTag = customTagInput.trim();
-      if (!searchTags.includes(newTag)) {
-        setSearchTags([...searchTags, newTag]);
-      }
-      setCustomTagInput('');
-    }
-  };
-
   const handleAddSearchTag = (tagName) => {
     if (!searchTags.includes(tagName)) {
       setSearchTags([...searchTags, tagName]);
@@ -2323,12 +2307,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setSearchTags(searchTags.filter(tag => tag !== tagName));
   };
 
-  const handleSearchWithTags = async () => {
+    const handleSearchWithTags = async () => {
     try {
-      // 结合文件名搜索和标签搜索
+      // 文件名搜索 + 标签筛选
       const searchParams = {
-        search: searchInput,
-        tags: searchTags,
+        search: searchInput, // 搜索文件名
+        tags: searchTags,    // 标签筛选
         folder: currentFolder,
         sort: sortBy
       };
@@ -2528,10 +2512,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           <div className="search-box">
             <input
               type="text"
-              placeholder="输入自定义标签或搜索文件名... (按回车添加标签)"
-              value={customTagInput}
-              onChange={handleCustomTagInputChange}
-              onKeyDown={handleCustomTagSubmit}
+              placeholder="搜索文件名... (按回车搜索)"
+              value={searchInput}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchSubmit}
               className="search-input"
             />
           </div>
