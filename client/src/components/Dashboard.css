@@ -975,6 +975,16 @@ td:nth-child(2) {
   background-color: #9333ea;
 }
 
+.btn-preview:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background-color: #a855f7 !important;
+}
+
+.btn-preview:disabled:hover {
+  background-color: #a855f7 !important;
+}
+
 /* =========================================
    文件预览组件样式
    ========================================= */

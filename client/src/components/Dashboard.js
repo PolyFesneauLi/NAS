@@ -2826,7 +2826,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       )}
                       {!file.isFolder && (
                         <>
-                          {isSupportedForPreview(file.originalName || file.filename) && (
+                          {isSupportedForPreview(file.originalName || file.filename) ? (
                             <button 
                               className="btn btn-preview"
                               onClick={() => handlePreview(file)}
@@ -2835,6 +2835,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                             >
                               预览
                             </button>
+                          ) : (
+                            <div 
+                              className="btn btn-preview"
+                              style={{ 
+                                background: 'transparent',
+                                border: 'none',
+                                visibility: 'hidden'
+                              }}
+                            >
+                              预览
+                            </div>
                           )}
                           {downloadingFiles.has(file._id) ? (
                             <div className="download-progress-container">
@@ -2873,6 +2884,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       )}
                       {file.isFolder && (
                         <>
+                          {/* 文件夹预览占位符 */}
+                          <div 
+                            className="btn btn-preview"
+                            style={{ 
+                              background: 'transparent',
+                              border: 'none',
+                              visibility: 'hidden'
+                            }}
+                          >
+                            预览
+                          </div>
                           {downloadingFiles.has(file._id) ? (
                             <div className="download-progress-container">
                               <div className="download-progress-bar">
