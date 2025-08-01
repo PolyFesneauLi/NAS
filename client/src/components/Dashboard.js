@@ -3396,16 +3396,7 @@ const Dashboard = () => {
     '#6f42c1', '#fd7e14', '#e83e8c', '#20c997', '#6c757d'
   ];
 
-  // 标签搜索相关状态
-  const [searchTags, setSearchTags] = useState([]); // 已选择的搜索标签
-  const [customTagInput, setCustomTagInput] = useState(''); // 自定义标签输入
-  const [hotTags, setHotTags] = useState([]); // 热门标签
-  const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
-  
-  // 搜索和排序相关状态
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('time_desc');
+
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -3622,19 +3613,6 @@ const Dashboard = () => {
     
     updateWithRetry();
   };
-
-  // 获取所有可用标签
-  useEffect(() => {
-    const allTags = new Set();
-    files.forEach(file => {
-      if (file.tags && file.tags.length > 0) {
-        file.tags.forEach(tag => {
-          allTags.add(tag.name);
-        });
-      }
-    });
-    setAvailableTagsForSearch(Array.from(allTags));
-  }, [files]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
