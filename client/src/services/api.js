@@ -78,7 +78,11 @@ export const getUserFiles = async (params = {}) => {
   
   if (params.type) queryParams.append('type', params.type);
   if (params.sort) queryParams.append('sort', params.sort);
-  if (params.search) queryParams.append('search', encodeURIComponent(params.search));
+  if (params.search) {
+    // 对搜索关键词应用编码修复
+    const fixedSearch = fixEncoding(params.search);
+    queryParams.append('search', encodeURIComponent(fixedSearch));
+  }
   if (params.folder) queryParams.append('folder', params.folder); // 添加文件夹参数
   
   const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
@@ -136,7 +140,8 @@ export const downloadFolder = async (id, onProgress) => {
 
 // 获取归档进度
 export const getArchivingProgress = async (folderName) => {
-  const response = await api.get(`/files/archiving-progress?folderName=${encodeURIComponent(folderName)}`);
+  const fixedFolderName = fixEncoding(folderName);
+  const response = await api.get(`/files/archiving-progress?folderName=${encodeURIComponent(fixedFolderName)}`);
   return response.data;
 };
 
@@ -249,17 +254,32 @@ export const updateTagOrder = async (fileId, tagOrder) => {
 
 
 
+// 修复编码问题的工具函数
+const fixEncoding = (str) => {
+  try {
+    return decodeURIComponent(escape(str));
+  } catch (e) {
+    return str;
+  }
+};
+
 // 搜索文件（支持文件名和标签搜索）
 export const searchFiles = async (params = {}) => {
   const queryParams = new URLSearchParams();
   
   if (params.type) queryParams.append('type', params.type);
   if (params.sort) queryParams.append('sort', params.sort);
-  if (params.search) queryParams.append('search', encodeURIComponent(params.search));
+  if (params.search) {
+    // 对搜索关键词应用编码修复
+    const fixedSearch = fixEncoding(params.search);
+    queryParams.append('search', encodeURIComponent(fixedSearch));
+  }
   if (params.folder) queryParams.append('folder', params.folder);
   if (params.globalSearch) queryParams.append('globalSearch', params.globalSearch);
   if (params.tags && params.tags.length > 0) {
-    queryParams.append('tags', encodeURIComponent(JSON.stringify(params.tags)));
+    // 对每个标签应用编码修复
+    const fixedTags = params.tags.map(tag => fixEncoding(tag));
+    queryParams.append('tags', encodeURIComponent(JSON.stringify(fixedTags)));
   }
   
   const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;

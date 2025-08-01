@@ -2276,7 +2276,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     const newSortBy = e.target.value;
     setSortBy(newSortBy);
     
-    // 如果有搜索条件或标签，重新搜索
+    // 只有在有搜索条件时才重新搜索
     if (searchInput || searchTags.length > 0) {
       try {
         setSearchLoading(true);
@@ -2296,25 +2296,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } finally {
         setSearchLoading(false);
       }
-    } else {
-      // 如果没有搜索条件，重新获取文件列表
-      try {
-        setSearchLoading(true);
-        const params = {
-          folder: currentFolder,
-          sort: newSortBy,
-          globalSearch: globalSearch
-        };
-        
-        const response = await searchFiles(params);
-        setFiles(response.files);
-      } catch (error) {
-        console.error('获取文件列表失败:', error);
-        setError('获取文件列表失败: ' + error.message);
-      } finally {
-        setSearchLoading(false);
-      }
     }
+    // 如果没有搜索条件，只更新状态，不触发搜索
   };
 
   const handleSearchChange = (e) => {
@@ -2325,7 +2308,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     const newGlobalSearch = e.target.checked;
     setGlobalSearch(newGlobalSearch);
     
-    // 如果有搜索条件或标签，重新搜索
+    // 只有在有搜索条件时才重新搜索
     if (searchInput || searchTags.length > 0) {
       try {
         setSearchLoading(true);
@@ -2345,25 +2328,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } finally {
         setSearchLoading(false);
       }
-    } else {
-      // 如果没有搜索条件，重新获取文件列表
-      try {
-        setSearchLoading(true);
-        const params = {
-          folder: currentFolder,
-          sort: sortBy,
-          globalSearch: newGlobalSearch
-        };
-        
-        const response = await searchFiles(params);
-        setFiles(response.files);
-      } catch (error) {
-        console.error('获取文件列表失败:', error);
-        setError('获取文件列表失败: ' + error.message);
-      } finally {
-        setSearchLoading(false);
-      }
     }
+    // 如果没有搜索条件，只更新状态，不触发搜索
   };
 
   const handleSearchSubmit = async (e) => {

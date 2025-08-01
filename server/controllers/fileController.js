@@ -613,7 +613,7 @@ const getUserFiles = async (req, res) => {
 
     // 搜索功能 - 文件名部分匹配（支持文件夹和文件）
     if (search) {
-      const decodedSearch = decodeURIComponent(search);
+      const decodedSearch = FixEncoding(decodeURIComponent(search));
       query.$or = [
         { originalName: { $regex: decodedSearch, $options: 'i' } },
         { filename: { $regex: decodedSearch, $options: 'i' } }
@@ -626,8 +626,10 @@ const getUserFiles = async (req, res) => {
       try {
         const tagArray = JSON.parse(decodeURIComponent(tags));
         if (Array.isArray(tagArray) && tagArray.length > 0) {
+          // 对每个标签应用编码修复
+          const fixedTagArray = tagArray.map(tag => FixEncoding(tag));
           // 查找包含所有指定标签的文件
-          query['tags.name'] = { $all: tagArray };
+          query['tags.name'] = { $all: fixedTagArray };
         }
       } catch (error) {
         console.error('解析标签参数错误:', error);
