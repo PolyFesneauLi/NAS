@@ -2956,7 +2956,7 @@ const TagModal = ({
     return { rows, containerWidth, tagHeight, gap };
   };
 
-  // 根据鼠标位置计算目标索引
+  // 根据鼠标位置计算目标索引   null 不移动
   const calculateTargetIndex = (mouseX, mouseY) => {
     const { rows, tagHeight, gap } = calculateTagPositions();
     const container = document.querySelector('.tags-list');
@@ -2976,13 +2976,14 @@ const TagModal = ({
       }
     }
 
-    // 如果鼠标在容器外，返回边界值
+    // 如果鼠标在容器外，不移动 返回原来的位置  
     if (targetRowIndex === -1) {
-      if (relativeY < 0) {
-        return 0; // 第一行第一个
-      } else {
-        return rows.reduce((total, row) => total + row.tags.length, 0); // 最后
-      }
+      // if (relativeY < 0) {
+      //   return 0; // 第一行第一个
+      // } else {
+      //   return rows.reduce((total, row) => total + row.tags.length, 0); // 最后
+      // }
+      return null;
     }
 
     const targetRow = rows[targetRowIndex];
@@ -3060,7 +3061,7 @@ const TagModal = ({
     const finalToIndex = calculateTargetIndex(e.clientX, e.clientY);
     const fromIndex = dragState.draggedIndex;
     
-    if (fromIndex !== null && finalToIndex !== fromIndex) {
+    if (fromIndex !== null && finalToIndex !== null && finalToIndex !== fromIndex) {
       console.log(`拖拽排序: ${fromIndex} -> ${finalToIndex}`);
       handleTagReorder(fromIndex, finalToIndex);
       
@@ -3572,10 +3573,10 @@ const Dashboard = () => {
     const newOrderedTags = [...currentOrderedTags];
     // 删除原标签
     const [movedTag] = newOrderedTags.splice(fromIndex, 1);
-    // 从左到右移动，如果从右到左移动，则需要将toIndex改为toIndex-1
-    if (fromIndex < toIndex) {
-      toIndex = toIndex - 1;
-    }
+    // // 从左到右移动，需要将toIndex改为toIndex-1
+    // if (fromIndex < toIndex) {
+    //   toIndex = toIndex - 1;
+    // }
     newOrderedTags.splice(toIndex, 0, movedTag);
     
     // 更新本地状态
