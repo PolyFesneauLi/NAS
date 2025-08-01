@@ -545,7 +545,7 @@ const createFolder = async (req, res) => {
 const getUserFiles = async (req, res) => {
   try {
     const folderId = req.query.folder;
-    const { sort, search } = req.query;
+    const { sort, search, tags } = req.query;
     const query = {};
 
     // // 普通用户可以看到所有文件，管理员只能看到自己的文件
@@ -577,6 +577,19 @@ const getUserFiles = async (req, res) => {
         { filename: { $regex: decodedSearch, $options: 'i' } }
       ];
       // console.log('收到搜索参数:', decodedSearch, 'MongoDB 查询:', JSON.stringify(query));
+    }
+
+    // 标签搜索功能
+    if (tags) {
+      try {
+        const tagArray = JSON.parse(decodeURIComponent(tags));
+        if (Array.isArray(tagArray) && tagArray.length > 0) {
+          // 查找包含所有指定标签的文件
+          query['tags.name'] = { $all: tagArray };
+        }
+      } catch (error) {
+        console.error('解析标签参数错误:', error);
+      }
     }
 
     // 排序功能
@@ -1582,6 +1595,8 @@ const getAllTags = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // 获取单个文件详情
 const getFileDetails = async (req, res) => {

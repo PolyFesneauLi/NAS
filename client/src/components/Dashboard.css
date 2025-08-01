@@ -2254,10 +2254,18 @@ td[style*="width: 100px"] .tags-dropdown-container {
   flex-wrap: wrap;
 }
 
+/* 标签输入框容器 */
+.tag-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 /* 标签输入框样式 */
 .tag-input-small {
   width: 120px;
   padding: 6px 10px;
+  padding-right: 30px;
   border: 2px solid #e1e5e9;
   border-radius: 8px;
   font-size: 12px;
@@ -2274,6 +2282,36 @@ td[style*="width: 100px"] .tags-dropdown-container {
 .tag-input-small::placeholder {
   color: #9ca3af;
   font-size: 11px;
+}
+
+/* 添加标签按钮样式 */
+.add-tag-btn-small {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.add-tag-btn-small:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.add-tag-btn-small:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
 .selected-tags-label {

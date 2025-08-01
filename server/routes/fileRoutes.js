@@ -51,6 +51,7 @@ router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileContr
 router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
 router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileController.createTag);
 router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
+
 router.post('/update-tag-order', auth.authenticate, auth.requireRole('admin'), fileController.updateTagOrder);
 
 // 获取单个文件详情（放在最后，避免与其他路由冲突）

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -1613,23 +1613,32 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   // 获取热门标签
   useEffect(() => {
-    // 从所有文件的标签中统计热门标签
-    const tagCounts = {};
-    files.forEach(file => {
-      if (file.tags && file.tags.length > 0) {
-        file.tags.forEach(tag => {
-          tagCounts[tag.name] = (tagCounts[tag.name] || 0) + 1;
-        });
+    const fetchHotTags = async () => {
+      try {
+        // 使用和编辑标签模态框相同的方式获取所有标签
+        const response = await getAllTags();
+        const allTags = response.tags || [];
+        
+        // 按order升序，order相同时按usageCount降序，取前10个
+        const sortedTags = allTags
+          .sort((a, b) => {
+            if (a.order !== b.order) {
+              return a.order - b.order; // order升序
+            }
+            return b.usageCount - a.usageCount; // usageCount降序
+          })
+          .slice(0, 10)
+          .map(tag => tag.name);
+        
+        setHotTags(sortedTags);
+      } catch (error) {
+        console.error('获取热门标签失败:', error);
+        setHotTags([]);
       }
-    });
+    };
     
-    const sortedTags = Object.entries(tagCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([name]) => name);
-    
-    setHotTags(sortedTags);
-  }, [files]);
+    fetchHotTags();
+  }, []);
 
   // 获取所有可用标签
   useEffect(() => {
@@ -2268,9 +2277,24 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setSearchInput(e.target.value);
   };
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     if (e.key === 'Enter') {
-      setSearchTerm(searchInput);
+      try {
+        // 结合文件名搜索和标签搜索
+        const searchParams = {
+          search: searchInput,
+          tags: searchTags,
+          folder: currentFolder,
+          sort: sortBy
+        };
+        
+        const response = await searchFiles(searchParams);
+        setFiles(response.files);
+        setSearchTerm(searchInput);
+      } catch (error) {
+        console.error('搜索文件失败:', error);
+        setError('搜索文件失败: ' + error.message);
+      }
     }
   };
 
@@ -2299,11 +2323,22 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setSearchTags(searchTags.filter(tag => tag !== tagName));
   };
 
-  const handleSearchWithTags = () => {
-    // 这里可以结合文件名搜索和标签搜索
-    console.log('搜索标签:', searchTags);
-    console.log('搜索文本:', searchInput);
-    // TODO: 实现实际的搜索逻辑
+  const handleSearchWithTags = async () => {
+    try {
+      // 结合文件名搜索和标签搜索
+      const searchParams = {
+        search: searchInput,
+        tags: searchTags,
+        folder: currentFolder,
+        sort: sortBy
+      };
+      
+      const response = await searchFiles(searchParams);
+      setFiles(response.files);
+    } catch (error) {
+      console.error('搜索文件失败:', error);
+      setError('搜索文件失败: ' + error.message);
+    }
   };
 
   // 标签输入框处理函数
@@ -2505,14 +2540,31 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           <div className="selected-tags-container">
             <span className="selected-tags-label">已选标签:</span>
             {/* 标签输入框 */}
-            <input
-              type="text"
-              placeholder="输入标签..."
-              value={tagInputValue}
-              onChange={handleTagInputChange}
-              onKeyDown={handleTagInputSubmit}
-              className="tag-input-small"
-            />
+            <div className="tag-input-container">
+              <input
+                type="text"
+                placeholder="输入标签..."
+                value={tagInputValue}
+                onChange={handleTagInputChange}
+                onKeyDown={handleTagInputSubmit}
+                className="tag-input-small"
+              />
+              {tagInputValue.trim() && (
+                <button
+                  className="add-tag-btn-small"
+                  onClick={() => {
+                    const newTag = tagInputValue.trim();
+                    if (!searchTags.includes(newTag)) {
+                      setSearchTags([...searchTags, newTag]);
+                    }
+                    setTagInputValue('');
+                  }}
+                  title="添加标签"
+                >
+                  +
+                </button>
+              )}
+            </div>
             <div className="selected-tags-list">
               {searchTags.map((tag, index) => (
                 <span key={index} className="selected-tag">
@@ -3618,26 +3670,6 @@ const Dashboard = () => {
     console.log('搜索文本:', searchInput);
     // TODO: 实现实际的搜索逻辑
   };
-
-  // 获取热门标签（这里暂时使用模拟数据）
-  useEffect(() => {
-    // 从所有文件的标签中统计热门标签
-    const tagCounts = {};
-    files.forEach(file => {
-      if (file.tags && file.tags.length > 0) {
-        file.tags.forEach(tag => {
-          tagCounts[tag.name] = (tagCounts[tag.name] || 0) + 1;
-        });
-      }
-    });
-    
-    const sortedTags = Object.entries(tagCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([name]) => name);
-    
-    setHotTags(sortedTags);
-  }, [files]);
 
   // 获取所有可用标签
   useEffect(() => {

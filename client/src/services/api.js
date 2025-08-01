@@ -247,4 +247,23 @@ export const updateTagOrder = async (fileId, tagOrder) => {
   return response.data;
 };
 
+
+
+// 搜索文件（支持文件名和标签搜索）
+export const searchFiles = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.type) queryParams.append('type', params.type);
+  if (params.sort) queryParams.append('sort', params.sort);
+  if (params.search) queryParams.append('search', encodeURIComponent(params.search));
+  if (params.folder) queryParams.append('folder', params.folder);
+  if (params.tags && params.tags.length > 0) {
+    queryParams.append('tags', encodeURIComponent(JSON.stringify(params.tags)));
+  }
+  
+  const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const response = await api.get(url);
+  return response.data;
+};
+
 export default api;
