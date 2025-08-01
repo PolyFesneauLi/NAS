@@ -1198,6 +1198,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       if (sortBy) params.sort = sortBy;
       if (searchTerm) params.search = searchTerm;
       if (currentFolder) params.folder = currentFolder;
+      if (globalSearch) params.globalSearch = globalSearch;
       
       const data = await getUserFiles(params);
       
@@ -1578,6 +1579,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (sortBy) params.sort = sortBy;
         if (searchTerm) params.search = searchTerm;
         if (currentFolder) params.folder = currentFolder;
+        if (globalSearch) params.globalSearch = globalSearch;
         
         // console.log('Fetching files with params:', params);
         const data = await getUserFiles(params);
@@ -1609,7 +1611,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [sortBy, searchTerm, currentFolder]);
+  }, [sortBy, searchTerm, currentFolder, globalSearch]);
 
   // 获取热门标签
   useEffect(() => {
@@ -2269,16 +2271,86 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value);
+  const handleSortChange = async (e) => {
+    const newSortBy = e.target.value;
+    setSortBy(newSortBy);
+    
+    // 如果有搜索条件或标签，重新搜索
+    if (searchInput || searchTags.length > 0) {
+      try {
+        const searchParams = {
+          search: searchInput,
+          tags: searchTags,
+          folder: currentFolder,
+          sort: newSortBy,
+          globalSearch: globalSearch
+        };
+        
+        const response = await searchFiles(searchParams);
+        setFiles(response.files);
+      } catch (error) {
+        console.error('排序搜索失败:', error);
+        setError('排序搜索失败: ' + error.message);
+      }
+    } else {
+      // 如果没有搜索条件，重新获取文件列表
+      try {
+        const params = {
+          folder: currentFolder,
+          sort: newSortBy,
+          globalSearch: globalSearch
+        };
+        
+        const response = await searchFiles(params);
+        setFiles(response.files);
+      } catch (error) {
+        console.error('获取文件列表失败:', error);
+        setError('获取文件列表失败: ' + error.message);
+      }
+    }
   };
 
   const handleSearchChange = (e) => {
     setSearchInput(e.target.value);
   };
 
-  const handleGlobalSearchChange = (e) => {
-    setGlobalSearch(e.target.checked);
+  const handleGlobalSearchChange = async (e) => {
+    const newGlobalSearch = e.target.checked;
+    setGlobalSearch(newGlobalSearch);
+    
+    // 如果有搜索条件或标签，重新搜索
+    if (searchInput || searchTags.length > 0) {
+      try {
+        const searchParams = {
+          search: searchInput,
+          tags: searchTags,
+          folder: currentFolder,
+          sort: sortBy,
+          globalSearch: newGlobalSearch
+        };
+        
+        const response = await searchFiles(searchParams);
+        setFiles(response.files);
+      } catch (error) {
+        console.error('全局搜索切换失败:', error);
+        setError('全局搜索切换失败: ' + error.message);
+      }
+    } else {
+      // 如果没有搜索条件，重新获取文件列表
+      try {
+        const params = {
+          folder: currentFolder,
+          sort: sortBy,
+          globalSearch: newGlobalSearch
+        };
+        
+        const response = await searchFiles(params);
+        setFiles(response.files);
+      } catch (error) {
+        console.error('获取文件列表失败:', error);
+        setError('获取文件列表失败: ' + error.message);
+      }
+    }
   };
 
   const handleSearchSubmit = async (e) => {
