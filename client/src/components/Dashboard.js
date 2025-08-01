@@ -3623,38 +3623,6 @@ const Dashboard = () => {
     updateWithRetry();
   };
 
-  // 标签搜索相关函数
-  const handleCustomTagInputChange = (e) => {
-    setCustomTagInput(e.target.value);
-  };
-
-  const handleCustomTagSubmit = (e) => {
-    if (e.key === 'Enter' && customTagInput.trim()) {
-      const newTag = customTagInput.trim();
-      if (!searchTags.includes(newTag)) {
-        setSearchTags([...searchTags, newTag]);
-      }
-      setCustomTagInput('');
-    }
-  };
-
-  const handleAddSearchTag = (tagName) => {
-    if (!searchTags.includes(tagName)) {
-      setSearchTags([...searchTags, tagName]);
-    }
-  };
-
-  const handleRemoveSearchTag = (tagName) => {
-    setSearchTags(searchTags.filter(tag => tag !== tagName));
-  };
-
-  const handleSearchWithTags = () => {
-    // 这里可以结合文件名搜索和标签搜索
-    console.log('搜索标签:', searchTags);
-    console.log('搜索文本:', searchInput);
-    // TODO: 实现实际的搜索逻辑
-  };
-
   // 获取所有可用标签
   useEffect(() => {
     const allTags = new Set();
