@@ -1580,7 +1580,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (sortBy) params.sort = sortBy;
         if (searchTerm) params.search = searchTerm;
         if (currentFolder) params.folder = currentFolder;
-        if (globalSearch) params.globalSearch = globalSearch;
+        // 不在自动获取文件时包含 globalSearch 参数
         
         // console.log('Fetching files with params:', params);
         const data = await getUserFiles(params);
@@ -1612,7 +1612,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [sortBy, searchTerm, currentFolder, globalSearch]);
+  }, [sortBy, searchTerm, currentFolder]);
 
   // 获取热门标签
   useEffect(() => {
@@ -2304,32 +2304,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setSearchInput(e.target.value);
   };
 
-  const handleGlobalSearchChange = async (e) => {
+  const handleGlobalSearchChange = (e) => {
     const newGlobalSearch = e.target.checked;
     setGlobalSearch(newGlobalSearch);
-    
-    // 只有在有搜索条件时才重新搜索
-    if (searchInput || searchTags.length > 0) {
-      try {
-        setSearchLoading(true);
-        const searchParams = {
-          search: searchInput,
-          tags: searchTags,
-          folder: currentFolder,
-          sort: sortBy,
-          globalSearch: newGlobalSearch
-        };
-        
-        const response = await searchFiles(searchParams);
-        setFiles(response.files);
-      } catch (error) {
-        console.error('全局搜索切换失败:', error);
-        setError('全局搜索切换失败: ' + error.message);
-      } finally {
-        setSearchLoading(false);
-      }
-    }
-    // 如果没有搜索条件，只更新状态，不触发搜索
+    // 只更新状态，不触发搜索
   };
 
   const handleSearchSubmit = async (e) => {
