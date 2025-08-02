@@ -264,7 +264,7 @@ const fixEncoding = (str) => {
 };
 
 // 搜索文件（支持文件名和标签搜索）
-export const searchFiles = async (params = {}) => {
+export const searchFiles = async (params = {}, signal = null) => {
   const queryParams = new URLSearchParams();
   
   if (params.type) queryParams.append('type', params.type);
@@ -283,7 +283,8 @@ export const searchFiles = async (params = {}) => {
   }
   
   const url = `/files${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-  const response = await api.get(url);
+  const config = signal ? { signal } : {};
+  const response = await api.get(url, config);
   return response.data;
 };
 

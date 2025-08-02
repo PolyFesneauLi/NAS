@@ -1079,6 +1079,152 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
   const [globalSearch, setGlobalSearch] = useState(false); // 全局搜索开关
   const [searchLoading, setSearchLoading] = useState(false); // 搜索加载状态
+  
+  // 搜索中断相关状态
+  const [searchAbortController, setSearchAbortController] = useState(null);
+  const [lastSearchParams, setLastSearchParams] = useState(null);
+
+  // 通用搜索函数，支持中断功能
+  const performSearch = async (searchParams, isFromEnter = false) => {
+    // 检查搜索参数是否有变化
+    const currentParams = JSON.stringify(searchParams);
+    const hasParamsChanged = lastSearchParams !== currentParams;
+    
+    // 如果正在搜索且参数有变化，中断当前搜索
+    if (searchLoading && hasParamsChanged) {
+      if (searchAbortController) {
+        searchAbortController.abort();
+      }
+      setError('已终止旧搜索进程，重新搜索...');
+      // 短暂延迟后清除错误信息
+      setTimeout(() => setError(''), 600);
+    }
+    
+    // 创建新的 AbortController
+    const abortController = new AbortController();
+    setSearchAbortController(abortController);
+    setSearchLoading(true);
+    
+    // 更新最后搜索参数
+    setLastSearchParams(currentParams);
+    
+    try {
+      const response = await searchFiles(searchParams, abortController.signal);
+      
+      // 检查是否被中断
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
+      setFiles(response.files);
+      if (isFromEnter) {
+        setSearchTerm(searchParams.search);
+      }
+    } catch (error) {
+      // 如果是中断错误或取消错误，不显示错误信息，直接返回
+      if (error.name === 'AbortError' || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
+      // 其他错误仍然显示
+      console.error('搜索文件失败:', error);
+      setError('搜索文件失败: ' + error.message);
+    } finally {
+      // 只有在没有被中断的情况下才重置状态
+      if (!abortController.signal.aborted) {
+        setSearchLoading(false);
+        setSearchAbortController(null);
+      }
+    }
+  };
+
+  const handleSearchSubmit = async (e) => {
+    if (e.key === 'Enter') {
+      const searchParams = {
+        search: searchInput, // 搜索文件名
+        tags: searchTags,    // 标签筛选
+        folder: currentFolder,
+        sort: sortBy,
+        globalSearch: globalSearch // 全局搜索参数
+      };
+      
+      await performSearch(searchParams, true);
+    }
+  };
+
+  const handleAddSearchTag = (tagName) => {
+    if (!searchTags.includes(tagName)) {
+      setSearchTags([...searchTags, tagName]);
+    }
+  };
+
+  const handleRemoveSearchTag = (tagName) => {
+    setSearchTags(searchTags.filter(tag => tag !== tagName));
+  };
+
+  const handleSearchWithTags = async () => {
+    const searchParams = {
+      search: searchInput, // 搜索文件名
+      tags: searchTags,    // 标签筛选
+      folder: currentFolder,
+      sort: sortBy,
+      globalSearch: globalSearch // 全局搜索参数
+    };
+    
+    await performSearch(searchParams, false);
+  };
+
+  // 标签输入框处理函数
+  const handleTagInputChange = (e) => {
+    setTagInputValue(e.target.value);
+  };
+
+  const handleTagInputSubmit = (e) => {
+    if (e.key === 'Enter' && tagInputValue.trim()) {
+      const newTag = tagInputValue.trim();
+      if (!searchTags.includes(newTag)) {
+        setSearchTags([...searchTags, newTag]);
+      }
+      setTagInputValue('');
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchInput(e.target.value);
+  };
+
+  const handleGlobalSearchChange = (e) => {
+    const newGlobalSearch = e.target.checked;
+    setGlobalSearch(newGlobalSearch);
+    // 只更新状态，不触发搜索
+  };
+
+  const handleSortChange = async (e) => {
+    const newSortBy = e.target.value;
+    setSortBy(newSortBy);
+    
+    // 只有在有搜索条件时才重新搜索
+    if (searchInput || searchTags.length > 0) {
+      try {
+        setSearchLoading(true);
+        const searchParams = {
+          search: searchInput,
+          tags: searchTags,
+          folder: currentFolder,
+          sort: newSortBy,
+          globalSearch: globalSearch
+        };
+        
+        const response = await searchFiles(searchParams);
+        setFiles(response.files);
+      } catch (error) {
+        console.error('排序搜索失败:', error);
+        setError('排序搜索失败: ' + error.message);
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+    // 如果没有搜索条件，只更新状态，不触发搜索
+  };
 
   // 解析进度动画函数
   const startParsingProgress = async (fileId, closePromise) => {
@@ -1669,6 +1815,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     }
   }, [files, loading, searchTerm, sortBy]);
+
+  // 组件卸载时清理 AbortController
+  useEffect(() => {
+    return () => {
+      if (searchAbortController) {
+        searchAbortController.abort();
+      }
+    };
+  }, [searchAbortController]);
 
   const handleDownload = async (id, filename) => {
     try {
@@ -2272,115 +2427,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
-  const handleSortChange = async (e) => {
-    const newSortBy = e.target.value;
-    setSortBy(newSortBy);
-    
-    // 只有在有搜索条件时才重新搜索
-    if (searchInput || searchTags.length > 0) {
-      try {
-        setSearchLoading(true);
-        const searchParams = {
-          search: searchInput,
-          tags: searchTags,
-          folder: currentFolder,
-          sort: newSortBy,
-          globalSearch: globalSearch
-        };
-        
-        const response = await searchFiles(searchParams);
-        setFiles(response.files);
-      } catch (error) {
-        console.error('排序搜索失败:', error);
-        setError('排序搜索失败: ' + error.message);
-      } finally {
-        setSearchLoading(false);
-      }
-    }
-    // 如果没有搜索条件，只更新状态，不触发搜索
-  };
 
-  const handleSearchChange = (e) => {
-    setSearchInput(e.target.value);
-  };
 
-  const handleGlobalSearchChange = (e) => {
-    const newGlobalSearch = e.target.checked;
-    setGlobalSearch(newGlobalSearch);
-    // 只更新状态，不触发搜索
-  };
 
-  const handleSearchSubmit = async (e) => {
-    if (e.key === 'Enter') {
-      try {
-        setSearchLoading(true);
-        // 文件名搜索 + 标签筛选
-        const searchParams = {
-          search: searchInput, // 搜索文件名
-          tags: searchTags,    // 标签筛选
-          folder: currentFolder,
-          sort: sortBy,
-          globalSearch: globalSearch // 全局搜索参数
-        };
-        
-        const response = await searchFiles(searchParams);
-        setFiles(response.files);
-        setSearchTerm(searchInput);
-      } catch (error) {
-        console.error('搜索文件失败:', error);
-        setError('搜索文件失败: ' + error.message);
-      } finally {
-        setSearchLoading(false);
-      }
-    }
-  };
 
-  const handleAddSearchTag = (tagName) => {
-    if (!searchTags.includes(tagName)) {
-      setSearchTags([...searchTags, tagName]);
-    }
-  };
 
-  const handleRemoveSearchTag = (tagName) => {
-    setSearchTags(searchTags.filter(tag => tag !== tagName));
-  };
-
-    const handleSearchWithTags = async () => {
-    try {
-      setSearchLoading(true);
-      // 文件名搜索 + 标签筛选
-      const searchParams = {
-        search: searchInput, // 搜索文件名
-        tags: searchTags,    // 标签筛选
-        folder: currentFolder,
-        sort: sortBy,
-        globalSearch: globalSearch // 全局搜索参数
-      };
-      
-      const response = await searchFiles(searchParams);
-      setFiles(response.files);
-    } catch (error) {
-      console.error('搜索文件失败:', error);
-      setError('搜索文件失败: ' + error.message);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  // 标签输入框处理函数
-  const handleTagInputChange = (e) => {
-    setTagInputValue(e.target.value);
-  };
-
-  const handleTagInputSubmit = (e) => {
-    if (e.key === 'Enter' && tagInputValue.trim()) {
-      const newTag = tagInputValue.trim();
-      if (!searchTags.includes(newTag)) {
-        setSearchTags([...searchTags, newTag]);
-      }
-      setTagInputValue('');
-    }
-  };
 
   // 标签相关函数
 
@@ -3481,6 +3532,10 @@ const Dashboard = () => {
   const inputValueRef = useRef('');
   const [files, setFiles] = useState([]);
   
+  // 搜索中断相关状态
+  const [searchAbortController, setSearchAbortController] = useState(null);
+  const [lastSearchParams, setLastSearchParams] = useState(null);
+  
   // 标签颜色选择器
   const tagColors = [
     '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8',
@@ -3515,6 +3570,15 @@ const Dashboard = () => {
 
     fetchUserData();
   }, []);
+
+  // 组件卸载时清理 AbortController
+  useEffect(() => {
+    return () => {
+      if (searchAbortController) {
+        searchAbortController.abort();
+      }
+    };
+  }, [searchAbortController]);
 
   const handleUploadSuccess = () => {
     getCurrentUser().then(setCurrentUser);
@@ -3704,6 +3768,8 @@ const Dashboard = () => {
     
     updateWithRetry();
   };
+
+
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
