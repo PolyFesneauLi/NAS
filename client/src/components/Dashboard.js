@@ -1049,7 +1049,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1084,18 +1084,18 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [searchAbortController, setSearchAbortController] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
 
-  // 导航历史状态 - 用于智能返回功能
-  const [navigationHistory, setNavigationHistory] = useState([]);
-  const [isFromSearch, setIsFromSearch] = useState(false);
-  const [searchBackup, setSearchBackup] = useState({
-    searchInput: '',
-    searchTerm: '',
-    searchTags: [],
-    globalSearch: false,
-    files: [],
-    currentFolder: null,
-    folderPath: []
-  });
+  // 导航历史状态 - 用于智能返回功能（从 Dashboard 组件传递）
+  // const [navigationHistory, setNavigationHistory] = useState([]);
+  // const [isFromSearch, setIsFromSearch] = useState(false);
+  // const [searchBackup, setSearchBackup] = useState({
+  //   searchInput: '',
+  //   searchTerm: '',
+  //   searchTags: [],
+  //   globalSearch: false,
+  //   files: [],
+  //   currentFolder: null,
+  //   folderPath: []
+  // });
   // const [currentFolder, setCurrentFolder] = useState(null);
   // const [folderPath, setFolderPath] = useState([]);
 
@@ -1621,9 +1621,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
       if (isFromSearch && searchBackup.searchInput) {
         // 如果是从搜索结果跳转来的，返回到搜索结果
-        console.log('返回到搜索结果');
+        console.log('=== 点击返回搜索结果按钮 ===');
+        console.log('isFromSearch:', isFromSearch);
+        console.log('备份文件数量:', searchBackup.files.length);
+        console.log('备份搜索输入:', searchBackup.searchInput);
         
         // 恢复搜索状态
+        console.log('=== 开始恢复搜索状态 ===');
         setSearchInput(searchBackup.searchInput);
         setSearchTerm(searchBackup.searchTerm);
         setSearchTags([...searchBackup.searchTags]);
@@ -1632,17 +1636,25 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         setCurrentFolder(searchBackup.currentFolder);
         setFolderPath([...searchBackup.folderPath]);
         
-        // 重置状态
-        setIsFromSearch(false);
-        setSearchBackup({
-          searchInput: '',
-          searchTerm: '',
-          searchTags: [],
-          globalSearch: false,
-          files: [],
-          currentFolder: null,
-          folderPath: []
-        });
+        console.log('✅ 搜索状态恢复完成');
+        console.log('恢复文件数量:', searchBackup.files.length);
+        console.log('恢复搜索输入:', searchBackup.searchInput);
+        
+        // 延迟重置状态，避免 useEffect 立即触发
+        setTimeout(() => {
+          console.log('=== 延迟重置状态 ===');
+          setIsFromSearch(false);
+          setSearchBackup({
+            searchInput: '',
+            searchTerm: '',
+            searchTags: [],
+            globalSearch: false,
+            files: [],
+            currentFolder: null,
+            folderPath: []
+          });
+          console.log('✅ 状态重置完成');
+        }, 100);
       } else {
         // 正常返回上级目录
         console.log('返回上级目录');
@@ -1816,9 +1828,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       // 检查是否来自搜索结果
       const isFromSearchResults = searchInput || searchTerm || searchTags.length > 0 || globalSearch;
       
+              console.log('=== 点击跳转到位置按钮 ===');
+        console.log('搜索输入:', searchInput);
+        console.log('搜索词:', searchTerm);
+        console.log('搜索标签:', searchTags);
+        console.log('全局搜索:', globalSearch);
+        console.log('当前文件数量:', files.length);
+        console.log('来自搜索结果:', isFromSearchResults);
+      
       if (isFromSearchResults) {
         // 保存当前搜索状态，用于返回
-        setSearchBackup({
+        const backupData = {
           searchInput,
           searchTerm,
           searchTags: [...searchTags],
@@ -1826,8 +1846,17 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           files: [...files],
           currentFolder,
           folderPath: [...folderPath]
-        });
+        };
+        
+        console.log('=== 保存搜索备份 ===');
+        console.log('备份文件数量:', backupData.files.length);
+        console.log('备份搜索输入:', backupData.searchInput);
+        console.log('备份搜索标签:', backupData.searchTags);
+        
+        setSearchBackup(backupData);
         setIsFromSearch(true);
+        
+        console.log('✅ 搜索备份已保存');
       }
       
       if (file.parentFolder) {
@@ -1929,6 +1958,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   useEffect(() => {
     const fetchFilesData = async () => {
       try {
+        console.log('=== useEffect 触发文件列表刷新 ===');
+        console.log('触发原因:', { currentFolder, sortBy });
+        console.log('当前状态:', { isFromSearch, searchBackupFiles: searchBackup.files.length });
+        
+        // 如果正在恢复搜索结果，跳过自动刷新
+        if (isFromSearch && searchBackup.files.length > 0) {
+          console.log('⚠️ 跳过自动刷新，正在恢复搜索结果');
+          return;
+        }
+        
         setLoading(true);
         setError('');
         const params = {};
@@ -1937,10 +1976,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         if (currentFolder) params.folder = currentFolder;
         // 不在自动获取文件时包含 globalSearch 参数
         
-        // console.log('Fetching files with params:', params);
         const data = await getUserFiles(params);
         
         const filesArray = Array.isArray(data.files) ? data.files : [];
+        console.log('服务器返回文件数量:', filesArray.length);
         
         let sortedFiles = filesArray;
         
@@ -1958,8 +1997,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           sortedFiles = sortFilesBySize(filesArray, false);
         }
         
+        console.log('设置文件列表，数量:', sortedFiles.length);
         setFiles(sortedFiles);
       } catch (err) {
+        console.error('获取文件列表失败:', err);
         setError('获取文件列表失败: ' + (err.message || '未知错误'));
         setFiles([]);
       } finally {
@@ -1997,6 +2038,14 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     
     fetchHotTags();
   }, []);
+
+  // 监听 files 状态变化
+  useEffect(() => {
+    console.log('=== files 状态发生变化 ===');
+    console.log('新的 files 数量:', files.length);
+    console.log('当前 isFromSearch:', isFromSearch);
+    console.log('当前 searchBackup.files 数量:', searchBackup.files.length);
+  }, [files]);
 
   // 获取所有可用标签
   useEffect(() => {
@@ -3752,18 +3801,18 @@ const Dashboard = () => {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderPath, setFolderPath] = useState([]);
   
-  // // 导航历史状态 - 用于智能返回功能
-  // const [navigationHistory, setNavigationHistory] = useState([]);
-  // const [isFromSearch, setIsFromSearch] = useState(false);
-  // const [searchBackup, setSearchBackup] = useState({
-  //   searchInput: '',
-  //   searchTerm: '',
-  //   searchTags: [],
-  //   globalSearch: false,
-  //   files: [],
-  //   currentFolder: null,
-  //   folderPath: []
-  // });
+  // 导航历史状态 - 用于智能返回功能
+  const [navigationHistory, setNavigationHistory] = useState([]);
+  const [isFromSearch, setIsFromSearch] = useState(false);
+  const [searchBackup, setSearchBackup] = useState({
+    searchInput: '',
+    searchTerm: '',
+    searchTags: [],
+    globalSearch: false,
+    files: [],
+    currentFolder: null,
+    folderPath: []
+  });
   
   // 标签相关状态 - 从 FileList 组件移到这里
   const [showTagModal, setShowTagModal] = useState(false);
@@ -4054,6 +4103,10 @@ const Dashboard = () => {
           onOpenTagModal={handleOpenTagModal}
           setCurrentFolder={setCurrentFolder}
           setFolderPath={setFolderPath}
+          searchBackup={searchBackup}
+          setSearchBackup={setSearchBackup}
+          isFromSearch={isFromSearch}
+          setIsFromSearch={setIsFromSearch}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
