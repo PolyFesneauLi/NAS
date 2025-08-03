@@ -1345,7 +1345,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       if (sortBy) params.sort = sortBy;
       if (searchTerm) params.search = searchTerm;
       if (currentFolder) params.folder = currentFolder;
-      if (globalSearch) params.globalSearch = globalSearch;
+      // 不在refreshFiles中包含globalSearch参数，避免重复请求问题
       
       const data = await getUserFiles(params);
       
@@ -1758,7 +1758,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [sortBy, searchTerm, currentFolder]);
+  }, [sortBy, currentFolder]); // 移除searchTerm依赖，避免重复请求
 
   // 获取热门标签
   useEffect(() => {

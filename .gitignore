@@ -1,0 +1,8 @@
+# 忽略所有 node_modules
+node_modules/
+server/node_modules/
+
+# 其他可忽略的文件（按需添加）
+.port-config.json
+.ports
+storage/
