@@ -1541,52 +1541,29 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   };
 
   const handleFolderClick = async (folder) => {
-    // console.log('========== 开始处理文件夹点击 ==========');
-    // console.log('点击的文件夹信息:', {
-    //   id: folder._id,
-    //   name: folder.originalName || folder.filename,
-    //   isFolder: folder.isFolder,
-    //   parentFolder: folder.parentFolder
-    // });
     
     try {
-      // console.log('1. 设置加载状态为 true');
       setLoading(true);
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
-      // console.log('更新文件夹路径:', newFolderPath.map(f => f.originalName || f.filename).join(' > '));
       
       // 通知父组件状态变化
       onFolderChange(folder._id, newFolderPath);
-      
-      // console.log('4. 重置选择和搜索状态');
+
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
       
-      // console.log('5. 准备获取文件夹内容');
       const params = {
         folder: folder._id,
         sort: sortBy
       };
-      // console.log('请求参数:', params);
-      
-      // console.log('6. 调用 API 获取文件夹内容');
+        
       const data = await getUserFiles(params);
-      // console.log('API 返回数据:', {
-      //   fileCount: data.files?.length || 0,
-      //   currentFolder: params.folder
-      // });
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
-      // console.log('7. 处理返回的文件列表');
-      // console.log('文件总数:', filesArray.length);
-      // console.log('文件类型统计:', {
-      //   folders: filesArray.filter(f => f.isFolder).length,
-      //   files: filesArray.filter(f => !f.isFolder).length
-      // });
       
-      // console.log('8. 应用排序规则:', sortBy);
+      
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
         sortedFiles = sortFilesByName(filesArray, true);
@@ -1601,80 +1578,44 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } else if (sortBy === 'size_desc') {
         sortedFiles = sortFilesBySize(filesArray, false);
       }
-      
-      // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
-      // console.log('文件列表更新完成');
       
     } catch (err) {
-      // console.error('❌ 文件夹操作失败:', err);
-      // console.error('错误详情:', {
-      //   message: err.message,
-      //   response: err.response?.data
-      // });
       setError('进入文件夹失败: ' + (err.message || '未知错误'));
     } finally {
-      // console.log('10. 设置加载状态为 false');
       setLoading(false);
-      // console.log('========== 文件夹处理完成 ==========\n');
     }
   };
 
   const handlePathClick = async (index) => {
-    // console.log('========== 开始处理导航路径点击 ==========');
-    // console.log('点击的路径索引:', index);
-    // console.log('当前完整路径:', folderPath.map(f => f.originalName || f.filename).join(' > '));
-    
     try {
-      // console.log('1. 设置加载状态为 true');
       setLoading(true);
       
       let targetFolder = null;
       let newPath = [];
       
       if (index === -1) {
-        // console.log('2.1 返回 home 目录');
         onFolderChange(null, []);
       } else {
-        // console.log('2.2 跳转到指定层级的文件夹');
         targetFolder = folderPath[index];
         newPath = folderPath.slice(0, index + 1);
-        // console.log('目标文件夹:', {
-        //   id: targetFolder._id,
-        //   name: targetFolder.originalName || targetFolder.filename,
-        //   path: newPath.map(f => f.originalName || f.filename).join('/')
-        // });
+
         onFolderChange(targetFolder._id, newPath);
       }
       
-      // console.log('3. 重置选择和搜索状态');
       setSelectedIds([]);
       setSearchInput('');
       setSearchTerm('');
       
-      // console.log('4. 准备获取文件夹内容');
       const params = {
         folder: targetFolder ? targetFolder._id : null,
         sort: sortBy
       };
-      // console.log('请求参数:', params);
       
-      // console.log('5. 调用 API 获取文件夹内容');
       const data = await getUserFiles(params);
-      // console.log('API 返回数据:', {
-      //   fileCount: data.files?.length || 0,
-      //   currentFolder: params.folder
-      // });
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
-      // console.log('7. 处理返回的文件列表');
-      // console.log('文件总数:', filesArray.length);
-      // console.log('文件类型统计:', {
-      //   folders: filesArray.filter(f => f.isFolder).length,
-      //   files: filesArray.filter(f => !f.isFolder).length
-      // });
       
-      // console.log('8. 应用排序规则:', sortBy);
       let sortedFiles = filesArray;
       if (sortBy === 'name_asc') {
         sortedFiles = sortFilesByName(filesArray, true);
@@ -1690,21 +1631,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         sortedFiles = sortFilesBySize(filesArray, false);
       }
       
-      // console.log('9. 更新文件列表状态');
       setFiles(sortedFiles);
-      // console.log('文件列表更新完成');
       
     } catch (err) {
-      // console.error('❌ 导航操作失败:', err);
-      // console.error('错误详情:', {
-      //   message: err.message,
-      //   response: err.response?.data
-      // });
       setError('切换文件夹失败: ' + (err.message || '未知错误'));
     } finally {
-      // console.log('10. 设置加载状态为 false');
       setLoading(false);
-      // console.log('========== 导航处理完成 ==========\n');
     }
   };
 
@@ -1764,8 +1696,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               break;
             }
           }
-          
-          return path;
+          //去掉第一个home保留之后的路径 适配前端
+          const path_edited = path.slice(1, path.length); 
+          console.log('[PATH]', path_edited);
+          return path_edited;
         };
         
         // 重建目标文件夹的完整路径
