@@ -1049,7 +1049,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1083,6 +1083,21 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 搜索中断相关状态
   const [searchAbortController, setSearchAbortController] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
+
+  // 导航历史状态 - 用于智能返回功能
+  const [navigationHistory, setNavigationHistory] = useState([]);
+  const [isFromSearch, setIsFromSearch] = useState(false);
+  const [searchBackup, setSearchBackup] = useState({
+    searchInput: '',
+    searchTerm: '',
+    searchTags: [],
+    globalSearch: false,
+    files: [],
+    currentFolder: null,
+    folderPath: []
+  });
+  // const [currentFolder, setCurrentFolder] = useState(null);
+  // const [folderPath, setFolderPath] = useState([]);
 
   // 通用搜索函数，支持中断功能
   const performSearch = async (searchParams, isFromEnter = false) => {
@@ -1554,6 +1569,18 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setSearchInput('');
       setSearchTerm('');
       
+      // 重置搜索相关状态
+      setIsFromSearch(false);
+      setSearchBackup({
+        searchInput: '',
+        searchTerm: '',
+        searchTags: [],
+        globalSearch: false,
+        files: [],
+        currentFolder: null,
+        folderPath: []
+      });
+      
       const params = {
         folder: folder._id,
         sort: sortBy
@@ -1587,6 +1614,110 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     }
   };
 
+    // 智能返回函数
+  const handleSmartBack = async () => {
+    try {
+      setLoading(true);
+      
+      if (isFromSearch && searchBackup.searchInput) {
+        // 如果是从搜索结果跳转来的，返回到搜索结果
+        console.log('返回到搜索结果');
+        
+        // 恢复搜索状态
+        setSearchInput(searchBackup.searchInput);
+        setSearchTerm(searchBackup.searchTerm);
+        setSearchTags([...searchBackup.searchTags]);
+        setGlobalSearch(searchBackup.globalSearch);
+        setFiles([...searchBackup.files]);
+        setCurrentFolder(searchBackup.currentFolder);
+        setFolderPath([...searchBackup.folderPath]);
+        
+        // 重置状态
+        setIsFromSearch(false);
+        setSearchBackup({
+          searchInput: '',
+          searchTerm: '',
+          searchTags: [],
+          globalSearch: false,
+          files: [],
+          currentFolder: null,
+          folderPath: []
+        });
+      } else {
+        // 正常返回上级目录
+        console.log('返回上级目录');
+        
+        if (folderPath.length > 0) {
+          // 返回上级目录
+          const parentPath = folderPath.slice(0, -1);
+          const parentFolder = parentPath.length > 0 ? parentPath[parentPath.length - 1] : null;
+          
+          setCurrentFolder(parentFolder ? parentFolder._id : null);
+          setFolderPath(parentPath);
+          
+          // 获取上级目录的文件列表
+          const params = {
+            folder: parentFolder ? parentFolder._id : null,
+            sort: sortBy
+          };
+          
+          const data = await getUserFiles(params);
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          
+          // 应用排序
+          let sortedFiles = filesArray;
+          if (sortBy === 'name_asc') {
+            sortedFiles = sortFilesByName(filesArray, true);
+          } else if (sortBy === 'name_desc') {
+            sortedFiles = sortFilesByName(filesArray, false);
+          } else if (sortBy === 'extension_asc') {
+            sortedFiles = sortFilesByExtension(filesArray, true);
+          } else if (sortBy === 'extension_desc') {
+            sortedFiles = sortFilesByExtension(filesArray, false);
+          } else if (sortBy === 'size_asc') {
+            sortedFiles = sortFilesBySize(filesArray, true);
+          } else if (sortBy === 'size_desc') {
+            sortedFiles = sortFilesBySize(filesArray, false);
+          }
+          
+          setFiles(sortedFiles);
+        } else {
+          // 已经在根目录，返回根目录
+          setCurrentFolder(null);
+          setFolderPath([]);
+          
+          const data = await getUserFiles({ sort: sortBy });
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          
+          let sortedFiles = filesArray;
+          if (sortBy === 'name_asc') {
+            sortedFiles = sortFilesByName(filesArray, true);
+          } else if (sortBy === 'name_desc') {
+            sortedFiles = sortFilesByName(filesArray, false);
+          } else if (sortBy === 'extension_asc') {
+            sortedFiles = sortFilesByExtension(filesArray, true);
+          } else if (sortBy === 'extension_desc') {
+            sortedFiles = sortFilesByExtension(filesArray, false);
+          } else if (sortBy === 'size_asc') {
+            sortedFiles = sortFilesBySize(filesArray, true);
+          } else if (sortBy === 'size_desc') {
+            sortedFiles = sortFilesBySize(filesArray, false);
+          }
+          
+          setFiles(sortedFiles);
+        }
+      }
+      
+      // 清除选择状态
+      setSelectedIds([]);
+      
+    } catch (err) {
+      setError('返回失败: ' + (err.message || '未知错误'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePathClick = async (index) => {
     try {
       setLoading(true);
@@ -1599,7 +1730,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       } else {
         targetFolder = folderPath[index];
         newPath = folderPath.slice(0, index + 1);
-
+ 
         onFolderChange(targetFolder._id, newPath);
       }
       
@@ -1607,11 +1738,23 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setSearchInput('');
       setSearchTerm('');
       
+      // 重置搜索相关状态
+      setIsFromSearch(false);
+      setSearchBackup({
+        searchInput: '',
+        searchTerm: '',
+        searchTags: [],
+        globalSearch: false,
+        files: [],
+        currentFolder: null,
+        folderPath: []
+      });
+      
       const params = {
         folder: targetFolder ? targetFolder._id : null,
         sort: sortBy
       };
-      
+        
       const data = await getUserFiles(params);
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
@@ -1670,6 +1813,23 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 打开文件所在位置
   const handleOpenFileLocation = async (file) => {
     try {
+      // 检查是否来自搜索结果
+      const isFromSearchResults = searchInput || searchTerm || searchTags.length > 0 || globalSearch;
+      
+      if (isFromSearchResults) {
+        // 保存当前搜索状态，用于返回
+        setSearchBackup({
+          searchInput,
+          searchTerm,
+          searchTags: [...searchTags],
+          globalSearch,
+          files: [...files],
+          currentFolder,
+          folderPath: [...folderPath]
+        });
+        setIsFromSearch(true);
+      }
+      
       if (file.parentFolder) {
         // 递归重建完整的文件夹路径
         const reconstructFullPath = async (targetFolderId) => {
@@ -2614,11 +2774,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
       <div className="folder-navigation">
         <button 
-          onClick={() => handlePathClick(-1)} 
+          onClick={handleSmartBack} 
           className="back-btn"
           style={{ visibility: currentFolder ? 'visible' : 'hidden' }}
         >
-          返回上级
+          {isFromSearch ? '返回搜索结果' : '返回上级'}
         </button>
         <div className="folder-path">
           <span
@@ -3592,6 +3752,19 @@ const Dashboard = () => {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderPath, setFolderPath] = useState([]);
   
+  // // 导航历史状态 - 用于智能返回功能
+  // const [navigationHistory, setNavigationHistory] = useState([]);
+  // const [isFromSearch, setIsFromSearch] = useState(false);
+  // const [searchBackup, setSearchBackup] = useState({
+  //   searchInput: '',
+  //   searchTerm: '',
+  //   searchTags: [],
+  //   globalSearch: false,
+  //   files: [],
+  //   currentFolder: null,
+  //   folderPath: []
+  // });
+  
   // 标签相关状态 - 从 FileList 组件移到这里
   const [showTagModal, setShowTagModal] = useState(false);
   const [selectedFileForTags, setSelectedFileForTags] = useState(null);
@@ -3879,6 +4052,8 @@ const Dashboard = () => {
             setFolderPath(newPath);
           }}
           onOpenTagModal={handleOpenTagModal}
+          setCurrentFolder={setCurrentFolder}
+          setFolderPath={setFolderPath}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
