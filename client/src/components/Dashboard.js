@@ -1735,6 +1735,102 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     setPreviewFile(null);
   };
 
+  // 打开文件所在位置
+  const handleOpenFileLocation = async (file) => {
+    try {
+      if (file.parentFolder) {
+        // 递归重建完整的文件夹路径
+        const reconstructFullPath = async (targetFolderId) => {
+          const path = [];
+          let currentFolderId = targetFolderId;
+          
+          while (currentFolderId) {
+            try {
+              const folderDetails = await getFileDetails(currentFolderId);
+              if (folderDetails) {
+                const folderName = folderDetails.originalName || folderDetails.filename || 'Unknown Folder';
+                path.unshift({
+                  _id: currentFolderId,
+                  originalName: folderName,
+                  filename: folderDetails.filename,
+                  isFolder: folderDetails.isFolder
+                });
+                currentFolderId = folderDetails.parentFolder;
+              } else {
+                break;
+              }
+            } catch (error) {
+              console.error('获取文件夹详情失败:', error);
+              break;
+            }
+          }
+          
+          return path;
+        };
+        
+        // 重建目标文件夹的完整路径
+        const fullPath = await reconstructFullPath(file.parentFolder);
+        
+        if (fullPath.length > 0) {
+          // 直接设置完整路径，避免使用 handleFolderClick 的路径合并逻辑
+          const targetFolder = fullPath[fullPath.length - 1];
+          
+          // 更新状态
+          onFolderChange(targetFolder._id, fullPath);
+          
+          // 获取目标文件夹的文件列表
+          setLoading(true);
+          const params = {
+            folder: targetFolder._id,
+            sort: sortBy
+          };
+          
+          const data = await getUserFiles(params);
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          
+          // 应用排序
+          let sortedFiles = filesArray;
+          if (sortBy === 'name_asc') {
+            sortedFiles = sortFilesByName(filesArray, true);
+          } else if (sortBy === 'name_desc') {
+            sortedFiles = sortFilesByName(filesArray, false);
+          } else if (sortBy === 'extension_asc') {
+            sortedFiles = sortFilesByExtension(filesArray, true);
+          } else if (sortBy === 'extension_desc') {
+            sortedFiles = sortFilesByExtension(filesArray, false);
+          } else if (sortBy === 'size_asc') {
+            sortedFiles = sortFilesBySize(filesArray, true);
+          } else if (sortBy === 'size_desc') {
+            sortedFiles = sortFilesBySize(filesArray, false);
+          }
+          
+          setFiles(sortedFiles);
+          setLoading(false);
+        } else {
+          // 如果无法重建路径，导航到根目录
+          onFolderChange(null, []);
+        }
+        
+        // 清除搜索相关状态
+        setSearchInput('');
+        setSearchTerm('');
+        setSearchTags([]);
+        setGlobalSearch(false);
+      } else {
+        // 如果文件在根目录，导航到根目录
+        onFolderChange(null, []);
+        
+        // 清除搜索相关状态
+        setSearchInput('');
+        setSearchTerm('');
+        setSearchTags([]);
+        setGlobalSearch(false);
+      }
+    } catch (error) {
+      console.error('获取文件位置失败:', error);
+      setError('获取文件位置失败: ' + error.message);
+    }
+  };
 
   useEffect(() => {
     const fetchFilesData = async () => {
@@ -1777,7 +1873,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [currentFolder]); // 移除searchTerm 和 sortBy 依赖，避免重复请求
+  }, [currentFolder, sortBy]); // 重新添加 sortBy 依赖，确保服务器端排序正常工作
 
   // 获取热门标签
   useEffect(() => {
@@ -2867,6 +2963,14 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       )}
                       {!file.isFolder && (
                         <>
+                          <button
+                            className="btn btn-location"
+                            onClick={() => handleOpenFileLocation(file)}
+                            title="打开文件所在位置"
+                            style={{ background: '#28a745' }}    // 绿色
+                          >
+                            📁
+                          </button>
                           {isSupportedForPreview(file.originalName || file.filename) ? (
                             <button 
                               className="btn btn-preview"

@@ -1648,10 +1648,6 @@ const getFileDetails = async (req, res) => {
     const { id } = req.params;
     const user = await User.findById(req.user.id);
     
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: '只有管理员可以查看文件详情' });
-    }
-
     const file = await File.findById(id);
     if (!file) {
       return res.status(404).json({ error: '文件不存在' });

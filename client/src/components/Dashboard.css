@@ -1010,6 +1010,25 @@ td:nth-child(2) {
   background-color: #a855f7 !important;
 }
 
+.btn-location {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.btn-location:hover {
+  background-color: #218838;
+}
+
+.btn-location:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background-color: #28a745 !important;
+}
+
+.btn-location:disabled:hover {
+  background-color: #28a745 !important;
+}
+
 /* =========================================
    文件预览组件样式
    ========================================= */
