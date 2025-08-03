@@ -252,6 +252,14 @@ export const updateTagOrder = async (fileId, tagOrder) => {
   return response.data;
 };
 
+// 文件重命名
+export const renameFile = async (fileId, newFilename) => {
+  const response = await api.put(`/files/rename/${fileId}`, { 
+    newFilename: fixEncoding(newFilename) 
+  });
+  return response.data;
+};
+
 
 
 // 修复编码问题的工具函数

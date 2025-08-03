@@ -1735,6 +1735,80 @@ const updateTagOrder = async (req, res) => {
   }
 };
 
+// 重命名文件
+const renameFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newFilename } = req.body;
+
+    if (!newFilename || newFilename.trim() === '') {
+      return res.status(400).json({ error: '新文件名不能为空' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以重命名文件' });
+    }
+
+    // 查找文件
+    const file = await File.findById(id);
+    if (!file) {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+
+    // 检查新文件名是否已存在
+    const existingFile = await File.findOne({
+      filename: newFilename,
+      parentFolder: file.parentFolder,
+      _id: { $ne: id }
+    });
+
+    if (existingFile) {
+      return res.status(400).json({ error: '文件名已存在' });
+    }
+
+    // 构建旧文件路径和新文件路径
+    const oldFilePath = path.join(STORAGE_PATH, file.filename);
+    const newFilePath = path.join(STORAGE_PATH, newFilename);
+
+    // 检查旧文件是否存在
+    if (!fs.existsSync(oldFilePath)) {
+      return res.status(404).json({ error: '文件在存储中不存在' });
+    }
+
+    // 重命名文件
+    fs.renameSync(oldFilePath, newFilePath);
+
+    // 更新数据库中的文件名
+    file.filename = newFilename;
+    file.originalName = newFilename;
+    file.updatedAt = new Date();
+    await file.save();
+
+    // 如果文件在文件夹中，更新父文件夹的时间戳
+    if (file.parentFolder) {
+      await updateParentFoldersTimestamp(file.parentFolder);
+    }
+
+    console.log(`文件重命名成功: ${file.filename} -> ${newFilename}`);
+
+    res.json({
+      success: true,
+      message: '文件重命名成功',
+      file: {
+        _id: file._id,
+        filename: file.filename,
+        originalName: file.originalName,
+        updatedAt: file.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('重命名文件错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
@@ -1754,5 +1828,6 @@ module.exports = {
   removeTags,
   createTag,
   getAllTags,
-  updateTagOrder
+  updateTagOrder,
+  renameFile
 };

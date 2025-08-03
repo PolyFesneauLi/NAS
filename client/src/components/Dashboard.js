@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles, renameFile } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -3284,7 +3284,16 @@ const TagModal = ({
   tagColors,
   setTagModalError,
   setSelectedFileForTags,
-  handleTagReorder
+  handleTagReorder,
+  // 文件重命名相关参数
+  newFileName,
+  setNewFileName,
+  isRenaming,
+  handleRenameFile,
+  handleFileNameChange,
+  handleFileNameKeyPress,
+  fileNameInputRef,
+  currentUser
 }) => {
   const [dragState, setDragState] = useState({
     isDragging: false,
@@ -3596,7 +3605,80 @@ const TagModal = ({
               {tagModalError}
             </div>
           )}
-                      {/* 当前标签 */}
+
+          {/* 文件重命名功能 - 仅管理员可见 */}
+          {currentUser?.role === 'admin' && (
+            <div className="file-rename-section" style={{
+              marginBottom: '20px',
+              padding: '15px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              border: '1px solid #e9ecef'
+            }}>
+              <h4 style={{ marginBottom: '10px', color: '#495057' }}>文件重命名</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label style={{ 
+                  fontSize: '14px', 
+                  color: '#6c757d',
+                  minWidth: '80px'
+                }}>
+                  当前文件名：
+                </label>
+                <input
+                  ref={fileNameInputRef}
+                  type="text"
+                  value={newFileName}
+                  onChange={handleFileNameChange}
+                  onKeyPress={handleFileNameKeyPress}
+                  placeholder={fixEncoding(selectedFileForTags.originalName || selectedFileForTags.filename)}
+                  className="tag-name-input"
+                  style={{
+                    flex: '1',
+                    padding: '8px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: '#fff'
+                  }}
+                  onInput={(e) => {
+                    // 应用 fixEncoding 处理中文输入
+                    const value = e.target.value;
+                    const fixedValue = fixEncoding(value);
+                    if (value !== fixedValue) {
+                      e.target.value = fixedValue;
+                      setNewFileName(fixedValue);
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleRenameFile}
+                  disabled={isRenaming || !newFileName.trim()}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: isRenaming ? '#6c757d' : '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isRenaming ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {isRenaming ? '重命名中...' : '重命名'}
+                </button>
+              </div>
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '12px', 
+                color: '#6c757d',
+                fontStyle: 'italic'
+              }}>
+                提示：请输入完整的文件名，包括扩展名（如：document.pdf）
+              </div>
+            </div>
+          )}
+
+          {/* 当前标签 */}
             <div className="current-tags">
               <h4>当前标签: (可拖拽排序)</h4>
               {selectedFileForTags.tags && selectedFileForTags.tags.length > 0 ? (
@@ -3824,6 +3906,11 @@ const Dashboard = () => {
   const inputValueRef = useRef('');
   const [files, setFiles] = useState([]);
   
+  // 文件重命名相关状态
+  const [newFileName, setNewFileName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const fileNameInputRef = useRef(null);
+  
   // 搜索中断相关状态
   const [searchAbortController, setSearchAbortController] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
@@ -3880,6 +3967,8 @@ const Dashboard = () => {
   // 标签相关函数
   const handleOpenTagModal = async (file) => {
     setSelectedFileForTags(file);
+    // 初始化文件名输入框为完整的文件名（包括扩展名）
+    setNewFileName(fixEncoding(file.originalName || file.filename));
     try {
       const response = await getAllTags();
       setAvailableTags(response.tags || []);
@@ -4061,6 +4150,75 @@ const Dashboard = () => {
     updateWithRetry();
   };
 
+  // 文件重命名处理函数
+  const handleRenameFile = async () => {
+    try {
+      if (!selectedFileForTags || !selectedFileForTags._id) {
+        setTagModalError('文件信息不完整，无法重命名');
+        return;
+      }
+
+      const trimmedName = newFileName.trim();
+      if (!trimmedName) {
+        setTagModalError('文件名不能为空');
+        return;
+      }
+
+      // 直接使用用户输入的完整文件名（包含扩展名）
+      const newFileNameWithExtension = trimmedName;
+
+      setIsRenaming(true);
+      setTagModalError('');
+
+      console.log('=== 开始重命名文件 ===');
+      console.log('文件ID:', selectedFileForTags._id);
+      console.log('原文件名:', selectedFileForTags.originalName || selectedFileForTags.filename);
+      console.log('新文件名:', newFileNameWithExtension);
+
+      // 调用API重命名文件
+      const result = await renameFile(selectedFileForTags._id, newFileNameWithExtension);
+
+      // 更新本地状态
+      setSelectedFileForTags(prev => ({
+        ...prev,
+        originalName: newFileNameWithExtension,
+        filename: newFileNameWithExtension
+      }));
+
+      // 更新文件列表中的对应文件
+      setFiles(prevFiles => 
+        prevFiles.map(file => 
+          file._id === selectedFileForTags._id 
+            ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+            : file
+        )
+      );
+
+      console.log('✅ 文件重命名成功');
+      setNewFileName(''); // 清空输入框
+
+    } catch (err) {
+      console.error('文件重命名失败:', err);
+      setTagModalError('文件重命名失败: ' + (err.message || '未知错误'));
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  // 处理文件名输入变化
+  const handleFileNameChange = (e) => {
+    const value = e.target.value;
+    setNewFileName(value);
+    setTagModalError(''); // 清除错误信息
+  };
+
+  // 处理文件名输入框回车
+  const handleFileNameKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleRenameFile();
+    }
+  };
+
 
 
   if (loading) return <div>Loading...</div>;
@@ -4140,6 +4298,15 @@ const Dashboard = () => {
         setTagModalError={setTagModalError}
         setSelectedFileForTags={setSelectedFileForTags}
         handleTagReorder={handleTagReorder}
+        // 文件重命名相关参数
+        newFileName={newFileName}
+        setNewFileName={setNewFileName}
+        isRenaming={isRenaming}
+        handleRenameFile={handleRenameFile}
+        handleFileNameChange={handleFileNameChange}
+        handleFileNameKeyPress={handleFileNameKeyPress}
+        fileNameInputRef={fileNameInputRef}
+        currentUser={currentUser}
       />
     </div>
   );
