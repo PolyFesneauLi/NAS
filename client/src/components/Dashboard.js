@@ -2008,7 +2008,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [currentFolder, sortBy]); // 重新添加 sortBy 依赖，确保服务器端排序正常工作
+  }, [currentFolder]); // 只监听 currentFolder 变化，避免排序状态  搜索词 标签改变导致无异议文件列表刷新
 
   // 获取热门标签
   useEffect(() => {
