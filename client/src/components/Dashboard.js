@@ -2895,15 +2895,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           🏷️
                         </button>
                       )}
+                      {/* 文件 */}
                       {!file.isFolder && (
-                        <>
+                        <>  
                           <button
                             className="btn btn-location"
                             onClick={() => handleOpenFileLocation(file)}
                             title="打开文件所在位置"
-                            style={{ background: '#28a745' }}    // 绿色
+                            style={{ background: '#99caff' }}    // 很浅很浅的蓝色
                           >
-                            📁
+                            🔍
                           </button>
                           {isSupportedForPreview(file.originalName || file.filename) ? (
                             <button 
@@ -2961,8 +2962,20 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           )}
                         </>
                       )}
+
+
+                      {/* 文件夹 */}
                       {file.isFolder && (
                         <>
+                          {/* 跳转按钮 */}
+                          <button
+                            className="btn btn-location"
+                            onClick={() => handleOpenFileLocation(file)}
+                            title="打开文件所在位置"
+                            style={{ background: '#99caff' }}    // 很浅很浅的蓝色
+                          >
+                            🔍
+                          </button>
                           {/* 文件夹预览占位符 */}
                           <div 
                             className="btn btn-preview"
