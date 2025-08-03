@@ -1202,28 +1202,47 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     const newSortBy = e.target.value;
     setSortBy(newSortBy);
     
-    // 只有在有搜索条件时才重新搜索
+    // 如果有搜索条件，对现有结果进行客户端排序
     if (searchInput || searchTags.length > 0) {
       try {
         setSearchLoading(true);
-        const searchParams = {
-          search: searchInput,
-          tags: searchTags,
-          folder: currentFolder,
-          sort: newSortBy,
-          globalSearch: globalSearch
-        };
         
-        const response = await searchFiles(searchParams);
-        setFiles(response.files);
+        // 对现有的 files 数组进行客户端排序
+        let sortedFiles = [...files];
+        
+        switch (newSortBy) {
+          case 'name_asc':
+            sortedFiles = sortFilesByName(sortedFiles, true);
+            break;
+          case 'name_desc':
+            sortedFiles = sortFilesByName(sortedFiles, false);
+            break;
+          case 'extension_asc':
+            sortedFiles = sortFilesByExtension(sortedFiles, true);
+            break;
+          case 'extension_desc':
+            sortedFiles = sortFilesByExtension(sortedFiles, false);
+            break;
+          case 'size_asc':
+            sortedFiles = sortFilesBySize(sortedFiles, true);
+            break;
+          case 'size_desc':
+            sortedFiles = sortFilesBySize(sortedFiles, false);
+            break;
+          default:
+            // 默认按名称升序
+            sortedFiles = sortFilesByName(sortedFiles, true);
+        }
+        
+        setFiles(sortedFiles);
       } catch (error) {
-        console.error('排序搜索失败:', error);
-        setError('排序搜索失败: ' + error.message);
+        console.error('客户端排序失败:', error);
+        setError('排序失败: ' + error.message);
       } finally {
         setSearchLoading(false);
       }
     }
-    // 如果没有搜索条件，只更新状态，不触发搜索
+    // 如果没有搜索条件，只更新状态，useEffect 会处理服务器端排序
   };
 
   // 解析进度动画函数
@@ -1758,7 +1777,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [sortBy, currentFolder]); // 移除searchTerm依赖，避免重复请求
+  }, [currentFolder]); // 移除searchTerm 和 sortBy 依赖，避免重复请求
 
   // 获取热门标签
   useEffect(() => {
