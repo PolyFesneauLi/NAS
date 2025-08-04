@@ -1487,7 +1487,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         setSearchLoading(false);
       }
     }
-    // 如果没有搜索条件，只更新状态，useEffect 会处理服务器端排序
+    // 如果没有搜索条件，useEffect 会根据新的 sortBy 值重新获取数据
   };
 
   // 解析进度动画函数
@@ -2192,9 +2192,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         console.log('触发原因:', { currentFolder, sortBy });
         console.log('当前状态:', { isFromSearch, searchBackupFiles: searchBackup.files.length });
         
-        // 如果正在恢复搜索结果，跳过自动刷新
-        if (isFromSearch && searchBackup.files.length > 0) {
-          console.log('⚠️ 跳过自动刷新，正在恢复搜索结果');
+        // 如果有搜索条件，跳过自动刷新，让搜索功能处理
+        if (searchInput || searchTags.length > 0) {
+          console.log('⚠️ 跳过自动刷新，当前有搜索条件');
           return;
         }
         
@@ -2238,7 +2238,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [currentFolder]); // 只监听 currentFolder 变化，避免排序状态  搜索词 标签改变导致无异议文件列表刷新
+  }, [currentFolder, sortBy, searchInput, searchTags]); // 添加必要的依赖项，但通过条件检查避免不必要的请求
 
   // 获取热门标签
   useEffect(() => {
