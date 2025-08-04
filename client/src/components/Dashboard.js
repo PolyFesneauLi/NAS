@@ -340,6 +340,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [folderStructure, setFolderStructure] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(currentFolder);
   const [currentPath, setCurrentPath] = useState('Home');
+  const [uploadPath, setUploadPath] = useState('Home'); // 新增：专门用于上传的路径
   const [folderPaths, setFolderPaths] = useState(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -352,16 +353,41 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [archivingProgress, setArchivingProgress] = useState({});
   const [archivingFiles, setArchivingFiles] = useState(new Set());
 
+  // 新增：防抖相关的状态
+  const [hoveredFolder, setHoveredFolder] = useState(null);
+  const hoverTimeoutRef = useRef(null);
+
+  // 新增：层级悬停状态管理
+  const [hoveredHierarchy, setHoveredHierarchy] = useState(new Set());
+  const hierarchyTimeoutRef = useRef(null);
+
   // 同步当前文件夹和路径
   useEffect(() => {
     setSelectedFolder(currentFolder);
-    if (folderPath && folderPath.length > 0) {
+    if (folderPath && Array.isArray(folderPath) && folderPath.length > 0) {
       const pathString = 'Home/' + folderPath.map(f => f.originalName || f.filename).join('/');
       setCurrentPath(pathString);
     } else {
       setCurrentPath('Home');
     }
   }, [currentFolder, folderPath]);
+
+  // 监听selectedFolder变化，确保uploadPath显示正确
+  useEffect(() => {
+    if (selectedFolder && folderPaths.has(selectedFolder)) {
+      const path = folderPaths.get(selectedFolder);
+      if (path && path !== uploadPath) {
+        console.log('[FOLDER] 更新上传路径显示:', {
+          selectedFolder,
+          path,
+          uploadPath
+        });
+        setUploadPath(path);
+      }
+    } else if (!selectedFolder && uploadPath !== 'Home') {
+      setUploadPath('Home');
+    }
+  }, [selectedFolder, folderPaths]); // 移除uploadPath依赖，避免无限循环
 
   // 点击外部关闭下拉框
   useEffect(() => {
@@ -374,6 +400,18 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // 清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      if (hierarchyTimeoutRef.current) {
+        clearTimeout(hierarchyTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -424,8 +462,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     }
   }, []);
 
-
-
   useEffect(() => {
     const fetchFoldersData = async () => {
       try {
@@ -441,9 +477,26 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 处理文件夹选择变化
   const handleFolderSelect = (folderId, path) => {
+    console.log('[FOLDER] 开始选择文件夹:', {
+      folderId,
+      path,
+      currentSelectedFolder: selectedFolder
+    });
+    
+    // 批量更新状态，避免多次渲染
     setSelectedFolder(folderId);
-    setCurrentPath(path);
+    const displayPath = folderId ? path : 'Home';
+    setUploadPath(displayPath);
     setIsDropdownOpen(false);
+    setHoveredFolder(null);
+    setHoveredHierarchy(new Set());
+    
+    console.log('[FOLDER] 选择文件夹完成:', {
+      folderId,
+      path,
+      displayPath,
+      selectedFolder: folderId
+    });
   };
 
   // 处理下拉框点击
@@ -463,22 +516,122 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     }
   };
 
+  // 获取文件夹的完整层级路径
+  const getFolderHierarchy = useCallback((folderId, structure = folderStructure) => {
+    const hierarchy = new Set();
+    
+    const findHierarchy = (folders, targetId, currentPath = []) => {
+      for (const folder of folders) {
+        const newPath = [...currentPath, folder._id];
+        
+        if (folder._id === targetId) {
+          newPath.forEach(id => hierarchy.add(id));
+          return true;
+        }
+        
+        if (folder.children && folder.children.length > 0) {
+          if (findHierarchy(folder.children, targetId, newPath)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    
+    findHierarchy(structure, folderId);
+    return hierarchy;
+  }, [folderStructure]);
+
+  // 处理鼠标悬停（带层级管理）
+  const handleMouseEnter = (folderId) => {
+    // 清除之前的定时器
+    if (hierarchyTimeoutRef.current) {
+      clearTimeout(hierarchyTimeoutRef.current);
+    }
+    
+    // 设置新的定时器，延迟显示子菜单
+    hierarchyTimeoutRef.current = setTimeout(() => {
+      const hierarchy = getFolderHierarchy(folderId);
+      setHoveredHierarchy(hierarchy);
+      setHoveredFolder(folderId);
+    }, 100); // 减少延迟时间，提高响应性
+  };
+
+  // 处理鼠标离开
+  const handleMouseLeave = () => {
+    if (hierarchyTimeoutRef.current) {
+      clearTimeout(hierarchyTimeoutRef.current);
+    }
+    
+    // 延迟隐藏子菜单，给用户时间移动到子菜单
+    hierarchyTimeoutRef.current = setTimeout(() => {
+      setHoveredHierarchy(new Set());
+      setHoveredFolder(null);
+    }, 200); // 增加延迟时间，确保稳定性
+  };
+
   // 递归生成文件夹选项
   const FolderOption = ({ folder, level = 0 }) => {
+    const isHovered = hoveredFolder === folder._id;
+    const isInHierarchy = hoveredHierarchy.has(folder._id);
+    const hasChildren = folder.children && folder.children.length > 0;
+    const isSelected = selectedFolder === folder._id;
+    
     return (
-      <div className="cascading-option-wrapper">
-        <div 
-          className={`cascading-option ${selectedFolder === folder._id ? 'selected' : ''}`}
-          onClick={() => handleFolderSelect(folder._id, folderPaths.get(folder._id))}
-        >
+      <div 
+        className="cascading-option-wrapper"
+        onMouseEnter={() => hasChildren && handleMouseEnter(folder._id)}
+        onMouseLeave={handleMouseLeave}
+      >
+                  <div 
+            className={`cascading-option ${isSelected ? 'selected' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              const path = folderPaths.get(folder._id);
+              console.log('[FOLDER] 点击文件夹:', {
+                folderId: folder._id,
+                folderName: folder.originalName || folder.filename,
+                path,
+                level,
+                eventTarget: e.target,
+                eventCurrentTarget: e.currentTarget
+              });
+              
+              // 确保路径存在
+              if (!path) {
+                console.warn('[FOLDER] 路径不存在:', folder._id);
+                return;
+              }
+              
+              handleFolderSelect(folder._id, path);
+            }}
+          >
           <span className="folder-icon">📁</span>
           <span className="folder-name">{folder.originalName || folder.filename}</span>
-          {folder.children && folder.children.length > 0 && (
+          {hasChildren && (
             <span className="submenu-arrow">▶</span>
           )}
         </div>
-        {folder.children && folder.children.length > 0 && (
-          <div className="cascading-submenu">
+        {hasChildren && (
+                      <div 
+              className={`cascading-submenu ${isInHierarchy ? 'visible' : ''}`}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                // 确保子菜单保持显示，并更新层级
+                const hierarchy = getFolderHierarchy(folder._id);
+                setHoveredHierarchy(hierarchy);
+                setHoveredFolder(folder._id);
+              }}
+              onMouseLeave={(e) => {
+                e.stopPropagation();
+                handleMouseLeave();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
             {folder.children.map(childFolder => (
               <FolderOption 
                 key={childFolder._id} 
@@ -891,15 +1044,20 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             className="selected-value"
             onClick={handleDropdownClick}
           >
-            <span className="current-path">{currentPath}</span>
+            <span className="current-path">{uploadPath}</span>
             <span className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
           </div>
           {isDropdownOpen && (
             <div className="cascading-container">
-              <div 
-                className="cascading-option"
-                onClick={() => handleFolderSelect(null, 'Home')}
-              >
+                              <div 
+                  className="cascading-option"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[FOLDER] 点击Home选项');
+                    handleFolderSelect(null, 'Home');
+                  }}
+                >
                 <span className="folder-icon">🏠</span>
                 <span className="folder-name">Home</span>
               </div>
@@ -2893,8 +3051,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           </div>
           
           {/* 排序下拉框 */}
-          <div className="sort-box" >
-            <select value={sortBy} onChange={handleSortChange} className="sort-select" style={{ color: '#000000' }}>
+          <div className="sort-box">
+            <select value={sortBy} onChange={handleSortChange} className="sort-select">
               <option value="time_desc">更新时间（最新）</option>
               <option value="time_asc">更新时间（最早）</option>
               <option value="size_desc">文件大小（从大到小）</option>
@@ -3121,7 +3279,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               className="btn btn-preview"
                               onClick={() => handlePreview(file)}
                               title="预览文件"
-                              style={{ background: '#8c9ffa' }}    // 中等深度紫色
+                              style={{ background: '#8c9ffa' }}    // 中等深度蓝色
                             >
                               预览
                             </button>
