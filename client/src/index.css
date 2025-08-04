@@ -10,7 +10,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   min-height: 100vh;
   color: #333;
 }
@@ -71,7 +71,7 @@ body {
 
 /* 按钮通用样式 */
 /* .btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -87,7 +87,7 @@ body {
 
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 123, 190, 0.4);
 }
 
 .btn:active {
@@ -95,7 +95,7 @@ body {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #71CDF8 0%, #E5F7FF 100%);
 }
 
 .btn-danger {
@@ -103,7 +103,7 @@ body {
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
 }
 
 /* 输入框通用样式 */
@@ -119,13 +119,13 @@ body {
 
 .input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 3px rgba(0, 123, 190, 0.1);
 }
 
 /* 标题样式 */
 .title {
-  color: #2c3e50;
+  color: #007bbe;
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -169,14 +169,14 @@ body {
   align-items: center;
   min-height: 200px;
   font-size: 16px;
-  color: #667eea;
+  color: #007BBE;
 }
 
 .loading::after {
   content: '';
   width: 20px;
   height: 20px;
-  border: 2px solid #667eea;
+  border: 2px solid #007BBE;
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -210,7 +210,7 @@ body {
 }
 
 .nav-links a:hover {
-  color: #4a90e2;
+  color: #007BBE;
 }
 
 .messages-link {
@@ -318,7 +318,7 @@ body {
 }
 
 .registration-pending h2 {
-  color: #2c3e50;
+  color: #007bbe;
   margin-bottom: 1.5rem;
 }
 
@@ -350,7 +350,7 @@ body {
 
 .team-members h2 {
   margin-bottom: 2rem;
-  color: #2c3e50;
+  color: #007bbe;
 }
 
 .table-container {
@@ -376,7 +376,7 @@ body {
 .team-members th {
   background-color: #f8f9fa;
   font-weight: 600;
-  color: #2c3e50;
+  color: #007bbe;
 }
 
 .team-members tr:hover {

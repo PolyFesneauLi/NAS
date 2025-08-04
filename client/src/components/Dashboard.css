@@ -29,7 +29,7 @@
   padding: 20px;
   border-radius: 22px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px dashed #667eea;
+  border: 1px dashed #007BBE;
   backdrop-filter: blur(10px);
   margin-top: 10px; /* 增加与文件列表的间距 */
   margin-bottom: 10px;
@@ -39,9 +39,9 @@
 }
 
 .file-upload:hover {
-  border-color: #764ba2;
+  border-color: #33AFF5;
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 123, 190, 0.2);
 }
 
 .file-upload::before {
@@ -51,7 +51,7 @@
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+  background: linear-gradient(45deg, #007BBE, #33AFF5, #71CDF8, #E5F7FF);
   border-radius: 22px;
   z-index: -1;
   opacity: 0;
@@ -64,10 +64,10 @@
 }
 
 .file-upload h3 {
-  color: #2c3e50;
-  font-size: 18px;
+  color: #01579c;
+  font-size: 20px;
+  margin: 0px 0px 10px 0px;
   font-weight: 600;
-  margin-bottom: 16px;
 }
 
 /* 文件夹上传选择控件容器 */
@@ -87,7 +87,7 @@
   font-weight: 700;
   color: #0c1f49;
   white-space: nowrap;
-  text-shadow: 1px 1px 2px rgba(67, 97, 238, 0.1);
+  text-shadow: 1px 1px 2px rgba(0, 123, 190, 0.1);
   min-width: 120px;
 }
 
@@ -115,8 +115,8 @@
 }
 
 .selected-value:hover {
-  border-color: #4361ee;
-  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+  border-color: #007BBE;
+  box-shadow: 0 2px 4px rgba(0, 123, 190, 0.1);
 }
 
 /* 当前路径文本 */
@@ -129,7 +129,7 @@
 /* 下拉箭头 */
 .dropdown-arrow {
   font-size: 12px;
-  color: #4361ee;
+  color: #007BBE;
   transition: transform 0.2s ease;
 }
 
@@ -165,25 +165,26 @@
 
 .custom-option:hover {
   background-color: #f8fafc;
-  border-left-color: #4361ee;
+  border-left-color: #007BBE;
 }
 
 .custom-option.selected {
   background-color: #eef2ff;
-  border-left-color: #4361ee;
+  border-left-color: #007BBE;
 }
 
 /* 文件夹图标 */
 .folder-icon {
   margin-right: 8px;
   font-size: 16px;
+  color: #007BBE;
 }
 
 /* 文件夹名称 */
 .folder-name {
   font-size: 16px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #007bbe;
 }
 
 /* 上传文件信息样式 */
@@ -218,19 +219,19 @@
 .file-label {
   display: inline-block;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   color: white;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 123, 190, 0.3);
   font-size: 14px;
 }
 
 .file-label:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 123, 190, 0.4);
 }
 
 .file-input {
@@ -254,7 +255,7 @@
   background-color: #e2e8f0;
   border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #4361ee;
+  border: 2px solid #007BBE;
   position: relative;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 80%;
@@ -264,7 +265,7 @@
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4361ee, #6f89fc);
+  background: linear-gradient(90deg, #007BBE, #33AFF5);
   transition: width 0.3s ease;
   border-radius: 8px;
   position: relative;
@@ -272,16 +273,16 @@
 
 /* 归档进度条样式 */
 .progress-bar.archiving {
-  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  background: linear-gradient(90deg, #71CDF8, #E5F7FF);
   animation: archivingShimmer 2s ease-in-out infinite;
 }
 
 @keyframes archivingShimmer {
   0%, 100% {
-    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+    background: linear-gradient(90deg, #71CDF8, #E5F7FF);
   }
   50% {
-    background: linear-gradient(90deg, #a78bfa, #c4b5fd);
+    background: linear-gradient(90deg, #E5F7FF, #71CDF8);
   }
 }
 
@@ -293,7 +294,7 @@
   background-color: #e2e8f0;
   border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #8b5cf6;
+  border: 2px solid #71CDF8;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 80%;
   margin-left: auto;
@@ -303,7 +304,7 @@
 /* 归档进度条 */
 .archiving-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  background: linear-gradient(90deg, #71CDF8, #E5F7FF);
   transition: width 0.3s ease;
   border-radius: 8px;
   position: relative;
@@ -327,20 +328,20 @@
 
 /* 归档进度百分比 */
 .archiving-progress-text {
-  color: #8b5cf6;
+  color: #71CDF8;
   font-size: 11px;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(139, 92, 246, 0.3);
+  text-shadow: 1px 1px 2px rgba(113, 205, 248, 0.3);
   margin-bottom: 1px;
   line-height: 1;
 }
 
 /* 归档中文字 */
 .archiving-text {
-  color: #8b5cf6;
+  color: #71CDF8;
   font-size: 10px;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(139, 92, 246, 0.3);
+  text-shadow: 1px 1px 2px rgba(113, 205, 248, 0.3);
   line-height: 1;
 }
 
@@ -382,7 +383,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 10px;
-  background-color: #4361ee;
+  background-color: #007BBE;
   border-radius: 0 2px 2px 0;
 }
 
@@ -441,7 +442,7 @@
   right: -2px;
   bottom: -2px;
   height: 70vh;
-  background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea, #764ba2);
+  background: linear-gradient(45deg, #007BBE, #33AFF5, #71CDF8, #E5F7FF);
   border-radius: 22px;
   z-index: -1;
   opacity: 0;
@@ -464,7 +465,7 @@
 
 /* 文件列表标题 */
 .file-list h3 {
-  color: #2c3e50;
+  color: #01579c;
   font-size: 20px;
   font-weight: 600;
   margin: 0px 0px 10px 0px;
@@ -472,7 +473,7 @@
 }
 
 .file-list th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0775ce 0%, #33AFF5 100%);
   color: white;
   padding: 10px;
   text-align: left;
@@ -482,12 +483,12 @@
 
 .file-list td {
   padding: 5px 10px;
-  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  border-bottom: 1px solid rgba(0, 123, 190, 0.1);
   font-size: 14px;
 }
 
 .file-list tr:hover {
-  background: rgba(102, 126, 234, 0.05);
+  background: rgba(0, 123, 190, 0.05);
   transition: all 0.2s ease;
 }
 
@@ -529,19 +530,19 @@
   cursor: pointer;
   user-select: none;
   font-size: 14px;
-  color: #2c3e50;
+  color: #000000;
   transition: color 0.3s ease;
 }
 
 .global-search-label:hover {
-  color: #667eea;
+  color: #007BBE;
 }
 
 .global-search-checkbox {
   margin-right: 8px;
   width: 16px;
   height: 16px;
-  accent-color: #667eea;
+  accent-color: #007BBE;
   cursor: pointer;
 }
 
@@ -562,8 +563,8 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 3px rgba(0, 123, 190, 0.2);
 }
 
 /* 排序下拉框容器 */
@@ -578,21 +579,21 @@
   padding: 12px 16px;  /* means */
   font-size: 14px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #007bbe;
   background-color: #fff;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232c3e50' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.763L10.825 4z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23007bbe' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.763L10.825 4z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   transition: all 0.2s ease;
 }
 
 .sort-select:hover {
-  border-color: #4361ee;
-  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+  border-color: #007BBE;
+  box-shadow: 0 2px 4px rgba(0, 123, 190, 0.1);
 }
 
 .sort-select:focus {
@@ -605,24 +606,24 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(67, 97, 238, 0.1);
+  background: rgba(0, 123, 190, 0.1);
   border-radius: 8px;
-  border: 1px solid rgba(67, 97, 238, 0.2);
+  border: 1px solid rgba(0, 123, 190, 0.2);
   animation: fadeIn 0.3s ease;
 }
 
 .search-loading-spinner .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(67, 97, 238, 0.3);
-  border-top: 2px solid #4361ee;
+  border: 2px solid rgba(0, 123, 190, 0.3);
+  border-top: 2px solid #007BBE;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 .search-loading-spinner span {
   font-size: 12px;
-  color: #4361ee;
+  color: #007BBE;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -727,13 +728,13 @@
 }
 
 .folder-input:focus {
-  border-color: #4361ee;
+  border-color: #007BBE;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 123, 190, 0.1);
 }
 
 .confirm-folder-btn {
-  background-color: #545bc2;
+  background-color: #007BBE;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -755,7 +756,7 @@
 }
 
 .confirm-folder-btn:hover {
-  background-color: #3730a3;
+  background-color: #00486A;
   transform: translateY(-1px);
 }
 
@@ -788,13 +789,13 @@
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: rgba(67, 97, 238, 0.3);
+  background: rgba(0, 123, 190, 0.3);
   border-radius: 4px;
   transition: background 0.3s ease;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(67, 97, 238, 0.6);
+  background: rgba(0, 123, 190, 0.6);
 }
 
 /* 确保滚动条在需要时总是可见 */
@@ -898,7 +899,7 @@ td:nth-child(2) {
 .folder-name-btn {
   background: none;
   border: none;
-  color: #4361ee;
+  color: #007BBE;
   cursor: pointer;
   /* padding: 8px; */
   font-size: inherit;
@@ -912,13 +913,13 @@ td:nth-child(2) {
 }
 
 .folder-name-btn:hover {
-  color: #3730a3;
-  background-color: rgba(67, 97, 238, 0.1);
+  color: #00486A;
+  background-color: rgba(0, 123, 190, 0.1);
 }
 
 .folder-icon {
   font-size: 14px;
-  color: #4361ee;
+  color: #007BBE;
 }
 
 /* 文件夹名称文字部分 */
@@ -966,12 +967,12 @@ td:nth-child(2) {
 }
 
 .btn-primary {
-  background-color: #4361ee;
+  background-color: #007BBE;
   color: #fff;
 }
 
 .btn-primary:hover {
-  background-color: #3651d4;
+  background-color: #00486A;
 }
 
 /* 批量删除按钮 */
@@ -1247,7 +1248,7 @@ td:nth-child(2) {
 .cad-preview-message {
   text-align: center;
   padding: 40px;
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  background: linear-gradient(135deg, #007bbe 0%, #34495e 100%);
   border-radius: 12px;
   color: white;
   box-shadow: 0 8px 32px rgba(44, 62, 80, 0.3);
@@ -1526,12 +1527,12 @@ td:nth-child(2) {
 
 .cascading-option:hover {
   background-color: #f8fafc;
-  border-left-color: #4361ee;
+  border-left-color: #007BBE;
 }
 
 .cascading-option.selected {
   background-color: #eef2ff;
-  border-left-color: #4361ee;
+  border-left-color: #007BBE;
 }
 
 .submenu-arrow {
@@ -1605,7 +1606,7 @@ td:nth-child(2) {
 
 .download-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, #007BBE, #33AFF5);
   border-radius: 3px;
   transition: width 0.3s ease;
   position: relative;
@@ -1634,20 +1635,20 @@ td:nth-child(2) {
 .download-progress-text {
   font-size: 12px;
   font-weight: 600;
-  color: #667eea;
+  color: #007BBE;
   text-align: center;
   min-width: 30px;
 }
 
 /* 解析进度条样式 */
 .download-progress-fill.parsing {
-  background: linear-gradient(90deg, #f093fb, #f5576c);
+  background: linear-gradient(90deg, #71CDF8, #E5F7FF);
 }
 
 .parsing-text {
   font-size: 10px;
   font-weight: 500;
-  color: #f5576c;
+  color: #71CDF8;
   text-align: center;
   margin-top: 2px;
 } 
@@ -1673,20 +1674,20 @@ td:nth-child(2) {
 .folder-upload-section {
   margin-top: 20px;
   padding: 20px;
-  border: 1px dashed #667eea;
+  border: 1px dashed #007BBE;
   border-radius: 12px;
   background: #f8f9ff;
   transition: all 0.3s ease;
 }
 
 .folder-upload-section:hover {
-  border-color: #764ba2;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+  border-color: #33AFF5;
+  box-shadow: 0 4px 15px rgba(0, 123, 190, 0.1);
 }
 
 .folder-upload-section h4 {
   margin-bottom: 15px;
-  color: #2c3e50;
+  color: #007bbe;
   font-size: 16px;
   font-weight: 600;
   text-align: center;
@@ -1700,19 +1701,19 @@ td:nth-child(2) {
 .folder-label {
   display: inline-block;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #007BBE, #33AFF5);
   color: white;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: 500;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 123, 190, 0.3);
 }
 
 .folder-label:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #5a6fd8, #6a4190);
+  box-shadow: 0 8px 25px rgba(0, 123, 190, 0.4);
+  background: linear-gradient(135deg, #00486A, #007BBE);
 }
 
 .folder-info {
@@ -1733,12 +1734,12 @@ td:nth-child(2) {
 
 .folder-item span {
   font-size: 14px;
-  color: #2c3e50;
+  color: #007bbe;
   font-weight: 500;
 }
 
 .folder-item strong {
-  color: #667eea;
+  color: #007BBE;
   font-weight: 600;
 }
 
@@ -1897,13 +1898,13 @@ td:nth-child(2) {
   transition: all 0.3s ease;
   background: rgba(255, 255, 255, 0.9);
   font-family: inherit;
-  color: #2c3e50;
+  color: #007bbe;
 }
 
 .tag-name-input:focus {
   outline: none;
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 3px rgba(0, 123, 190, 0.2);
 }
 
 .tag-name-input::placeholder {
@@ -1912,8 +1913,8 @@ td:nth-child(2) {
 }
 
 .tag-name-input:hover {
-  border-color: #4361ee;
-  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.1);
+  border-color: #007BBE;
+  box-shadow: 0 2px 4px rgba(0, 123, 190, 0.1);
 }
 
 .color-picker {
@@ -1939,13 +1940,13 @@ td:nth-child(2) {
 }
 
 .color-option.selected {
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 3px rgba(0, 123, 190, 0.3);
   transform: scale(1.05);
 }
 
 .add-tag-btn {
-  background: #4361ee;
+  background: #007BBE;
   color: white;
   border: none;
   padding: 12px 20px;
@@ -1955,7 +1956,7 @@ td:nth-child(2) {
   font-weight: 600;
   align-self: flex-start;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 123, 190, 0.2);
 }
 
 .add-tag-btn:disabled {
@@ -1966,14 +1967,14 @@ td:nth-child(2) {
 }
 
 .add-tag-btn:hover:not(:disabled) {
-  background: #3730a3;
+  background: #00486A;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 123, 190, 0.3);
 }
 
 .add-tag-btn:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 123, 190, 0.2);
 }
 
 /* 操作按钮容器 */
@@ -2137,8 +2138,8 @@ td[style*="width: 100px"] .tags-dropdown-container {
 
 .draggable-tag.gap-indicator {
   transform: scale(1.05);
-  background-color: rgba(102, 126, 234, 0.1);
-  border: 2px dashed #667eea;
+  background-color: rgba(0, 123, 190, 0.1);
+  border: 2px dashed #007BBE;
   border-radius: 6px;
   transition: all 0.2s ease;
   position: relative;
@@ -2152,7 +2153,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
   transform: translate(-50%, -50%);
   width: 4px;
   height: 4px;
-  background-color: #667eea;
+  background-color: #007BBE;
   border-radius: 50%;
   animation: gapPulse 1s ease-in-out infinite;
 }
@@ -2189,14 +2190,14 @@ td[style*="width: 100px"] .tags-dropdown-container {
 }
 
 .tags-list.drag-active {
-  background: rgba(102, 126, 234, 0.05);
-  border: 2px dashed rgba(102, 126, 234, 0.3);
+  background: rgba(0, 123, 190, 0.05);
+  border: 2px dashed rgba(0, 123, 190, 0.3);
   transition: all 0.2s ease;
 }
 
 .tags-list.drag-over {
-  background: rgba(102, 126, 234, 0.1);
-  border: 2px dashed #667eea;
+  background: rgba(0, 123, 190, 0.1);
+  border: 2px dashed #007BBE;
 }
 
 .tag-item {
@@ -2222,7 +2223,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  background: linear-gradient(45deg, transparent, rgba(0, 123, 190, 0.1), transparent);
   border-radius: 6px;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -2250,11 +2251,11 @@ td[style*="width: 100px"] .tags-dropdown-container {
 
 /* 拖拽悬停时的标签样式 */
 .tag-item.gap-indicator {
-  background-color: rgba(102, 126, 234, 0.1);
-  border: 2px dashed #667eea;
+  background-color: rgba(0, 123, 190, 0.1);
+  border: 2px dashed #007BBE;
   border-radius: 6px;
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 123, 190, 0.2);
   position: relative;
 }
 
@@ -2266,7 +2267,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
   transform: translate(-50%, -50%);
   width: 4px;
   height: 4px;
-  background-color: #667eea;
+  background-color: #007BBE;
   border-radius: 50%;
   animation: gapPulse 1s ease-in-out infinite;
 }
@@ -2341,7 +2342,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
 }
 
 .hot-tag-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0867b4 0%, #33AFF5 100%);
   color: white;
   border: none;
   padding: 4px 8px;
@@ -2355,7 +2356,7 @@ td[style*="width: 100px"] .tags-dropdown-container {
 
 .hot-tag-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 123, 190, 0.3);
 }
 
 .hot-tag-btn:active {
@@ -2394,8 +2395,8 @@ td[style*="width: 100px"] .tags-dropdown-container {
 
 .tag-input-small:focus {
   outline: none;
-  border-color: #4361ee;
-  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 2px rgba(0, 123, 190, 0.2);
 }
 
 .tag-input-small::placeholder {

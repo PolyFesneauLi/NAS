@@ -978,7 +978,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         <h4>上传文件夹</h4>
         <form onSubmit={handleFolderUpload}>
           <div className="folder-input-container">
-            <label className="folder-label">
+            <label className="folder-label" style={{ fontWeight: 'bold' }}>
               {folderFiles.length ? `${folderFiles.length} 个文件` : '选择文件夹'}
               <input 
                 type="file" 
@@ -2893,8 +2893,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           </div>
           
           {/* 排序下拉框 */}
-          <div className="sort-box">
-            <select value={sortBy} onChange={handleSortChange} className="sort-select">
+          <div className="sort-box" >
+            <select value={sortBy} onChange={handleSortChange} className="sort-select" style={{ color: '#000000' }}>
               <option value="time_desc">更新时间（最新）</option>
               <option value="time_asc">更新时间（最早）</option>
               <option value="size_desc">文件大小（从大到小）</option>
@@ -3100,6 +3100,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                           className="btn btn-tag"
                           onClick={() => onOpenTagModal(file)}
                           title="管理标签"
+                          style={{ background: '#58c6e9' }}
                         >
                           🏷️
                         </button>
@@ -3120,7 +3121,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               className="btn btn-preview"
                               onClick={() => handlePreview(file)}
                               title="预览文件"
-                              style={{ background: '#bc9ffa' }}    // 中等深度紫色
+                              style={{ background: '#8c9ffa' }}    // 中等深度紫色
                             >
                               预览
                             </button>
@@ -3165,6 +3166,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                             <button 
                               className="btn btn-primary"
                               onClick={() => handleDownload(file._id, file.originalName || file.filename)}
+                              style={{ background: '#007bde' }}
                             >
                               下载
                             </button>
@@ -3226,6 +3228,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                               className="btn btn-primary"
                               onClick={() => handleDownloadFolder(file._id, file.originalName || file.filename)}
                               title="下载文件夹（ZIP格式）"
+                              style={{ background: '#007bde' }}
                             >
                               下载
                             </button>

@@ -53,7 +53,7 @@ const StorageMeter = () => {
   return (
     <div className="storage-meter">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ fontWeight: 600, color: '#2c3e50', fontSize: '16px' }}>
+        <div style={{ fontWeight: 600, color: '#007bbe', fontSize: '16px' }}>
           云空间使用情况 (共{storageData.adminCount}个管理员)
         </div>
         <div style={{ fontWeight: 600, color: '#667eea', fontSize: '14px' }}>

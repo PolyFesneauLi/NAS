@@ -3,7 +3,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #035297 0%, #045397 100%);
 }
 
 /* --------------------------------- */
@@ -109,9 +109,9 @@
 .logo {
   font-size: 24px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #007bbe;
   text-decoration: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -124,7 +124,7 @@
 }
 
 .nav-links a {
-  color: #2c3e50;
+  color: #007bbe;
   text-decoration: none;
   font-weight: 500;
   padding: 8px 16px;
@@ -133,8 +133,8 @@
 }
 
 .nav-links a:hover {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(0, 123, 190, 0.1);
+  color: #007BBE;
 }
 
 .nav-links button {
@@ -176,11 +176,11 @@
 
 .auth-form h2 {
   text-align: center;
-  color: #2c3e50;
+  color: #007bbe;
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -193,7 +193,7 @@
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: #2c3e50;
+  color: #007bbe;
   font-weight: 600;
   font-size: 14px;
 }
@@ -210,13 +210,13 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: #007BBE;
+  box-shadow: 0 0 0 4px rgba(0, 123, 190, 0.1);
 }
 
 .auth-form button {
   width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   color: white;
   border: none;
   padding: 16px;
@@ -230,7 +230,7 @@
 
 .auth-form button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 123, 190, 0.4);
 }
 
 .auth-form button:disabled {
@@ -290,11 +290,11 @@
 }
 
 .user-info h2 {
-  color: #2c3e50;
+  color: #007bbe;
   font-size: 32px;
   font-weight: 700;
   margin-bottom: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -327,7 +327,7 @@
 
 .meter-fill {
   height: 100%;
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   transition: width 0.4s ease;
   border-radius: 10px;
 }
@@ -382,12 +382,12 @@
 }
 
 .btn-primary {
-  background-color: #4361ee;
+  background-color: #2f6ddf;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #3730a3;
+  background-color: #3038a3;
   transform: translateY(-1px);
 }
 
@@ -409,6 +409,31 @@
 .btn-secondary:hover {
   background-color: #4b5563;
   transform: translateY(-1px);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 16px;
+  color: #007BBE;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  margin: 20px 0;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.loading::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid #007BBE;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 10px;
 }
 
 
