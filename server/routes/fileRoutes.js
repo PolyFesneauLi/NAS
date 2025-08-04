@@ -40,9 +40,6 @@ router.get('/download/:id', auth.authenticate, fileController.downloadFile);
 // 下载文件夹
 router.get('/download-folder/:id', auth.authenticate, fileController.downloadFolder);
 
-// 重命名文件（仅 admin）
-router.put('/rename/:id', auth.authenticate, auth.requireRole('admin'), fileController.renameFile);
-
 // 检查文件夹下载状态
 router.get('/check-folder/:id', auth.authenticate, fileController.checkFolderDownloadStatus);
 
@@ -56,6 +53,9 @@ router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileCon
 router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
 
 router.post('/update-tag-order', auth.authenticate, auth.requireRole('admin'), fileController.updateTagOrder);
+
+// 重命名文件（仅 admin）
+router.put('/rename/:id', auth.authenticate, auth.requireRole('admin'), fileController.renameFile);
 
 // 获取单个文件详情（放在最后，避免与其他路由冲突）
 router.get('/:id', auth.authenticate, fileController.getFileDetails);

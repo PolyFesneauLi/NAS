@@ -104,7 +104,11 @@ curl -X POST http://localhost:5000/api/users/reset-used ^
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NzBiYzczOGYyZWNmZjVkYzFlMDJhMCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1MzEwMDY5OSwiZXhwIjoxNzUzMTg3MDk5fQ.Yy2_7hZ-mhtT6kDG85iP5uJqfj-B-O67VWzDQvFLw48"
 
 
+11 重命名
+curl -X PUT "http://localhost:5000/api/files/rename/文件ID" -H "Content-Type: application/json" -H "Authorization: Bearer 你的TOKEN" -d "{\"newFilename\":\"新文件名.txt\"}"
 
+
+curl -X PUT http://localhost:5000/api/files/rename/688f7f6e16cb93c01a006827 -H "Content-Type: application/json" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NzBiYzczOGYyZWNmZjVkYzFlMDJhMCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NDI4NDE5MiwiZXhwIjoxNzU0MzcwNTkyfQ.-R5d83rVYTujIJCi9tQGgeEmFTYar-b7ZNmrHRh6Q80" -d "{\"newFilename\":\"2.0\"}"
 
 现在完成这个操作   ：1. 新用户注册输入用户名 密码    确认密码后必须让管理员同意  管理员能看到所有历史注册请求  并且 能够进行拒绝或同意   2.第一个注册的是最高级管理员prime admin； admin管理员能看见所有用户 并能删除用户或者更改normal用户权限   最高级管理员能删改包括admin normal在内的用户的账号和用户权限 3. prime和admin管理员能在前端跳转到“团队成员”页面看见用户列表和注册时间 用户权限等信息的表格   不要改前端的配色     一步步来   先完成第一步
 

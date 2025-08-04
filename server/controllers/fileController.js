@@ -1768,20 +1768,25 @@ const renameFile = async (req, res) => {
     }
 
     // 构建旧文件路径和新文件路径
-    const oldFilePath = path.join(STORAGE_PATH, file.filename);
-    const newFilePath = path.join(STORAGE_PATH, newFilename);
+    const oldFilePath = file.path ? file.path : path.join(STORAGE_PATH, file.filename);
+    const newFilePath = file.path ? 
+      path.join(path.dirname(file.path), newFilename) : 
+      path.join(STORAGE_PATH, newFilename);
 
     // 检查旧文件是否存在
     if (!fs.existsSync(oldFilePath)) {
       return res.status(404).json({ error: '文件在存储中不存在' });
     }
 
-    // 重命名文件
+    // 重命名文件或文件夹
     fs.renameSync(oldFilePath, newFilePath);
 
-    // 更新数据库中的文件名
+    // 更新数据库中的文件名和路径
     file.filename = newFilename;
     file.originalName = newFilename;
+    if (file.path) {
+      file.path = path.join(path.dirname(file.path), newFilename);
+    }
     file.updatedAt = new Date();
     await file.save();
 
