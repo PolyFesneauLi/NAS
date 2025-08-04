@@ -384,6 +384,14 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         });
         setUploadPath(path);
       }
+    } else if (selectedFolder && !folderPaths.has(selectedFolder)) {
+      // 如果selectedFolder存在但路径映射中没有，生成默认路径
+      const defaultPath = `Home/文件夹_${selectedFolder}`;
+      console.warn('[FOLDER] 路径映射中不存在，使用默认路径:', {
+        selectedFolder,
+        defaultPath
+      });
+      setUploadPath(defaultPath);
     } else if (!selectedFolder && uploadPath !== 'Home') {
       setUploadPath('Home');
     }
@@ -444,7 +452,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           `${parentPath}/${folder.originalName || folder.filename}` : 
           `${parentPath}/${folder.originalName || folder.filename}`;
         
-        setFolderPaths(prev => new Map(prev).set(folder._id, currentPath));
+        // 确保路径被正确设置（只在开发环境显示日志）
+        setFolderPaths(prev => {
+          const newMap = new Map(prev);
+          // 避免重复设置相同的路径
+          if (!newMap.has(folder._id) || newMap.get(folder._id) !== currentPath) {
+            newMap.set(folder._id, currentPath);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[FOLDER] 设置路径映射:', {
+                folderId: folder._id,
+                folderName: folder.originalName || folder.filename,
+                path: currentPath,
+                level
+              });
+            }
+          }
+          return newMap;
+        });
         
         const children = await buildFolderStructure(folder._id, level + 1, currentPath);
         return {
@@ -465,15 +489,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   useEffect(() => {
     const fetchFoldersData = async () => {
       try {
+        console.log('[FOLDER] 开始获取文件夹结构');
         setFolderPaths(new Map().set(null, 'Home'));
         const structure = await buildFolderStructure();
         setFolderStructure(structure);
+        console.log('[FOLDER] 文件夹结构获取完成');
       } catch (err) {
         setError('获取文件夹列表失败: ' + (err.message || '未知错误'));
       }
     };
     fetchFoldersData();
-  }, [buildFolderStructure]);
+  }, []); // 移除buildFolderStructure依赖，避免无限循环
 
   // 处理文件夹选择变化
   const handleFolderSelect = (folderId, path) => {
@@ -485,7 +511,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     // 批量更新状态，避免多次渲染
     setSelectedFolder(folderId);
-    const displayPath = folderId ? path : 'Home';
+    
+    // 确保路径有效
+    let displayPath = 'Home';
+    if (folderId && path) {
+      displayPath = path;
+    } else if (folderId) {
+      // 如果只有folderId但没有path，生成默认路径
+      displayPath = `Home/文件夹_${folderId}`;
+      console.warn('[FOLDER] 使用默认路径:', displayPath);
+    }
+    
     setUploadPath(displayPath);
     setIsDropdownOpen(false);
     setHoveredFolder(null);
@@ -504,8 +540,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const newState = !isDropdownOpen;
     setIsDropdownOpen(newState);
     
-    if (newState) {
-      // console.log('[FOLDER] 刷新文件夹结构');
+    if (newState && folderStructure.length === 0) {
+      // 只有在文件夹结构为空时才重新获取
+      console.log('[FOLDER] 下拉框打开，获取文件夹结构');
       try {
         setFolderPaths(new Map().set(null, 'Home'));
         const structure = await buildFolderStructure();
@@ -583,35 +620,70 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         onMouseEnter={() => hasChildren && handleMouseEnter(folder._id)}
         onMouseLeave={handleMouseLeave}
       >
-                  <div 
-            className={`cascading-option ${isSelected ? 'selected' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              
-              const path = folderPaths.get(folder._id);
-              console.log('[FOLDER] 点击文件夹:', {
+                          <div 
+          className={`cascading-option ${isSelected ? 'selected' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const path = folderPaths.get(folder._id);
+            console.log('[FOLDER] 点击文件夹本体:', {
+              folderId: folder._id,
+              folderName: folder.originalName || folder.filename,
+              path,
+              level,
+              eventTarget: e.target,
+              eventCurrentTarget: e.currentTarget
+            });
+            
+            // 如果路径不存在，动态生成路径
+            let finalPath = path;
+            if (!path) {
+              console.warn('[FOLDER] 路径不存在，动态生成:', {
                 folderId: folder._id,
-                folderName: folder.originalName || folder.filename,
-                path,
-                level,
-                eventTarget: e.target,
-                eventCurrentTarget: e.currentTarget
+                folderName: folder.originalName || folder.filename
               });
               
-              // 确保路径存在
-              if (!path) {
-                console.warn('[FOLDER] 路径不存在:', folder._id);
-                return;
-              }
+              // 动态生成路径：Home/文件夹名
+              finalPath = `Home/${folder.originalName || folder.filename}`;
               
-              handleFolderSelect(folder._id, path);
-            }}
-          >
+              // 更新路径映射
+              setFolderPaths(prev => {
+                const newMap = new Map(prev);
+                newMap.set(folder._id, finalPath);
+                return newMap;
+              });
+            }
+            
+            // 点击文件夹本体直接选择，不展开子菜单
+            handleFolderSelect(folder._id, finalPath);
+          }}
+        >
           <span className="folder-icon">📁</span>
           <span className="folder-name">{folder.originalName || folder.filename}</span>
           {hasChildren && (
-            <span className="submenu-arrow">▶</span>
+            <span 
+              className="submenu-arrow"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[FOLDER] 点击展开符号:', {
+                  folderId: folder._id,
+                  folderName: folder.originalName || folder.filename
+                });
+                // 点击展开符号时触发悬停效果
+                handleMouseEnter(folder._id);
+              }}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                console.log('[FOLDER] 悬停展开符号:', {
+                  folderId: folder._id,
+                  folderName: folder.originalName || folder.filename
+                });
+                // 悬停展开符号时也触发悬停效果
+                handleMouseEnter(folder._id);
+              }}
+            >▶</span>
           )}
         </div>
         {hasChildren && (
