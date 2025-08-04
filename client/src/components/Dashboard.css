@@ -1512,6 +1512,8 @@ td:nth-child(2) {
 
 .cascading-option-wrapper {
   position: relative;
+  /* 确保子菜单有足够的空间显示 */
+  min-height: 32px;
 }
 
 .cascading-option {
@@ -1543,7 +1545,7 @@ td:nth-child(2) {
 .cascading-submenu {
   position: absolute;
   top: 0;
-  left: 100%;
+  left: calc(100% + 2px); /* 添加小间隙防止意外触发 */
   min-width: 200px;
   background-color: #fff;
   border-radius: 8px;
@@ -1551,13 +1553,25 @@ td:nth-child(2) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   opacity: 0;
   visibility: hidden;
-  transition: all 0.2s ease;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
   z-index: 201;
+  pointer-events: auto;
 }
 
+.cascading-submenu.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 确保子菜单在层级中保持可见 */
 .cascading-option-wrapper:hover > .cascading-submenu {
   opacity: 1;
   visibility: visible;
+}
+
+/* 防止子菜单闪烁 */
+.cascading-submenu.visible {
+  transition-delay: 0s;
 }
 
 /* 自定义滚动条 */
