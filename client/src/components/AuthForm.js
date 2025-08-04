@@ -151,7 +151,7 @@ const AuthForm = ({ type, onSuccess }) => {
             />
           </div>
         )}
-        <button type="submit" disabled={loading} style={{ background: '#007bde' }}>
+        <button type="submit" disabled={loading} style={{ background: 'linear-gradient(135deg,rgb(62, 84, 180) 0%, #3060c7 100%)' }}>
           {loading ? '处理中...' : type === 'login' ? '登录' : '注册'}
         </button>
         {error && (

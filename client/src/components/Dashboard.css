@@ -1672,11 +1672,11 @@ td:nth-child(2) {
    文件夹上传部分样式
    ========================================= */
 .folder-upload-section {
-  margin-top: 20px;
-  padding: 20px;
+  /* margin-top: 20px; */
+  /* padding: 20px; */
   border: 1px dashed #007BBE;
   border-radius: 12px;
-  background: #f8f9ff;
+  background: #ffffff;
   transition: all 0.3s ease;
 }
 
@@ -1701,13 +1701,14 @@ td:nth-child(2) {
 .folder-label {
   display: inline-block;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #007BBE, #33AFF5);
+  background: linear-gradient(135deg, #007BBE 0%, #33AFF5 100%);
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
+  font-weight: 600;
   transition: all 0.3s ease;
-  font-weight: 500;
   box-shadow: 0 4px 15px rgba(0, 123, 190, 0.3);
+  font-size: 14px;
 }
 
 .folder-label:hover {
