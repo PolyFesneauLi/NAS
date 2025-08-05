@@ -8,8 +8,8 @@ const config = require('../config');
  * 这些文件通常是上传中断或前端刷新导致的缓存文件
  */
 function cleanupUploads() {
-  const uploadsDir = config.STORAGE_PATH;
-  const downloadsDir = path.join(__dirname, '../../storage/temp');
+  const uploadsDir = path.join(config.STORAGE_PATH, 'uploads');
+  const downloadsDir = path.join(config.STORAGE_PATH, 'temp');
   
   try {
     // 检查uploads目录是否存在

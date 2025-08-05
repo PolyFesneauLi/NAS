@@ -53,7 +53,7 @@ exports.register = async (req, res) => {
         createdAt: user.createdAt
       };
 
-      const userFilePath = path.join(__dirname, '../../storage/users', `${username}.json`);
+      const userFilePath = path.join(config.STORAGE_PATH, 'users', `${username}.json`);
       await fs.writeFile(userFilePath, JSON.stringify(userInfo, null, 2));
       // console.log(`用户信息已保存到本地: ${username}.json`);
     } catch (error) {

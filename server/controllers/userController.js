@@ -83,7 +83,7 @@ exports.deleteAllUsers = async (req, res) => {
     logs.push(`删除后MongoDB用户数量: ${afterCount}`);
 
     // 2. 检查并删除storage/users目录下的文件
-    const usersDir = path.join(__dirname, '../../storage/users');
+    const usersDir = path.join(config.STORAGE_PATH, 'users');
     try {
       const files = await fs.readdir(usersDir);
       logs.push(`找到users目录下的文件: ${files.join(', ')}`);
@@ -107,7 +107,7 @@ exports.deleteAllUsers = async (req, res) => {
     }
 
     // 3. 检查并重置users.json
-    const usersJsonPath = path.join(__dirname, '../../storage/users.json');
+    const usersJsonPath = path.join(config.STORAGE_PATH, 'users.json');
     try {
       const exists = await fs.access(usersJsonPath).then(() => true).catch(() => false);
       if (exists) {
@@ -193,7 +193,7 @@ exports.deleteUser = async (req, res) => {
     }
 
     // 确保用户目录存在
-    const usersDirPath = path.join(__dirname, '../../storage/users');
+    const usersDirPath = path.join(config.STORAGE_PATH, 'users');
     try {
       await fs.access(usersDirPath);
     } catch (error) {
@@ -244,7 +244,7 @@ exports.approveUser = async (req, res) => {
     await user.save();
 
     // 更新用户的本地文件
-    const userFilePath = path.join(__dirname, '../../storage/users', `${user.username}.json`);
+    const userFilePath = path.join(config.STORAGE_PATH, 'users', `${user.username}.json`);
     try {
       const userInfo = {
         id: user._id,
@@ -291,7 +291,7 @@ exports.changeUserRole = async (req, res) => {
     await user.save();
 
     // 更新用户的本地文件
-    const userFilePath = path.join(__dirname, '../../storage/users', `${user.username}.json`);
+    const userFilePath = path.join(config.STORAGE_PATH, 'users', `${user.username}.json`);
     try {
       const userInfo = {
         id: user._id,

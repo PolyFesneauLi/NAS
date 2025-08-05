@@ -162,10 +162,20 @@ echo REACT_APP_SERVER_PORT=%SERVER_PORT% > .env.local
 echo REACT_APP_API_URL=http://localhost:%SERVER_PORT%/api >> .env.local
 echo REACT_APP_CLIENT_PORT=%CLIENT_PORT% >> .env.local
 
+REM 读取存储主机IP配置（供后端使用）
+if exist "server\.env" (
+    for /f "tokens=2 delims==" %%a in ('findstr "STORAGE_HOST_IP" server\.env') do set STORAGE_HOST_IP=%%a
+) else (
+    set STORAGE_HOST_IP=localhost
+)
+
+echo REACT_APP_STORAGE_HOST_IP=%STORAGE_HOST_IP% >> .env.local
+
 set PORT=%CLIENT_PORT%
 set BROWSER=none
 set REACT_APP_SERVER_PORT=%SERVER_PORT%
 set REACT_APP_API_URL=http://localhost:%SERVER_PORT%/api
+set REACT_APP_STORAGE_HOST_IP=%STORAGE_HOST_IP%
 
 start "NAS Client" cmd /c "npm start"
 popd

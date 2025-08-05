@@ -4,6 +4,7 @@ const Tag = require('../models/Tag');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const storageAccess = require('../utils/storageAccess');
 
 const FixEncoding = (str) => {
   try {
@@ -141,7 +142,7 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     
     // 构建文件在存储中的完整路径
     const fileName = path.basename(req.file.path);
-            filePath = path.join(config.STORAGE_PATH, folderFullPath, fileName);
+    filePath = storageAccess.getStoragePath(path.join('uploads', folderFullPath, fileName));
     console.log('[SERVER] 文件最终路径:', filePath);
     
     // 确保目录存在
@@ -499,7 +500,7 @@ const createFolder = async (req, res) => {
 
     // 构建物理路径 - 使用完整的文件夹路径
     const parentFolderPath = await getFolderFullPath(parentFolder._id);
-    const folderPath = path.join(config.STORAGE_PATH, parentFolderPath, folderName);
+    const folderPath = storageAccess.getStoragePath(path.join('uploads', parentFolderPath, folderName));
     // console.log('[SERVER] 创建文件夹路径:', folderPath);
 
     // 创建物理文件夹
@@ -954,7 +955,7 @@ const uploadFolder = async (req, res) => {
     // 创建文件夹记录
     const newFolder = new File({
       filename: folderName,
-              path: path.join(config.STORAGE_PATH, folderName), // 这个path字段在数据库中，保持简单
+      path: storageAccess.getStoragePath(path.join('uploads', folderName)), // 这个path字段在数据库中，保持简单
       size: 0,
       owner: req.user.id,
       isFolder: true,
@@ -966,7 +967,7 @@ const uploadFolder = async (req, res) => {
 
     // 获取目标文件夹的完整路径
     const targetFolderPath = await getFolderFullPath(targetFolder._id);
-    const folderPath = path.join(config.STORAGE_PATH, targetFolderPath, folderName);
+    const folderPath = storageAccess.getStoragePath(path.join('uploads', targetFolderPath, folderName));
     // console.log("[DEBUG] folderPath local:", folderPath);
     fs.mkdirSync(folderPath, { recursive: true });
 
@@ -1237,7 +1238,7 @@ const downloadFolder = async (req, res) => {
     const folderStructure = await getFolderStructure(folderId);
     
     // 创建临时目录
-    const tempDir = path.join(__dirname, '../../storage/temp');
+    const tempDir = storageAccess.getStoragePath('temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -1767,10 +1768,10 @@ const renameFile = async (req, res) => {
     }
 
     // 构建旧文件路径和新文件路径
-    const oldFilePath = file.path ? file.path : path.join(config.STORAGE_PATH, file.filename);
+    const oldFilePath = file.path ? file.path : storageAccess.getStoragePath(path.join('uploads', file.filename));
     const newFilePath = file.path ? 
       path.join(path.dirname(file.path), newFilename) : 
-              path.join(config.STORAGE_PATH, newFilename);
+      storageAccess.getStoragePath(path.join('uploads', newFilename));
 
     // 检查旧文件是否存在
     if (!fs.existsSync(oldFilePath)) {

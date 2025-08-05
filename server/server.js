@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 });
 
 // 使用配置的存储路径
-app.use('/uploads', express.static(config.STORAGE_PATH));
+app.use('/uploads', express.static(path.join(config.STORAGE_PATH, 'uploads')));
 
 // 连接 MongoDB
 mongoose.connect(process.env.MONGODB_URI, {

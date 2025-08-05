@@ -1,14 +1,17 @@
 const multer = require('multer');
 const path = require('path');
-const { STORAGE_PATH } = process.env;
 const fs = require('fs'); // Added for fs.existsSync
 const config = require('../config');
+const storageAccess = require('./storageAccess');
+
+// 使用存储访问工具获取uploads路径
+const UPLOADS_PATH = storageAccess.getStoragePath('uploads');
 // const iconv = require('iconv-lite'); // Removed as per edit hint
 
 // 配置存储
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, STORAGE_PATH);
+    cb(null, UPLOADS_PATH);
   },
   filename: (req, file, cb) => {
     let name = file.originalname;
@@ -26,10 +29,10 @@ const storage = multer.diskStorage({
     const ext = path.extname(name);
     let finalName = name;
     let counter = 1;
-    let fsPath = path.join(STORAGE_PATH, finalName);
+    let fsPath = path.join(UPLOADS_PATH, finalName);
     while (fs.existsSync(fsPath)) {
       finalName = `${base}(${counter})${ext}`;
-      fsPath = path.join(STORAGE_PATH, finalName);
+      fsPath = path.join(UPLOADS_PATH, finalName);
       counter++;
     }
     cb(null, finalName);
@@ -181,7 +184,7 @@ const cadUpload = multer({
 // 为文件夹上传创建专门的存储配置
 const folderStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, STORAGE_PATH);
+    cb(null, UPLOADS_PATH);
   },
   filename: (req, file, cb) => {
     // 保留完整的相对路径 - 使用 originalname，它现在包含 webkitRelativePath

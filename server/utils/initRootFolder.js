@@ -24,7 +24,7 @@ async function initRootFolder() {
       const newRootFolder = new File({
         filename: "home",
         originalName: "home",
-        path: path.join(config.STORAGE_PATH, "home"),
+        path: path.join(config.STORAGE_PATH, "uploads", "home"),
         size: 0,
         fileType: "regular",
         isFolder: true,
