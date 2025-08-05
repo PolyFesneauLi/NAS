@@ -5,11 +5,11 @@ const Navbar = ({ isAuthenticated, onLogout, user }) => {
   return (
     <nav className="navbar">
       <div className="container">
-        <Link to="/" className="logo">NAS 系统</Link>
+        <Link to="/" className="logo">重庆分公司云文档</Link>
         <div className="nav-links">
           {isAuthenticated ? (
             <>
-              <Link to="/dashboard" style={{ fontWeight: 'bold' }}>仪表盘</Link>
+              <Link to="/dashboard" style={{ fontWeight: 'bold' }}>文件列表</Link>
               {user && user.role === 'admin' && (
                 <Link to="/team" style={{ fontWeight: 'bold' }}>团队成员</Link>
               )}
