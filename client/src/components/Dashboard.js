@@ -425,8 +425,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
-    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp'],
-    cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl',".zip",".rar",".7z",".tar",".gz",".bz2",".smbx",'.dgn','.dst','.dwl2','.sbp','.ovkml','.ovobj'],
+    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp','.db','.lsp','.fas','.dat','.tmp'],
+    cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl','.dwl2','.smbx','.dgn','.dst','.sbp',".zip",".rar",".7z",".tar",".gz",".bz2",'.ovkml','.ovobj'],
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
 

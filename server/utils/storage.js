@@ -42,7 +42,7 @@ const storage = multer.diskStorage({
 // 完整的文件类型白名单
 const allowedTypes = [
   // 文本和文档格式
-  'text/plain',                          // .txt
+  'text/plain',                          // .txt, .log, .err, .bak, .lsp, .fas, .dat, .tmp
   'text/markdown',                       // .md
   'application/pdf',                     // .pdf
   
@@ -75,6 +75,7 @@ const allowedTypes = [
   'image/jpeg',                          // .jpg, .jpeg
   'image/png',                           // .png
   'image/svg+xml',                       // .svg
+  'image/bmp',                           // .bmp
   
   // CAD/工程图格式
   'application/acad',                    // .dwg (AutoCAD)
@@ -84,8 +85,12 @@ const allowedTypes = [
   'model/iges',                          // .igs, .iges
   'application/sldworks',                // SolidWorks
   'application/x-sldworks',              // .smbx
+  'application/dgn',                     // .dgn (MicroStation)
+  'application/x-dgn', 
+  'application/vnd.dgn',
+  'model/dgn',
   
-  // 压缩包 - 确保与前端配置一致
+  // 压缩包
   'application/x-7z-compressed',         // .7z
   'application/x-rar-compressed',        // .rar
   'application/x-tar',                   // .tar
@@ -97,7 +102,7 @@ const allowedTypes = [
   'application/zip',                     // .zip (标准MIME类型)
   'application/x-zip',                   // .zip (另一种MIME类型)
 
-  //exe
+  // 可执行文件
   'application/x-msdownload',            // .exe
   'application/x-ms-dos-executable',     // .exe
   'application/x-executable',            // .exe
@@ -105,14 +110,12 @@ const allowedTypes = [
   'application/x-ms-windows-installer',  // .exe
   'application/x-ms-windows-package',    // .exe
   
+  // 数据库文件
+  'application/x-sqlite3',               // .db
+  'application/vnd.sqlite3',             // .db (另一种MIME)
+  
   // 其他常见类型
   'application/octet-stream',             // 通用二进制流
-  'image/bmp',          // .bmp
-  'application/dgn',     // .dgn (MicroStation)
-  'application/x-dgn', 
-  'application/vnd.dgn',
-  'model/dgn',
-  'text/plain',          // .log, .err, .bak (文本类通用覆盖)
 ];
 
 // 扩展名白名单（用于双重验证）- 确保与前端配置一致
@@ -125,7 +128,7 @@ const allowedExtensions = [
   '.html', '.htm', '.css', '.json', '.xml',
   
   // 图片/CAD
-  '.jpg', '.jpeg', '.png', '.svg', '.bmp', // 补充统计中的.bmp
+  '.jpg', '.jpeg', '.png', '.svg', '.bmp',
   '.dwg', '.dxf', '.stp', '.step', '.igs', '.iges', '.sldprt', '.sldasm',
   '.dwl', '.smbx', '.dgn', // 明确添加.dgn
   '.dst', '.dwl2', '.sbp', '.ovkml', '.ovobj', // 补充统计中的其他CAD格式
@@ -133,8 +136,11 @@ const allowedExtensions = [
   // 压缩包/可执行文件
   '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.wim', '.iso', '.exe',
   
+  // 数据库文件
+  '.db',
+  
   // 其他必需类型
-  '.bak', '.log', '.err' // 补充统计中的文本类文件
+  '.bak', '.log', '.err', '.lsp', '.fas', '.dat', '.tmp'
 ];
 
 // 增强的文件过滤器
@@ -155,8 +161,10 @@ const fileFilter = (req, file, cb) => {
       `• 文档：PDF/Word/Excel/PowerPoint/TXT/Markdown\n` +
       `• 源代码：C/C++/JS/Python/Java等\n` +
       `• 网页文件：HTML/CSS/JSON\n` +
-      `• 工程图：DWG/DXF/STEP/IGES/SolidWorks\n` +
-      `• 图片：JPG/PNG/SVG`
+      `• 工程图：DWG/DXF/STEP/IGES/SolidWorks/DGN\n` +
+      `• 图片：JPG/PNG/SVG/BMP\n` +
+      `• 压缩包：ZIP/RAR/7Z等\n` +
+      `• 其他：LOG/ERR/BAK/LSP/FAS/DAT/TMP/DB等`
     ), false);
   }
 };
