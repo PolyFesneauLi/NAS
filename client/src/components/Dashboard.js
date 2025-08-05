@@ -722,21 +722,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     if (selectedFiles.length === 0) return;
     // console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
     
-    // 检查单个文件路径长度
-    const MAX_PATH_LENGTH = 260; // Windows路径长度限制
-    const NETWORK_PATH_PREFIX = '\\\\10.172.79.26\\storage\\uploads\\'; // 网络路径前缀
-    
-    for (const file of selectedFiles) {
-      // 构建完整的网络路径（单个文件没有子路径）
-      const fullPath = NETWORK_PATH_PREFIX + file.name;
-      
-      if (fullPath.length > MAX_PATH_LENGTH) {
-        setError(`文件名过长: ${file.name}\n路径长度: ${fullPath.length} 字符 (超过 ${MAX_PATH_LENGTH} 字符限制)\n请缩短文件名后重新上传`);
-        setFiles([]);
-        return;
-      }
-    }
-    
     const validFiles = [];
     for (const f of selectedFiles) {
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
@@ -759,23 +744,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setProgress({});
   };
 
-  // 检查文件路径长度是否超过Windows限制
-  const checkPathLength = (files) => {
-    const MAX_PATH_LENGTH = 260; // Windows路径长度限制
-    const NETWORK_PATH_PREFIX = '\\\\10.172.79.26\\storage\\uploads\\'; // 网络路径前缀
+  // 检查路径长度是否超过限制
+  const checkPathLength = (filePath, fileName) => {
+    // Windows 最大路径长度限制为 260 字符，UNC 路径为 32767 字符
+    // 但为了安全起见，我们设置一个合理的限制
+    const MAX_PATH_LENGTH = 240; // 给一些余量
     
-    for (const file of files) {
-      // 构建完整的网络路径
-      const fullPath = NETWORK_PATH_PREFIX + file.webkitRelativePath.replace(/\//g, '\\');
-      
-      if (fullPath.length > MAX_PATH_LENGTH) {
-        return {
-          isValid: false,
-          message: `文件路径过长: ${file.webkitRelativePath}\n路径长度: ${fullPath.length} 字符 (超过 ${MAX_PATH_LENGTH} 字符限制)\n请考虑分次上传或缩短文件夹名称`
-        };
-      }
-    }
-    return { isValid: true };
+    // 模拟最终存储路径：\\10.172.79.26\storage\uploads\folderName\filePath\fileName
+    const basePath = '\\\\10.172.79.26\\storage\\uploads\\';
+    const fullPath = basePath + filePath + '\\' + fileName;
+    
+    return fullPath.length <= MAX_PATH_LENGTH;
   };
 
   const handleFolderChange = (e) => {
@@ -792,27 +771,36 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       return;
     }
 
-    // 检查路径长度
-    const pathCheck = checkPathLength(files);
-    if (!pathCheck.isValid) {
-      setError(pathCheck.message);
-      setFolderFiles([]);
-      setFolderName('');
-      return;
-    }
-
-    // 验证文件格式
+    // 验证文件格式和路径长度
     const validFiles = [];
+    const pathLengthErrors = [];
+    
     for (const file of files) {
       const fileExt = '.' + file.name.split('.').pop().toLowerCase();
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
+      
       if (!isValidFile) {
         setError(`不支持的文件格式: ${fileExt} (${file.name})`);
         setFolderFiles([]);
         setFolderName('');
         return;
       }
-      validFiles.push(file);
+      
+      // 检查路径长度
+      const filePath = file.webkitRelativePath.replace(file.name, '').replace(/\/$/, '');
+      if (!checkPathLength(filePath, file.name)) {
+        pathLengthErrors.push(file.webkitRelativePath);
+      } else {
+        validFiles.push(file);
+      }
+    }
+    
+    // 如果有路径长度超限的文件，显示错误
+    if (pathLengthErrors.length > 0) {
+      setError(`文件上传错误：文件夹太深，组合出来的文件名过长。请考虑分次上传。\n\n超限文件：\n${pathLengthErrors.slice(0, 5).join('\n')}${pathLengthErrors.length > 5 ? '\n...' : ''}`);
+      setFolderFiles([]);
+      setFolderName('');
+      return;
     }
 
     setFolderFiles(validFiles);
@@ -948,16 +936,14 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       }
 
       // 添加所有文件，保持相对路径
-      folderFiles.forEach((file, index) => {
-        // 使用更简洁的方式传递路径信息，避免文件名过长
-        // 将路径信息作为单独的字段传递，而不是编码到文件名中
-        const pathInfo = file.webkitRelativePath;
-        const fileWithPath = new File([file], file.name, {
+      folderFiles.forEach(file => {
+        // 将路径信息作为文件名前缀传递
+        const pathPrefix = file.webkitRelativePath.replace(/\//g, '_').replace(/\\/g, '_');
+        const fileWithPath = new File([file], `${pathPrefix}_${file.name}`, {
           type: file.type,
           lastModified: file.lastModified
         });
         formData.append('files', fileWithPath);
-        formData.append(`pathInfo[${index}]`, pathInfo); // 为每个文件使用不同的字段名
       });
 
       const response = await uploadFolder(formData, {
