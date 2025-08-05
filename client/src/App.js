@@ -20,7 +20,7 @@ function App() {
   const [idleSeconds, setIdleSeconds] = useState(0);
   const [showIdleModal, setShowIdleModal] = useState(false);
   const idleTimer = useRef(null);
-  const idleLimit = 240; // 秒
+  const idleLimit = 24000; // 秒
 
   useEffect(() => {
     const initializeAuth = async () => {

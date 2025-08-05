@@ -722,6 +722,21 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     if (selectedFiles.length === 0) return;
     // console.log('[UPLOAD] 文件选择事件触发，选择的文件数量:', selectedFiles.length);
     
+    // 检查单个文件路径长度
+    const MAX_PATH_LENGTH = 260; // Windows路径长度限制
+    const NETWORK_PATH_PREFIX = '\\\\10.172.79.26\\storage\\uploads\\'; // 网络路径前缀
+    
+    for (const file of selectedFiles) {
+      // 构建完整的网络路径（单个文件没有子路径）
+      const fullPath = NETWORK_PATH_PREFIX + file.name;
+      
+      if (fullPath.length > MAX_PATH_LENGTH) {
+        setError(`文件名过长: ${file.name}\n路径长度: ${fullPath.length} 字符 (超过 ${MAX_PATH_LENGTH} 字符限制)\n请缩短文件名后重新上传`);
+        setFiles([]);
+        return;
+      }
+    }
+    
     const validFiles = [];
     for (const f of selectedFiles) {
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
@@ -744,6 +759,25 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setProgress({});
   };
 
+  // 检查文件路径长度是否超过Windows限制
+  const checkPathLength = (files) => {
+    const MAX_PATH_LENGTH = 260; // Windows路径长度限制
+    const NETWORK_PATH_PREFIX = '\\\\10.172.79.26\\storage\\uploads\\'; // 网络路径前缀
+    
+    for (const file of files) {
+      // 构建完整的网络路径
+      const fullPath = NETWORK_PATH_PREFIX + file.webkitRelativePath.replace(/\//g, '\\');
+      
+      if (fullPath.length > MAX_PATH_LENGTH) {
+        return {
+          isValid: false,
+          message: `文件路径过长: ${file.webkitRelativePath}\n路径长度: ${fullPath.length} 字符 (超过 ${MAX_PATH_LENGTH} 字符限制)\n请考虑分次上传或缩短文件夹名称`
+        };
+      }
+    }
+    return { isValid: true };
+  };
+
   const handleFolderChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -755,6 +789,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     if (!folderName) {
       setError('无法获取文件夹名称');
+      return;
+    }
+
+    // 检查路径长度
+    const pathCheck = checkPathLength(files);
+    if (!pathCheck.isValid) {
+      setError(pathCheck.message);
+      setFolderFiles([]);
+      setFolderName('');
       return;
     }
 
@@ -905,14 +948,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       }
 
       // 添加所有文件，保持相对路径
-      folderFiles.forEach(file => {
-        // 将路径信息作为文件名前缀传递
-        const pathPrefix = file.webkitRelativePath.replace(/\//g, '_').replace(/\\/g, '_');
-        const fileWithPath = new File([file], `${pathPrefix}_${file.name}`, {
+      folderFiles.forEach((file, index) => {
+        // 使用更简洁的方式传递路径信息，避免文件名过长
+        // 将路径信息作为单独的字段传递，而不是编码到文件名中
+        const pathInfo = file.webkitRelativePath;
+        const fileWithPath = new File([file], file.name, {
           type: file.type,
           lastModified: file.lastModified
         });
         formData.append('files', fileWithPath);
+        formData.append(`pathInfo[${index}]`, pathInfo); // 为每个文件使用不同的字段名
       });
 
       const response = await uploadFolder(formData, {
@@ -3237,12 +3282,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             </button>
           </div>
           
-          {/* 热门标签提示行 */}
-          {hotTags.length > 0 && (
-            <div className="hot-tags-container">
-              <span className="hot-tags-label">热门标签:</span>
-              <div className="hot-tags-list">
-                {hotTags.map((tag, index) => (
+          {/* 热门标签提示行 - 所有用户都可见 */}
+          <div className="hot-tags-container">
+            <span className="hot-tags-label">热门标签:</span>
+            <div className="hot-tags-list">
+              {hotTags.length > 0 ? (
+                hotTags.map((tag, index) => (
                   <button
                     key={index}
                     className="hot-tag-btn"
@@ -3251,10 +3296,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                   >
                     {tag}
                   </button>
-                ))}
-              </div>
+                ))
+              ) : (
+                <span className="no-hot-tags">暂无热门标签</span>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
