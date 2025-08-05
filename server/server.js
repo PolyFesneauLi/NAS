@@ -9,6 +9,7 @@ const userRoutes = require('./routes/userRoutes');
 const apiRoutes = require('./routes/api');
 const initRootFolder = require('./utils/initRootFolder');
 const cleanupUploads = require('./utils/cleanupUploads');
+const config = require('./config');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,7 +30,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, '../storage/uploads')));
+// 使用配置的存储路径
+app.use('/uploads', express.static(config.STORAGE_PATH));
 
 // 连接 MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -54,4 +56,6 @@ app.use('/api', apiRoutes);
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📁 Storage path: ${config.STORAGE_PATH}`);
+  console.log(`🌐 Storage host: ${config.STORAGE_HOST_IP} (${config.STORAGE_HOST_NAME})`);
 });

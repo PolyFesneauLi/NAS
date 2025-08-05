@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const config = require('../config');
 
 /**
  * 清理uploads目录下的孤立文件
@@ -7,7 +8,7 @@ const path = require('path');
  * 这些文件通常是上传中断或前端刷新导致的缓存文件
  */
 function cleanupUploads() {
-  const uploadsDir = path.join(__dirname, '../../storage/uploads');
+  const uploadsDir = config.STORAGE_PATH;
   const downloadsDir = path.join(__dirname, '../../storage/temp');
   
   try {

@@ -13,6 +13,12 @@ module.exports = {
   UPLOAD_MAX_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 1024 * 1024 * 1024 * 20, // 单个文件最大20GB
   ALLOWED_FILE_TYPES: process.env.ALLOWED_FILE_TYPES ? process.env.ALLOWED_FILE_TYPES.split(',') : ['*'], // 允许所有文件类型
   
+  // 分布式存储配置
+  STORAGE_HOST_IP: process.env.STORAGE_HOST_IP || 'localhost',
+  STORAGE_HOST_NAME: process.env.STORAGE_HOST_NAME || 'storage-server',
+  STORAGE_PATH: process.env.STORAGE_PATH || './storage/uploads',
+  UPLOAD_PATH: process.env.UPLOAD_PATH || process.env.STORAGE_PATH || './storage/uploads',
+  
   // 界面显示配置
   SHOW_USER_INFO: process.env.SHOW_USER_INFO === 'true' || false, // 是否显示用户信息框
 }; 

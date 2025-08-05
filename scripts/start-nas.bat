@@ -77,13 +77,17 @@ if not exist "client\package.json" (
 echo [OK] All necessary files found
 echo.
 
-REM Create .env file
-if not exist ".env" (
-    echo Creating default .env file...
-    echo MONGODB_URI=mongodb://localhost:27017/nas_system > .env
-    echo JWT_SECRET=your-secret-key-change-this >> .env
-    echo PORT=5000 >> .env
-    echo [OK] Default .env file created
+REM Check for .env file in server directory
+if not exist "server\.env" (
+    echo [WARNING] No .env file found in server directory
+    echo Please run deploy.bat first to configure the system
+    echo.
+    set /p CONTINUE="Continue without configuration? (y/n): "
+    if /i not "!CONTINUE!"=="y" (
+        echo Startup cancelled
+        pause
+        exit /b 0
+    )
 )
 
 REM Find available ports
@@ -119,14 +123,6 @@ if !errorlevel! equ 0 (
     goto find_client_port
 ) else (
     echo [OK] Client will use port: %CLIENT_PORT%
-)
-
-REM Update .env with actual server port
-echo Updating .env with port %SERVER_PORT%...
-> .env (
-    echo PORT=%SERVER_PORT%
-    echo MONGODB_URI=mongodb://localhost:27017/nas_system
-    echo JWT_SECRET=your-secret-key-change-this
 )
 
 REM [4/4] Starting services

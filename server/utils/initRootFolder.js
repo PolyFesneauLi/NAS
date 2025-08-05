@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const File = require('../models/File');
 const User = require('../models/User');
+const config = require('../config');
 
 async function initRootFolder() {
   try {
@@ -23,7 +24,7 @@ async function initRootFolder() {
       const newRootFolder = new File({
         filename: "home",
         originalName: "home",
-        path: "../storage/uploads/home",
+        path: path.join(config.STORAGE_PATH, "home"),
         size: 0,
         fileType: "regular",
         isFolder: true,
