@@ -397,6 +397,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [hoveredHierarchy, setHoveredHierarchy] = useState(new Set());
   const hierarchyTimeoutRef = useRef(null);
 
+  // 新增：按钮按下效果状态
+  const [uploadButtonPressed, setUploadButtonPressed] = useState(false);
+
   // 同步当前文件夹和路径
   useEffect(() => {
     setSelectedFolder(currentFolder);
@@ -1061,12 +1064,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     e.preventDefault();
     if (!files.length) return;
     
+    // 设置按钮按下效果
+    setUploadButtonPressed(true);
+    
     // 计算总文件大小
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
     
     // 检查存储空间
     const hasEnoughSpace = await checkStorageSpace(totalSize);
     if (!hasEnoughSpace) {
+      setUploadButtonPressed(false);
       return; // 错误信息已在checkStorageSpace中设置
     }
     
@@ -1164,6 +1171,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     } finally {
       // console.log('[UPLOAD] 上传流程结束，重置上传状态');
       setIsUploading(false);
+      setUploadButtonPressed(false);
       
       // 重置全局上传状态
       if (window.uploadState) {
@@ -1255,7 +1263,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             <button 
               type="submit" 
               disabled={isUploading}
-              className="upload-button"
+              className={`upload-button ${uploadButtonPressed ? 'upload-button-pressed' : ''}`}
             >
               {isUploading ? '上传中...' : '开始上传'}
             </button>
@@ -1330,7 +1338,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                 <button 
                   type="submit" 
                   disabled={isUploading}
-                  className="upload-button"
+                  className={`upload-button ${uploadButtonPressed ? 'upload-button-pressed' : ''}`}
                 >
                   {isUploading ? '上传中...' : '开始上传'}
                 </button>
@@ -1380,6 +1388,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 搜索中断相关状态
   const [searchAbortController, setSearchAbortController] = useState(null);
   const [lastSearchParams, setLastSearchParams] = useState(null);
+
+  // 新增：按钮按下效果和加载状态
+  const [locationButtonPressed, setLocationButtonPressed] = useState(new Set());
+  const [locationLoading, setLocationLoading] = useState(new Set());
 
   // 导航历史状态 - 用于智能返回功能（从 Dashboard 组件传递）
   // const [navigationHistory, setNavigationHistory] = useState([]);
@@ -2128,6 +2140,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   // 打开文件所在位置
   const handleOpenFileLocation = async (file) => {
     try {
+      // 设置按钮按下效果和加载状态
+      setLocationButtonPressed(prev => new Set(prev).add(file._id));
+      setLocationLoading(prev => new Set(prev).add(file._id));
+      
       // 检查是否来自搜索结果
       const isFromSearchResults = searchInput || searchTerm || searchTags.length > 0 || globalSearch;
       
@@ -2255,6 +2271,18 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     } catch (error) {
       console.error('获取文件位置失败:', error);
       setError('获取文件位置失败: ' + error.message);
+    } finally {
+      // 重置按钮状态
+      setLocationButtonPressed(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(file._id);
+        return newSet;
+      });
+      setLocationLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(file._id);
+        return newSet;
+      });
     }
   };
 
@@ -3429,12 +3457,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                       {!file.isFolder && (
                         <>  
                           <button
-                            className="btn btn-location"
-                            onClick={() => handleOpenFileLocation(file)}
+                            className={`btn btn-location ${locationButtonPressed.has(file._id) ? 'btn-location-pressed' : ''} ${locationLoading.has(file._id) ? 'btn-location-loading' : ''}`}
+                            onClick={() => !locationLoading.has(file._id) && handleOpenFileLocation(file)}
                             title="打开文件所在位置"
                             style={{ background: '#99caff' }}    // 很浅很浅的蓝色
                           >
-                            🔍
+                            {locationLoading.has(file._id) ? (
+                              <div className="location-loading-spinner"></div>
+                            ) : (
+                              '🔍'
+                            )}
                           </button>
                           {isSupportedForPreview(file.originalName || file.filename) ? (
                             <button 
@@ -3500,12 +3532,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
                         <>
                           {/* 跳转按钮 */}
                           <button
-                            className="btn btn-location"
-                            onClick={() => handleOpenFileLocation(file)}
+                            className={`btn btn-location ${locationButtonPressed.has(file._id) ? 'btn-location-pressed' : ''} ${locationLoading.has(file._id) ? 'btn-location-loading' : ''}`}
+                            onClick={() => !locationLoading.has(file._id) && handleOpenFileLocation(file)}
                             title="打开文件所在位置"
                             style={{ background: '#99caff' }}    // 很浅很浅的蓝色
                           >
-                            🔍
+                            {locationLoading.has(file._id) ? (
+                              <div className="location-loading-spinner"></div>
+                            ) : (
+                              '🔍'
+                            )}
                           </button>
                           {/* 文件夹预览占位符 */}
                           <div 

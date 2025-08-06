@@ -2551,3 +2551,54 @@ td[style*="width: 100px"] .tags-dropdown-container {
     align-self: flex-end;
   }
 } 
+
+/* =========================================
+   按钮按下效果和加载状态样式
+   ========================================= */
+
+/* 上传按钮按下效果 */
+.upload-button-pressed {
+  background: #0056b3 !important;
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 2px solid #003d82;
+}
+
+.upload-button-pressed:hover {
+  background: #0056b3 !important;
+  transform: scale(0.95);
+}
+
+/* 位置按钮按下效果 */
+.btn-location-pressed {
+  background: #7bb3ff !important;
+  transform: scale(0.9);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 2px solid #5a9bff;
+}
+
+.btn-location-pressed:hover {
+  background: #7bb3ff !important;
+  transform: scale(0.9);
+}
+
+/* 位置按钮加载状态 */
+.btn-location-loading {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 位置按钮加载旋转器 */
+.location-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: locationSpin 1s linear infinite;
+}
+
+@keyframes locationSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
