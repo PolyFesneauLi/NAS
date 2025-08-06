@@ -22,8 +22,31 @@ function App() {
   const idleTimer = useRef(null);
   const idleLimit = 24000; // 秒
 
+  // 清除认证状态的函数
+  const clearAuthState = () => {
+    localStorage.removeItem('token');
+    setAuthToken(null);
+    setIsAuthenticated(false);
+    setUser(null);
+    window.uploadState.isAdmin = false;
+    window.uploadState.isUploading = false;
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
+      // 检查URL参数是否需要清除认证状态
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldClearAuth = urlParams.get('clearAuth');
+      
+      if (shouldClearAuth === 'true') {
+        console.log('Clearing authentication state due to startup parameter');
+        clearAuthState();
+        // 清除URL参数
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setLoading(false);
+        return;
+      }
+      
       const token = localStorage.getItem('token');
       if (token) {
         setAuthToken(token);
@@ -94,13 +117,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setAuthToken(null);
-    setIsAuthenticated(false);
-    setUser(null);
-    // 重置全局上传状态
-    window.uploadState.isAdmin = false;
-    window.uploadState.isUploading = false;
+    clearAuthState();
   };
 
   if (loading) {

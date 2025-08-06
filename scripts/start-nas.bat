@@ -202,9 +202,11 @@ echo SERVER_PORT=%SERVER_PORT% > .ports
 echo CLIENT_PORT=%CLIENT_PORT% >> .ports
 echo {"serverPort": %SERVER_PORT%, "clientPort": %CLIENT_PORT%} > .port-config.json
 
-REM Open browser
+REM Open browser with cleared localStorage
 echo Opening web interface...
-start http://localhost:%CLIENT_PORT%
+echo Clearing previous login state...
+REM 使用JavaScript清除localStorage的URL
+start http://localhost:%CLIENT_PORT%?clearAuth=true&t=%random%
 
 echo.
 echo =====================================
