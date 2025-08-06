@@ -1730,10 +1730,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
       
       setFiles(sortedFiles);
+      // 只有在文件列表设置完成后才结束loading状态
+      setLoading(false);
     } catch (err) {
       setError('获取文件列表失败: ' + (err.message || '未知错误'));
       setFiles([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -1946,10 +1947,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         sortedFiles = sortFilesBySize(filesArray, false);
       }
       setFiles(sortedFiles);
+      // 只有在文件列表设置完成后才结束loading状态
+      setLoading(false);
       
     } catch (err) {
       setError('进入文件夹失败: ' + (err.message || '未知错误'));
-    } finally {
       setLoading(false);
     }
   };
@@ -2046,6 +2048,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           }
           
           setFiles(sortedFiles);
+          // 只有在文件列表设置完成后才结束loading状态
+          setLoading(false);
         } else {
           // 已经在根目录，返回根目录
           setCurrentFolder(null);
@@ -2081,6 +2085,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           }
           
           setFiles(sortedFiles);
+          // 只有在文件列表设置完成后才结束loading状态
+          setLoading(false);
         }
       }
       
@@ -2089,7 +2095,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
     } catch (err) {
       setError('返回失败: ' + (err.message || '未知错误'));
-    } finally {
       setLoading(false);
     }
   };
@@ -2163,10 +2168,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
       
       setFiles(sortedFiles);
+      // 只有在文件列表设置完成后才结束loading状态
+      setLoading(false);
       
     } catch (err) {
       setError('切换文件夹失败: ' + (err.message || '未知错误'));
-    } finally {
       setLoading(false);
     }
   };
@@ -2404,11 +2410,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         
         console.log('设置文件列表，数量:', sortedFiles.length);
         setFiles(sortedFiles);
+        // 只有在文件列表设置完成后才结束loading状态
+        setLoading(false);
       } catch (err) {
         console.error('获取文件列表失败:', err);
         setError('获取文件列表失败: ' + (err.message || '未知错误'));
         setFiles([]);
-      } finally {
         setLoading(false);
       }
     };
