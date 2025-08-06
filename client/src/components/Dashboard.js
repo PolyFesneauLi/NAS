@@ -80,6 +80,11 @@ const charByCharSort = (a, b) => {
 // 文件名排序函数
 const sortFilesByName = (files, ascending = true) => {
   return [...files].sort((a, b) => {
+    // 首先按类型排序：文件夹在前
+    if (a.isFolder !== b.isFolder) {
+      return a.isFolder ? -1 : 1;
+    }
+    
     const nameA = a.originalName || a.filename;
     const nameB = b.originalName || b.filename;
     const result = charByCharSort(nameA, nameB);
@@ -90,6 +95,11 @@ const sortFilesByName = (files, ascending = true) => {
 // 按扩展名排序函数
 const sortFilesByExtension = (files, ascending = true) => {
   return [...files].sort((a, b) => {
+    // 首先按类型排序：文件夹在前
+    if (a.isFolder !== b.isFolder) {
+      return a.isFolder ? -1 : 1;
+    }
+    
     const extA = getFileExtension(a.originalName || a.filename);
     const extB = getFileExtension(b.originalName || b.filename);
     
@@ -107,6 +117,11 @@ const sortFilesByExtension = (files, ascending = true) => {
 // 按文件大小排序函数
 const sortFilesBySize = (files, ascending = true) => {
   return [...files].sort((a, b) => {
+    // 首先按类型排序：文件夹在前
+    if (a.isFolder !== b.isFolder) {
+      return a.isFolder ? -1 : 1;
+    }
+    
     const sizeA = Number(a.size) || 0;
     const sizeB = Number(b.size) || 0;
     
@@ -117,6 +132,27 @@ const sortFilesBySize = (files, ascending = true) => {
     }
     
     return ascending ? sizeA - sizeB : sizeB - sizeA;
+  });
+};
+
+// 按更新时间排序函数
+const sortFilesByTime = (files, ascending = true) => {
+  return [...files].sort((a, b) => {
+    // 首先按类型排序：文件夹在前
+    if (a.isFolder !== b.isFolder) {
+      return a.isFolder ? -1 : 1;
+    }
+    
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    
+    if (timeA === timeB) {
+      const nameA = a.originalName || a.filename;
+      const nameB = b.originalName || b.filename;
+      return ascending ? charByCharSort(nameA, nameB) : charByCharSort(nameB, nameA);
+    }
+    
+    return ascending ? timeA - timeB : timeB - timeA;
   });
 };
 
@@ -1504,6 +1540,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             break;
           case 'size_desc':
             sortedFiles = sortFilesBySize(sortedFiles, false);
+            break;
+          case 'time_asc':
+            sortedFiles = sortFilesByTime(sortedFiles, true);
+            break;
+          case 'time_desc':
+            sortedFiles = sortFilesByTime(sortedFiles, false);
             break;
           default:
             // 默认按名称升序
