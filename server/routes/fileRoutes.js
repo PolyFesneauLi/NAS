@@ -46,12 +46,13 @@ router.get('/check-folder/:id', auth.authenticate, fileController.checkFolderDow
 // 检查文件状态
 router.get('/check/:id', auth.authenticate, fileController.checkFileStatus);
 
-// 标签相关路由（仅 admin）
+// 标签相关路由
+// 获取所有标签（所有认证用户都可以访问，用于搜索）
+router.get('/tags', auth.authenticate, fileController.getAllTags);
+// 标签管理（仅 admin）
 router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileController.addTags);
 router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
 router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileController.createTag);
-router.get('/tags', auth.authenticate, auth.requireRole('admin'), fileController.getAllTags);
-
 router.post('/update-tag-order', auth.authenticate, auth.requireRole('admin'), fileController.updateTagOrder);
 
 // 重命名文件（仅 admin）

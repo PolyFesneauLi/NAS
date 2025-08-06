@@ -1620,14 +1620,9 @@ const createTag = async (req, res) => {
   }
 };
 
-// 获取所有标签（用于标签选择器）
+// 获取所有标签（用于标签选择器和热门标签）
 const getAllTags = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: '只有管理员可以查看标签' });
-    }
-
     // 获取所有标签，而不仅仅是当前用户创建的标签
     // 这样热门标签对所有用户都可见
     const tags = await Tag.find()
