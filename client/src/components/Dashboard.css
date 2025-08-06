@@ -1351,11 +1351,11 @@ td:nth-child(2) {
   min-height: 200px;
   font-size: 16px;
   color: #667eea;
-  background: rgba(255, 255, 255, 0.9);
+  /* background: rgba(255, 255, 255, 1);
   border-radius: 16px;
   margin: 20px 0;
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); */
 }
 
 .loading::after {

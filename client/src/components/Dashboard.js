@@ -1354,7 +1354,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef }, ref) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1688,15 +1688,28 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const refreshFiles = async () => {
     try {
+      // 立即清空文件列表并设置加载状态
+      setFiles([]);
       setLoading(true);
-      setError('');
-      const params = {};
-      if (sortBy) params.sort = sortBy;
-      if (searchTerm) params.search = searchTerm;
-      if (currentFolder) params.folder = currentFolder;
-      // 不在refreshFiles中包含globalSearch参数，避免重复请求问题
-      
-      const data = await getUserFiles(params);
+              setError('');
+        
+        // 创建请求标识符，用于防止竞态条件
+        const requestId = Date.now();
+        latestRequestRef.current = requestId;
+        
+        const params = {};
+        if (sortBy) params.sort = sortBy;
+        if (searchTerm) params.search = searchTerm;
+        if (currentFolder) params.folder = currentFolder;
+        // 不在refreshFiles中包含globalSearch参数，避免重复请求问题
+        
+        const data = await getUserFiles(params);
+        
+        // 检查是否是最新的请求
+        if (latestRequestRef.current !== requestId) {
+          console.log('⚠️ 刷新文件请求已过期，忽略结果');
+          return;
+        }
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
       
@@ -1873,6 +1886,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleFolderClick = async (folder) => {
     
     try {
+      // 立即清空文件列表并设置加载状态
+      setFiles([]);
       setLoading(true);
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
@@ -1896,12 +1911,22 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         folderPath: []
       });
       
+      // 创建请求标识符，用于防止竞态条件
+      const requestId = Date.now();
+      latestRequestRef.current = requestId;
+      
       const params = {
         folder: folder._id,
         sort: sortBy
       };
         
       const data = await getUserFiles(params);
+      
+      // 检查是否是最新的请求
+      if (latestRequestRef.current !== requestId) {
+        console.log('⚠️ 文件夹点击请求已过期，忽略结果');
+        return;
+      }
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
       
@@ -1932,6 +1957,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     // 智能返回函数
   const handleSmartBack = async () => {
     try {
+      // 立即清空文件列表并设置加载状态
+      setFiles([]);
       setLoading(true);
       
       if (isFromSearch && searchBackup.searchInput) {
@@ -1983,12 +2010,23 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           setFolderPath(parentPath);
           
           // 获取上级目录的文件列表
+          // 创建请求标识符，用于防止竞态条件
+          const requestId = Date.now();
+          latestRequestRef.current = requestId;
+          
           const params = {
             folder: parentFolder ? parentFolder._id : null,
             sort: sortBy
           };
           
           const data = await getUserFiles(params);
+          
+          // 检查是否是最新的请求
+          if (latestRequestRef.current !== requestId) {
+            console.log('⚠️ 智能返回请求已过期，忽略结果');
+            return;
+          }
+          
           const filesArray = Array.isArray(data.files) ? data.files : [];
           
           // 应用排序
@@ -2013,7 +2051,18 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           setCurrentFolder(null);
           setFolderPath([]);
           
+          // 创建请求标识符，用于防止竞态条件
+          const requestId = Date.now();
+          latestRequestRef.current = requestId;
+          
           const data = await getUserFiles({ sort: sortBy });
+          
+          // 检查是否是最新的请求
+          if (latestRequestRef.current !== requestId) {
+            console.log('⚠️ 智能返回根目录请求已过期，忽略结果');
+            return;
+          }
+          
           const filesArray = Array.isArray(data.files) ? data.files : [];
           
           let sortedFiles = filesArray;
@@ -2047,6 +2096,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const handlePathClick = async (index) => {
     try {
+      // 立即清空文件列表并设置加载状态
+      setFiles([]);
       setLoading(true);
       
       let targetFolder = null;
@@ -2077,12 +2128,22 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         folderPath: []
       });
       
+      // 创建请求标识符，用于防止竞态条件
+      const requestId = Date.now();
+      latestRequestRef.current = requestId;
+      
       const params = {
         folder: targetFolder ? targetFolder._id : null,
         sort: sortBy
       };
         
       const data = await getUserFiles(params);
+      
+      // 检查是否是最新的请求
+      if (latestRequestRef.current !== requestId) {
+        console.log('⚠️ 路径点击请求已过期，忽略结果');
+        return;
+      }
       
       const filesArray = Array.isArray(data.files) ? data.files : [];
       
@@ -2299,8 +2360,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           return;
         }
         
+        // 立即清空文件列表并设置加载状态
+        setFiles([]);
         setLoading(true);
         setError('');
+        
+        // 创建请求标识符，用于防止竞态条件
+        const requestId = Date.now();
+        latestRequestRef.current = requestId;
+        
         const params = {};
         if (sortBy) params.sort = sortBy;
         if (searchTerm) params.search = searchTerm;
@@ -2308,6 +2376,12 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // 不在自动获取文件时包含 globalSearch 参数
         
         const data = await getUserFiles(params);
+        
+        // 检查是否是最新的请求
+        if (latestRequestRef.current !== requestId) {
+          console.log('⚠️ 请求已过期，忽略结果');
+          return;
+        }
         
         const filesArray = Array.isArray(data.files) ? data.files : [];
         console.log('服务器返回文件数量:', filesArray.length);
@@ -3154,7 +3228,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
 
 
-  if (loading) return <div className="loading">加载文件中...</div>;
   if (error) return <div className="error-message">{error}</div>;
 
   return (
@@ -3380,7 +3453,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
       {/* 表格容器 - 可滚动区域 */}
       <div className="table-container">
-        {files.length === 0 ? (
+        {loading ? (
+          <div className="loading">加载文件中...</div>
+        ) : files.length === 0 ? (
           <p style={{ textAlign: 'center', color: '#64748b' }}>暂无上传文件</p>
         ) : (
           <div className="table-scroll-container">
@@ -4239,6 +4314,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const fileListRef = useRef(null);
+  const latestRequestRef = useRef(null);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderPath, setFolderPath] = useState([]);
   
@@ -4595,7 +4671,6 @@ const Dashboard = () => {
 
 
 
-  if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
   const isAdmin = currentUser?.role === 'admin';
@@ -4639,6 +4714,7 @@ const Dashboard = () => {
           setSearchBackup={setSearchBackup}
           isFromSearch={isFromSearch}
           setIsFromSearch={setIsFromSearch}
+          latestRequestRef={latestRequestRef}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
