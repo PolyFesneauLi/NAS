@@ -2321,8 +2321,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         const response = await getAllTags();
         const allTags = response.tags || [];
         
+        // 确保 allTags 是数组且不为空
+        if (!Array.isArray(allTags)) {
+          console.warn('获取到的标签不是数组格式:', allTags);
+          setHotTags([]);
+          return;
+        }
+        
         // 按order升序，order相同时按usageCount降序，取前10个
         const sortedTags = allTags
+          .filter(tag => tag && tag.name) // 过滤掉无效的标签
           .sort((a, b) => {
             if (a.order !== b.order) {
               return a.order - b.order; // order升序
@@ -2354,9 +2362,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   useEffect(() => {
     const allTags = new Set();
     files.forEach(file => {
-      if (file.tags && file.tags.length > 0) {
+      if (file.tags && Array.isArray(file.tags) && file.tags.length > 0) {
         file.tags.forEach(tag => {
-          allTags.add(tag.name);
+          if (tag && tag.name) {
+            allTags.add(tag.name);
+          }
         });
       }
     });
@@ -3032,13 +3042,18 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       };
     }, [isExpanded]);
     
-    if (!tags || tags.length === 0) return null;
+    // 添加更好的空值检查
+    if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
     
     // 如果有排序后的标签，使用它们来排序当前标签
-    const sortedTagsList = sortedTags ? 
+    const sortedTagsList = sortedTags && Array.isArray(sortedTags) ? 
       tags.sort((a, b) => {
-        const aIndex = sortedTags.findIndex(t => t.name === a.name);
-        const bIndex = sortedTags.findIndex(t => t.name === b.name);
+        // 确保标签对象有效
+        if (!a || !b || !a.name || !b.name) {
+          return 0;
+        }
+        const aIndex = sortedTags.findIndex(t => t && t.name === a.name);
+        const bIndex = sortedTags.findIndex(t => t && t.name === b.name);
         // 如果标签在排序列表中，按排序位置排序；否则按名称排序
         if (aIndex !== -1 && bIndex !== -1) {
           return aIndex - bIndex;
@@ -3058,10 +3073,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             <span
               key={index}
               className="tag"
-              style={{ backgroundColor: tag.color }}
-              title={tag.name}
+              style={{ backgroundColor: tag.color || '#007bff' }}
+              title={tag.name || ''}
             >
-              {tag.name}
+              {tag.name || '未命名标签'}
             </span>
           ))}
         </div>
@@ -3076,10 +3091,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             <span
               key={index}
               className="tag"
-              style={{ backgroundColor: tag.color }}
-              title={tag.name}
+              style={{ backgroundColor: tag.color || '#007bff' }}
+              title={tag.name || ''}
             >
-              {tag.name}
+              {tag.name || '未命名标签'}
             </span>
           ))}
           <button
@@ -3097,10 +3112,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
               <span
                 key={index}
                 className="tag"
-                style={{ backgroundColor: tag.color }}
-                title={tag.name}
+                style={{ backgroundColor: tag.color || '#007bff' }}
+                title={tag.name || ''}
               >
-                {tag.name}
+                {tag.name || '未命名标签'}
               </span>
             ))}
           </div>
@@ -4307,6 +4322,13 @@ const Dashboard = () => {
       return;
     }
     
+    // 确保 selectedFileForTags 不为空
+    if (!selectedFileForTags) {
+      setTagModalError('未选择文件');
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
+    
     try {
       const fileDetails = await getFileDetails(selectedFileForTags._id);
       if (fileDetails && fileDetails.tags) {
@@ -4322,14 +4344,17 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('获取文件详情失败:', err);
-      const existingTag = selectedFileForTags.tags?.find(tag => 
-        tag.name.toLowerCase() === tagName.toLowerCase()
-      );
-      
-      if (existingTag) {
-        setTagModalError(`标签 "${tagName}" 已存在`);
-        setTimeout(() => setTagModalError(''), 3000);
-        return;
+      // 检查当前文件的标签
+      if (selectedFileForTags.tags && selectedFileForTags.tags.length > 0) {
+        const existingTag = selectedFileForTags.tags.find(tag => 
+          tag.name.toLowerCase() === tagName.toLowerCase()
+        );
+        
+        if (existingTag) {
+          setTagModalError(`标签 "${tagName}" 已存在`);
+          setTimeout(() => setTagModalError(''), 3000);
+          return;
+        }
       }
     }
     
@@ -4349,12 +4374,17 @@ const Dashboard = () => {
       
       await addTags(selectedFileForTags._id, [newTag]);
       
-      setSelectedFileForTags(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), newTag],
-        tagOrder: [...(prev.tagOrder || []), newTag.name]
-      }));
+      // 安全地更新 selectedFileForTags
+      setSelectedFileForTags(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          tags: [...(prev.tags || []), newTag],
+          tagOrder: [...(prev.tagOrder || []), newTag.name]
+        };
+      });
         
+      // 安全地更新 files 状态
       setFiles(prevFiles => 
         prevFiles.map(file => 
          file._id === selectedFileForTags._id 
@@ -4374,7 +4404,7 @@ const Dashboard = () => {
       setTagModalError(`添加标签失败: ${err.message}`);
       setTimeout(() => setTagModalError(''), 3000);
     }
-  }, [newTagColor, selectedFileForTags, setFiles]);
+  }, [selectedFileForTags, newTagColor]);
 
   const handleRemoveTag = async (tagName) => {
     try {

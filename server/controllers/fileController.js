@@ -675,9 +675,9 @@ const getUserFiles = async (req, res) => {
       .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt tags');
     
     // 获取按 order 排序的标签列表
-    const sortedTags = await Tag.find({ createdBy: req.user.id })
+    const sortedTags = await Tag.find()
       .sort({ order: 1, usageCount: -1, name: 1 })
-      .select('name color usageCount createdAt order');
+      .select('name color usageCount createdAt order createdBy');
     
     // 为每个文件添加排序后的标签信息
     const filesWithSortedTags = files.map(file => {
@@ -1628,10 +1628,11 @@ const getAllTags = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以查看标签' });
     }
 
-    // 从 Tag 模型中获取所有标签，按顺序排序
-    const tags = await Tag.find({ createdBy: user._id })
+    // 获取所有标签，而不仅仅是当前用户创建的标签
+    // 这样热门标签对所有用户都可见
+    const tags = await Tag.find()
       .sort({ order: 1, usageCount: -1, name: 1 })
-      .select('name color usageCount createdAt order');
+      .select('name color usageCount createdAt order createdBy');
     
     res.json({ tags });
   } catch (error) {
@@ -1659,9 +1660,9 @@ const getFileDetails = async (req, res) => {
     }
 
     // 获取按 order 排序的标签列表
-    const sortedTags = await Tag.find({ createdBy: user._id })
+    const sortedTags = await Tag.find()
       .sort({ order: 1, usageCount: -1, name: 1 })
-      .select('name color usageCount createdAt order');
+      .select('name color usageCount createdAt order createdBy');
 
     // 将排序后的标签信息添加到文件对象中
     const fileWithSortedTags = file.toObject();
