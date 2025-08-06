@@ -40,8 +40,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
 .then(async () => {
   console.log('✅ MongoDB connected');
-  // 清理孤立文件
+  
+  // 启动时强制清理孤立文件
+  console.log('🧹 Starting startup cleanup process...');
   cleanupUploads();
+  
   // 初始化根目录
   await initRootFolder();
 })
