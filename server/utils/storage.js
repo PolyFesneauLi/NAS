@@ -45,6 +45,8 @@ const allowedTypes = [
   'text/plain',                          // .txt, .log, .err, .bak, .lsp, .fas, .dat, .tmp
   'text/markdown',                       // .md
   'application/pdf',                     // .pdf
+  'text/csv',                            // .csv
+  'application/csv',                     // .csv (另一种MIME类型)
   
   // Office文档
   'application/msword',                  // .doc
@@ -121,7 +123,7 @@ const allowedTypes = [
 // 扩展名白名单（用于双重验证）- 确保与前端配置一致
 const allowedExtensions = [
   // 文档
-  '.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.md', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.csv',
   
   // 源代码
   '.c', '.cpp', '.h', '.hpp', '.java', '.js', '.py', '.php', '.sh',

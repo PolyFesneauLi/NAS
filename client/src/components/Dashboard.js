@@ -23,7 +23,7 @@ const getFileExtension = (filename) => {
 // 检测文件是否支持预览
 const isSupportedForPreview = (filename) => {
   const extension = getFileExtension(filename);
-  const supportedTypes = ['pdf', 'txt', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'dwl', 'dwg'];
+  const supportedTypes = ['pdf', 'txt', 'xls', 'xlsx', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'dwl', 'dwg', 'csv'];
   return supportedTypes.includes(extension);
 };
 
@@ -33,7 +33,7 @@ const getPreviewType = (filename) => {
   if (['png', 'jpg', 'jpeg'].includes(extension)) return 'image';
   if (['pdf'].includes(extension)) return 'pdf';
   if (['txt'].includes(extension)) return 'text';
-  if (['xls', 'xlsx'].includes(extension)) return 'excel';
+  if (['xls', 'xlsx', 'csv'].includes(extension)) return 'excel';
   if (['doc', 'docx'].includes(extension)) return 'word';
   if (['ppt', 'pptx'].includes(extension)) return 'powerpoint';
   if (['dwl', 'dwg'].includes(extension)) return 'cad';
@@ -461,7 +461,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 所有支持的文件类型定义
   const allAcceptedExtensions = {
-    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp','.db','.lsp','.fas','.dat','.tmp'],
+    regular: ['.txt','.md','.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.csv','.html','.json','.jpg','.jpeg','.png','.svg','.bak','.log','.err','.bmp','.db','.lsp','.fas','.dat','.tmp'],
     cad: ['.dwg','.dxf','.stp','.step','.igs','.iges','.sldprt','.sldasm','.dwl','.dwl2','.smbx','.dgn','.dst','.sbp',".zip",".rar",".7z",".tar",".gz",".bz2",'.ovkml','.ovobj'],
     code: ['.c','.cpp','.h','.java','.js','.py','.php','.sh','.css','.json','.xml']
   };
