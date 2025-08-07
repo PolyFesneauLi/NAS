@@ -498,12 +498,12 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           if (!newMap.has(folder._id) || newMap.get(folder._id) !== currentPath) {
             newMap.set(folder._id, currentPath);
             if (process.env.NODE_ENV === 'development') {
-              console.log('[FOLDER] 设置路径映射:', {
-                folderId: folder._id,
-                folderName: folder.originalName || folder.filename,
-                path: currentPath,
-                level
-              });
+              // console.log('[FOLDER] 设置路径映射:', {
+              //   folderId: folder._id,
+              //   folderName: folder.originalName || folder.filename,
+              //   path: currentPath,
+              //   level
+              // });
             }
           }
           return newMap;
@@ -928,6 +928,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     e.preventDefault();
     if (!folderFiles.length) return;
     
+    // 立即设置上传状态，防止重复点击
+    setIsUploading(true);
+    setUploadButtonPressed(true);
+    
     // 检测当前目录是否有同名文件夹
     const currentFiles = await getUserFiles({ folder: selectedFolder });
     const existingFiles = currentFiles.files || [];
@@ -939,6 +943,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     if (hasSameNameFolder) {
       setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
+      setIsUploading(false);
+      setUploadButtonPressed(false);
       return;
     }
     
@@ -949,6 +955,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     if (hasSameNameFile) {
       setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
+      setIsUploading(false);
+      setUploadButtonPressed(false);
       return;
     }
     
@@ -958,10 +966,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     // 检查存储空间
     const hasEnoughSpace = await checkStorageSpace(totalSize);
     if (!hasEnoughSpace) {
+      setIsUploading(false);
+      setUploadButtonPressed(false);
       return;
     }
 
-    setIsUploading(true);
     setError('');
     setUploadComplete(false);
     setSuccessMessage('');
@@ -1032,6 +1041,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setError('文件夹上传失败: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsUploading(false);
+      setUploadButtonPressed(false);
       setProgress({});
       setArchivingProgress({});
       setArchivingFiles(new Set());
@@ -1064,7 +1074,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     e.preventDefault();
     if (!files.length) return;
     
-    // 设置按钮按下效果
+    // 立即设置上传状态，防止重复点击
+    setIsUploading(true);
     setUploadButtonPressed(true);
     
     // 计算总文件大小
@@ -1073,13 +1084,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     // 检查存储空间
     const hasEnoughSpace = await checkStorageSpace(totalSize);
     if (!hasEnoughSpace) {
+      setIsUploading(false);
       setUploadButtonPressed(false);
       return; // 错误信息已在checkStorageSpace中设置
     }
     
     // console.log('[UPLOAD] 开始上传文件，总数量:', files.length);
     // console.log('[UPLOAD] 当前选择的文件夹:', selectedFolder || 'Home');
-    setIsUploading(true);
     setError('');
     setUploadComplete(false);
     setSuccessMessage('');

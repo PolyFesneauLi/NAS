@@ -234,6 +234,22 @@
   box-shadow: 0 8px 25px rgba(0, 123, 190, 0.4);
 }
 
+.file-label:has(input:disabled) {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6;
+}
+
+.file-label:has(input:disabled):hover {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6;
+}
+
 .file-input {
   display: none;
 }
@@ -407,10 +423,11 @@
 }
 
 .upload-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+  background-color: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6;
 }
 
 /* =========================================
@@ -1742,6 +1759,22 @@ td:nth-child(2) {
   background: linear-gradient(135deg, #00486A, #007BBE);
 }
 
+.folder-label:has(input:disabled) {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6;
+}
+
+.folder-label:has(input:disabled):hover {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6;
+}
+
 .folder-info {
   margin: 15px 0;
   padding: 15px;
@@ -2562,11 +2595,13 @@ td[style*="width: 100px"] .tags-dropdown-container {
   transform: scale(0.95);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   border: 2px solid #003d82;
+  cursor: not-allowed !important;
 }
 
 .upload-button-pressed:hover {
   background: #0056b3 !important;
   transform: scale(0.95);
+  cursor: not-allowed !important;
 }
 
 /* 位置按钮按下效果 */
