@@ -236,6 +236,7 @@ const recursiveDelete = async (folderId, userStorageMap = {}) => {
   for (const child of children) {
     if (child.isFolder) {
       totalFreed += await recursiveDelete(child._id, userStorageMap);
+      // 子文件夹的数据库记录已经在recursiveDelete中删除
     } else {
       // 删除文件
       if (child.path && fs.existsSync(child.path)) {
@@ -952,10 +953,14 @@ const uploadFolder = async (req, res) => {
       }
     }
 
-    // 创建文件夹记录
+    // 获取目标文件夹的完整路径
+    const targetFolderPath = await getFolderFullPath(targetFolder._id);
+    const folderPath = storageAccess.getStoragePath(path.join('uploads', targetFolderPath, folderName));
+    
+    // 创建文件夹记录 - 使用完整的物理路径
     const newFolder = new File({
       filename: folderName,
-      path: storageAccess.getStoragePath(path.join('uploads', folderName)), // 这个path字段在数据库中，保持简单
+      path: folderPath, // 使用完整的物理路径，确保删除时能找到正确位置
       size: 0,
       owner: req.user.id,
       isFolder: true,
@@ -965,10 +970,7 @@ const uploadFolder = async (req, res) => {
 
     await newFolder.save();
 
-    // 获取目标文件夹的完整路径
-    const targetFolderPath = await getFolderFullPath(targetFolder._id);
-    const folderPath = storageAccess.getStoragePath(path.join('uploads', targetFolderPath, folderName));
-    // console.log("[DEBUG] folderPath local:", folderPath);
+    // 创建物理文件夹
     fs.mkdirSync(folderPath, { recursive: true });
 
     let totalSize = 0;
