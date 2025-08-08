@@ -481,9 +481,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       const foldersList = data.files.filter(f => f.isFolder);
       
       foldersList.sort((a, b) => {
-        const nameA = a.originalName || a.filename;
-        const nameB = b.originalName || b.filename;
-        return charByCharSort(nameA, nameB);
+        const nameA = (a.originalName || a.filename).toLowerCase();
+        const nameB = (b.originalName || b.filename).toLowerCase();
+        return nameA.localeCompare(nameB);
       });
       
       const structure = await Promise.all(foldersList.map(async folder => {
@@ -763,13 +763,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     const validFiles = [];
     for (const f of selectedFiles) {
-      // 检查文件名是否为空
-      if (!f.name || f.name.trim() === '') {
-        setError('文件名不能为空');
-        setFiles([]);
-        return;
-      }
-      
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
       // console.log(`[UPLOAD] 检查文件 ${f.name} (${formatBytes(f.size)}) 的格式: ${fileExt}`);
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
@@ -812,8 +805,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const pathParts = firstFile.webkitRelativePath.split('/');
     const folderName = pathParts[0];
     
-    if (!folderName || folderName.trim() === '') {
-      setError('无法获取文件夹名称或文件夹名称为空');
+    if (!folderName) {
+      setError('无法获取文件夹名称');
       return;
     }
 
@@ -822,14 +815,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const pathLengthErrors = [];
     
     for (const file of files) {
-      // 检查文件名是否为空
-      if (!file.name || file.name.trim() === '') {
-        setError('文件名不能为空');
-        setFolderFiles([]);
-        setFolderName('');
-        return;
-      }
-      
       const fileExt = '.' + file.name.split('.').pop().toLowerCase();
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
       
@@ -951,30 +936,29 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const currentFiles = await getUserFiles({ folder: selectedFolder });
     const existingFiles = currentFiles.files || [];
     
-    console.log('[DUPLICATE CHECK] 当前文件夹中的项目:', existingFiles.map(f => ({ name: f.originalName || f.filename, isFolder: f.isFolder })));
-    console.log('[DUPLICATE CHECK] 要上传的文件夹:', folderName);
+    // 检查是否有同名文件夹
+    const hasSameNameFolder = existingFiles.some(file => 
+      file.isFolder && (file.originalName || file.filename) === folderName
+    );
     
-    // 检查是否有同名项目
-    const hasSameNameItem = existingFiles.some(item => {
-      const existingName = item.originalName || item.filename;
-      const decodedExistingName = fixEncoding(existingName);
-      
-      console.log(`[DUPLICATE CHECK] 比较项目: "${decodedExistingName}" vs "${folderName}"`);
-      
-      return decodedExistingName === folderName;
-    });
-    
-    console.log(`[DUPLICATE CHECK] 检查文件夹 "${folderName}": ${hasSameNameItem ? '重复' : '不重复'}`);
-    
-    if (hasSameNameItem) {
-      console.log(`[DUPLICATE CHECK] ❌ 发现重复项目: "${folderName}"`);
-      setError(`项目 "${folderName}" 已存在，请重命名后重新上传`);
+    if (hasSameNameFolder) {
+      setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
       setIsUploading(false);
       setUploadButtonPressed(false);
       return;
     }
     
-    console.log('[DUPLICATE CHECK] ✅ 没有重复文件夹，继续上传');
+    // 检查是否有同名文件
+    const hasSameNameFile = existingFiles.some(file => 
+      !file.isFolder && (file.originalName || file.filename) === folderName
+    );
+    
+    if (hasSameNameFile) {
+      setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
+      setIsUploading(false);
+      setUploadButtonPressed(false);
+      return;
+    }
     
     // 计算总文件大小
     const totalSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
@@ -1050,12 +1034,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         setArchivingFiles(new Set());
         setUploadComplete(false);
         setSuccessMessage('');
-        
-        // 清除文件输入框的值，防止重复上传
-        const fileInputs = document.querySelectorAll('input[type="file"]');
-        fileInputs.forEach(input => {
-          input.value = '';
-        });
       }, 2000);
 
     } catch (error) {
@@ -1099,36 +1077,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     // 立即设置上传状态，防止重复点击
     setIsUploading(true);
     setUploadButtonPressed(true);
-    
-    // 检查是否有重复文件名
-    const currentFiles = await getUserFiles({ folder: selectedFolder });
-    const existingFiles = currentFiles.files || [];
-    
-    console.log('[DUPLICATE CHECK] 当前文件夹中的文件:', existingFiles.map(f => f.originalName || f.filename));
-    console.log('[DUPLICATE CHECK] 要上传的文件:', files.map(f => f.name));
-    
-    for (const file of files) {
-      const hasSameNameItem = existingFiles.some(existingItem => {
-        const existingName = existingItem.originalName || existingItem.filename;
-        const decodedExistingName = fixEncoding(existingName);
-        
-        console.log(`[DUPLICATE CHECK] 比较: "${decodedExistingName}" vs "${file.name}"`);
-        
-        return decodedExistingName === file.name;
-      });
-      
-      console.log(`[DUPLICATE CHECK] 检查文件 "${file.name}": ${hasSameNameItem ? '重复' : '不重复'}`);
-      
-      if (hasSameNameItem) {
-        console.log(`[DUPLICATE CHECK] ❌ 发现重复项目: "${file.name}"`);
-        setError(`项目 "${file.name}" 已存在，请重命名后重新上传`);
-        setIsUploading(false);
-        setUploadButtonPressed(false);
-        return;
-      }
-    }
-    
-    console.log('[DUPLICATE CHECK] ✅ 没有重复文件，继续上传');
     
     // 计算总文件大小
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -1209,7 +1157,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setUploadComplete(true);
       setSuccessMessage(`共成功上传${formatBytes(totalSize)}文件`);
       
-      // 2秒后隐藏进度条和成功消息，并清除文件输入
+      // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
         setFiles([]);
         setFolderFiles([]);
@@ -1223,16 +1171,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           window.uploadState.isUploading = false;
         }
         
-        // 清除文件输入框的值，防止重复上传
-        const fileInputs = document.querySelectorAll('input[type="file"]');
-        fileInputs.forEach(input => {
-          input.value = '';
-        });
-        
-        // 调用上传成功回调
-        if (onUploadSuccess) {
-          onUploadSuccess();
-        }
+        onUploadSuccess();
       }, 2000);
       
     } catch (err) {
@@ -1306,7 +1245,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </label>
         </div>
 
-        {files.length > 0 && files.every(f => f.name && f.name.trim() !== '') && (
+        {files.length > 0 && (
           <>
             <div className="file-info">
               {files.map(f => (
@@ -1369,7 +1308,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             </label>
           </div>
 
-          {folderFiles.length > 0 && folderName && folderName.trim() !== '' && (
+          {folderFiles.length > 0 && (
             <>
               <div className="folder-info">
                 <div className="folder-item">
@@ -1426,13 +1365,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef }, ref) => {
-  const [files, setFiles] = useState([]);
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump }, ref) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('time_desc');
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [folderName, setFolderName] = useState('');
@@ -1450,11 +1386,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const [newTagColor, setNewTagColor] = useState('#007bff');
   
   // 标签搜索相关状态
-  const [searchTags, setSearchTags] = useState([]); // 已选择的搜索标签
   const [tagInputValue, setTagInputValue] = useState(''); // 标签输入框的值
   const [hotTags, setHotTags] = useState([]); // 热门标签
   const [availableTagsForSearch, setAvailableTagsForSearch] = useState([]); // 可用的标签列表
-  const [globalSearch, setGlobalSearch] = useState(false); // 全局搜索开关
   const [searchLoading, setSearchLoading] = useState(false); // 搜索加载状态
   
   // 搜索中断相关状态
@@ -1974,6 +1908,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
       // 重置搜索相关状态
       setIsFromSearch(false);
+      setIsFromLocationJump(false); // 重置跳转状态
       setSearchBackup({
         searchInput: '',
         searchTerm: '',
@@ -2056,13 +1991,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         console.log('恢复文件数量:', searchBackup.files.length);
         console.log('恢复搜索输入:', searchBackup.searchInput);
         
-        // 立即结束加载状态，因为我们已经恢复了搜索结果
-        setLoading(false);
-        
         // 延迟重置状态，避免 useEffect 立即触发
         setTimeout(() => {
           console.log('=== 延迟重置状态 ===');
           setIsFromSearch(false);
+          setIsFromLocationJump(false); // 重置跳转状态
           setSearchBackup({
             searchInput: '',
             searchTerm: '',
@@ -2198,6 +2131,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       
       // 重置搜索相关状态
       setIsFromSearch(false);
+      setIsFromLocationJump(false); // 重置跳转状态
       setSearchBackup({
         searchInput: '',
         searchTerm: '',
@@ -2359,6 +2293,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           // 直接设置完整路径，避免使用 handleFolderClick 的路径合并逻辑
           const targetFolder = fullPath[fullPath.length - 1];
           
+          // 设置跳转状态
+          setIsFromLocationJump(true);
+          
           // 更新状态
           onFolderChange(targetFolder._id, fullPath);
           
@@ -2436,8 +2373,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         console.log('当前状态:', { isFromSearch, searchBackupFiles: searchBackup.files.length });
         
         // 如果有搜索条件，跳过自动刷新，让搜索功能处理
-        if (searchInput || searchTags.length > 0) {
-          console.log('⚠️ 跳过自动刷新，当前有搜索条件');
+        if (searchInput || searchTags.length > 0 || globalSearch || isFromSearch) {
+          console.log('⚠️ 跳过自动刷新，当前有搜索条件:', {
+            searchInput,
+            searchTags: searchTags.length,
+            globalSearch,
+            isFromSearch
+          });
           return;
         }
         
@@ -2495,7 +2437,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     };
     fetchFilesData();
-  }, [currentFolder, sortBy, searchInput, searchTags]); // 添加必要的依赖项，但通过条件检查避免不必要的请求
+  }, [currentFolder, sortBy]); // 移除搜索相关的依赖项，避免在搜索状态下触发刷新
 
   // 获取热门标签
   useEffect(() => {
@@ -3075,7 +3017,6 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   };
 
   const handleDelete = async (id) => {
-    console.log('[DELETE] 开始删除文件:', id);
     const fileToDelete = files.find(file => file._id === id);
     if (!fileToDelete) return;
 
@@ -3093,13 +3034,11 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         startDeletingProgress(id, fileToDelete.isFolder);
         
         // 执行实际的删除操作
-        console.log('[DELETE] 调用服务器删除API');
         await deleteFile(id);
-        console.log('[DELETE] 服务器删除API完成');
         
         // 删除成功后，设置进度为100%并完成
         setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
-        console.log(`[DELETE] 删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
+        console.log(`删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
         
         // 调用resolve函数完成进度Promise
         if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
@@ -3121,27 +3060,23 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // 从选中列表中移除被删除的文件
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
         
-        // 如果是文件夹，还需要移除所有子文件
-        if (fileToDelete.isFolder) {
-          setFiles(prevFiles => prevFiles.filter(file => {
-            // 移除所有属于被删除文件夹的文件
-            return !file.path.includes(fileToDelete.path);
-          }));
-        }
-        
         if (fileToDelete.isFolder) {
           const folderIndex = folderPath.findIndex(f => f._id === id);
           if (folderIndex !== -1) {
             if (folderIndex === folderPath.length - 1) {
-              // 如果删除的是当前文件夹，直接返回上级目录
               const parentFolder = folderPath[folderIndex - 1];
               onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
-              // 不立即刷新文件列表，让 useEffect 处理
-            } else {
-              // 如果删除的是路径中的文件夹，更新路径
-              const newPath = folderPath.filter(f => f._id !== id);
-              onFolderChange(currentFolder, newPath);
-            }
+              const params = {
+                folder: parentFolder ? parentFolder._id : null,
+                sort: sortBy
+              };
+              const data = await getUserFiles(params);
+              const filesArray = Array.isArray(data.files) ? data.files : [];
+              setFiles(filesArray);
+                          } else {
+                const newPath = folderPath.filter(f => f._id !== id);
+                onFolderChange(currentFolder, newPath);
+              }
           }
         }
 
@@ -4430,6 +4365,15 @@ const Dashboard = () => {
   const inputValueRef = useRef('');
   const [files, setFiles] = useState([]);
   
+  // 搜索相关状态 - 从 FileList 组件移到这里
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTags, setSearchTags] = useState([]);
+  const [globalSearch, setGlobalSearch] = useState(false);
+  
+  // 导航状态跟踪
+  const [isFromLocationJump, setIsFromLocationJump] = useState(false); // 是否通过跳转到位置功能到达
+  
   // 文件重命名相关状态
   const [newFileName, setNewFileName] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -4485,25 +4429,17 @@ const Dashboard = () => {
 
   const handleUploadSuccess = () => {
     getCurrentUser().then(setCurrentUser);
-    
-    // 确保文件列表刷新
-    if (fileListRef.current && typeof fileListRef.current.refresh === 'function') {
-      fileListRef.current.refresh();
-    } else {
-      // 如果refresh方法不可用，手动触发文件列表更新
-      console.log('[UPLOAD] 手动触发文件列表刷新');
-      // 这里可以添加手动刷新的逻辑
-    }
-    
-    // 重置加载状态
-    setLoading(false);
+    fileListRef.current?.refresh();
   };
 
   // 标签相关函数
   const handleOpenTagModal = async (file) => {
+    // 立即显示弹窗，提升响应速度
     setSelectedFileForTags(file);
-    // 初始化文件名输入框为完整的文件名（包括扩展名）
     setNewFileName(fixEncoding(file.originalName || file.filename));
+    setShowTagModal(true);
+    
+    // 在后台异步加载标签数据
     try {
       const response = await getAllTags();
       setAvailableTags(response.tags || []);
@@ -4511,7 +4447,6 @@ const Dashboard = () => {
       console.error('获取标签失败:', err);
       setAvailableTags([]);
     }
-    setShowTagModal(true);
   };
 
   const handleCloseTagModal = () => {
@@ -4520,9 +4455,57 @@ const Dashboard = () => {
     setNewTagColor('#007bff');
     setTagModalError('');
     
-    // 关闭标签弹窗后刷新文件列表
-    if (fileListRef.current) {
-      fileListRef.current.refresh();
+    // 检查是否是从搜索结果中编辑标签
+    const hasSearchConditions = searchInput || searchTerm || searchTags.length > 0 || globalSearch;
+    const hasSearchBackup = searchBackup.searchInput || searchBackup.searchTerm || searchBackup.searchTags.length > 0 || searchBackup.globalSearch;
+    
+    console.log('[TAG] 关闭标签弹窗，检查状态:', {
+      hasSearchConditions,
+      hasSearchBackup,
+      isFromLocationJump,
+      searchInput,
+      searchTerm,
+      searchTags: searchTags.length,
+      globalSearch,
+      searchBackup: {
+        searchInput: searchBackup.searchInput,
+        searchTerm: searchBackup.searchTerm,
+        searchTags: searchBackup.searchTags.length,
+        globalSearch: searchBackup.globalSearch
+      }
+    });
+    
+    // 如果是从跳转位置编辑标签，保持当前位置，不刷新
+    if (isFromLocationJump) {
+      console.log('[TAG] 从跳转位置编辑标签，保持当前位置，不刷新文件列表');
+      // 不调用 refresh，保持当前状态
+      return;
+    }
+    
+    // 如果有搜索条件或搜索备份，说明可能是从搜索结果中编辑标签
+    if (hasSearchConditions || hasSearchBackup) {
+      console.log('[TAG] 检测到搜索条件，保持搜索状态，不刷新文件列表');
+      
+      // 如果有搜索备份且当前没有搜索条件，恢复搜索状态
+      if (hasSearchBackup && !hasSearchConditions) {
+        console.log('[TAG] 恢复搜索备份状态');
+        setSearchInput(searchBackup.searchInput);
+        setSearchTerm(searchBackup.searchTerm);
+        setSearchTags([...searchBackup.searchTags]);
+        setGlobalSearch(searchBackup.globalSearch);
+        setFiles([...searchBackup.files]);
+        setCurrentFolder(searchBackup.currentFolder);
+        setFolderPath([...searchBackup.folderPath]);
+        setIsFromSearch(true);
+      }
+      
+      // 不调用 refresh，保持当前状态
+    } else {
+      console.log('[TAG] 从普通目录中编辑标签，刷新文件列表');
+      // 只有在没有搜索条件的情况下才刷新文件列表
+      if (fileListRef.current) {
+        fileListRef.current.refresh();
+      }
     }
   };
 
@@ -4628,6 +4611,35 @@ const Dashboard = () => {
         tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
       }));
       
+      // 安全地更新 files 状态
+      setFiles(prevFiles => 
+        prevFiles.map(file => 
+          file._id === selectedFileForTags._id 
+            ? { 
+                ...file, 
+                tags: file.tags.filter(tag => tag.name !== tagName),
+                tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+              }
+            : file
+        )
+      );
+      
+      // 如果是从搜索结果中编辑，同时更新 searchBackup
+      if (isFromSearch && searchBackup.searchInput) {
+        setSearchBackup(prev => ({
+          ...prev,
+          files: prev.files.map(file => 
+            file._id === selectedFileForTags._id 
+              ? { 
+                  ...file, 
+                  tags: file.tags.filter(tag => tag.name !== tagName),
+                  tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+                }
+              : file
+          )
+        }));
+      }
+      
       setTagModalError('');
     } catch (err) {
       console.error('移除标签失败:', err);
@@ -4669,6 +4681,33 @@ const Dashboard = () => {
       ...prev,
       tagOrder: newOrderedTags.map(tag => tag.name)
     }));
+    
+    // 安全地更新 files 状态
+    setFiles(prevFiles => 
+      prevFiles.map(file => 
+        file._id === selectedFileForTags._id 
+          ? { 
+              ...file, 
+              tagOrder: newOrderedTags.map(tag => tag.name)
+            }
+          : file
+      )
+    );
+    
+    // 如果是从搜索结果中编辑，同时更新 searchBackup
+    if (isFromSearch && searchBackup.searchInput) {
+      setSearchBackup(prev => ({
+        ...prev,
+        files: prev.files.map(file => 
+          file._id === selectedFileForTags._id 
+            ? { 
+                ...file, 
+                tagOrder: newOrderedTags.map(tag => tag.name)
+              }
+            : file
+        )
+      }));
+    }
     
     // 立即更新数据库，带重试机制
     const tagOrder = newOrderedTags.map(tag => tag.name);
@@ -4743,6 +4782,18 @@ const Dashboard = () => {
             : file
         )
       );
+      
+      // 如果是从搜索结果中编辑，同时更新 searchBackup
+      if (isFromSearch && searchBackup.searchInput) {
+        setSearchBackup(prev => ({
+          ...prev,
+          files: prev.files.map(file => 
+            file._id === selectedFileForTags._id 
+              ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+              : file
+          )
+        }));
+      }
 
       console.log('✅ 文件重命名成功');
       setNewFileName(''); // 清空输入框
@@ -4798,7 +4849,7 @@ const Dashboard = () => {
           userRole={currentUser?.role}
           onDeleteSuccess={() => {
             getCurrentUser().then(setCurrentUser);
-            // 移除立即刷新，让 useEffect 处理
+            fileListRef.current?.refresh();
           }}
           className={currentUser?.role === 'admin' ? 'file-list' : 'file-list user-normal'}
           currentFolder={currentFolder}
@@ -4815,6 +4866,18 @@ const Dashboard = () => {
           isFromSearch={isFromSearch}
           setIsFromSearch={setIsFromSearch}
           latestRequestRef={latestRequestRef}
+          // 搜索相关状态
+          searchInput={searchInput}
+          setSearchInput={setSearchInput}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          searchTags={searchTags}
+          setSearchTags={setSearchTags}
+          globalSearch={globalSearch}
+          setGlobalSearch={setGlobalSearch}
+          files={files}
+          setFiles={setFiles}
+          setIsFromLocationJump={setIsFromLocationJump}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
