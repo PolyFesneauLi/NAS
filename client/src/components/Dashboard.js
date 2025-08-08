@@ -1365,7 +1365,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState }, ref) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('time_desc');
@@ -1450,6 +1450,25 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       if (isFromEnter) {
         setSearchTerm(searchParams.search);
       }
+      
+      // 设置搜索状态机
+      setNavigationState(prev => ({
+        ...prev,
+        currentState: 'search',
+        searchInput: searchParams.search,
+        searchTerm: searchParams.search,
+        searchTags: searchParams.tags,
+        globalSearch: searchParams.globalSearch,
+        backup: {
+          searchInput: searchParams.search,
+          searchTerm: searchParams.search,
+          searchTags: searchParams.tags,
+          globalSearch: searchParams.globalSearch,
+          files: response.files,
+          currentFolder,
+          folderPath: [...folderPath]
+        }
+      }));
     } catch (error) {
       // 如果是中断错误或取消错误，不显示错误信息，直接返回
       if (error.name === 'AbortError' || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
@@ -1909,6 +1928,19 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       // 重置搜索相关状态
       setIsFromSearch(false);
       setIsFromLocationJump(false); // 重置跳转状态
+      setNavigationState(prev => ({
+        ...prev,
+        currentState: 'normal',
+        locationJump: {
+          fromSearch: false,
+          originalSearchState: null,
+          currentLocation: {
+            currentFolder: null,
+            folderPath: [],
+            files: []
+          }
+        }
+      }));
       setSearchBackup({
         searchInput: '',
         searchTerm: '',
@@ -1970,8 +2002,39 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       setFiles([]);
       setLoading(true);
       
-      if (isFromSearch && searchBackup.searchInput) {
-        // 如果是从搜索结果跳转来的，返回到搜索结果
+      if (navigationState.currentState === 'search_to_location') {
+        // 从搜索跳转位置返回到搜索结果
+        console.log('=== 从搜索跳转位置返回搜索结果 ===');
+        const originalState = navigationState.locationJump.originalSearchState;
+        
+        // 恢复原始搜索状态
+        setSearchInput(originalState.searchInput);
+        setSearchTerm(originalState.searchTerm);
+        setSearchTags([...originalState.searchTags]);
+        setGlobalSearch(originalState.globalSearch);
+        setFiles([...originalState.files]);
+        setCurrentFolder(originalState.currentFolder);
+        setFolderPath([...originalState.folderPath]);
+        
+        // 重置状态机
+        setNavigationState(prev => ({
+          ...prev,
+          currentState: 'normal',
+          locationJump: {
+            fromSearch: false,
+            originalSearchState: null,
+            currentLocation: {
+              currentFolder: null,
+              folderPath: [],
+              files: []
+            }
+          }
+        }));
+        
+        console.log('✅ 搜索状态恢复完成');
+        setLoading(false);
+      } else if (isFromSearch && searchBackup.searchInput) {
+        // 兼容旧逻辑：从搜索结果跳转来的，返回到搜索结果
         console.log('=== 点击返回搜索结果按钮 ===');
         console.log('isFromSearch:', isFromSearch);
         console.log('备份文件数量:', searchBackup.files.length);
@@ -2005,6 +2068,20 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             currentFolder: null,
             folderPath: []
           });
+          // 重置状态机
+          setNavigationState(prev => ({
+            ...prev,
+            currentState: 'normal',
+            locationJump: {
+              fromSearch: false,
+              originalSearchState: null,
+              currentLocation: {
+                currentFolder: null,
+                folderPath: [],
+                files: []
+              }
+            }
+          }));
           console.log('✅ 状态重置完成');
         }, 100);
       } else {
@@ -2132,6 +2209,19 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       // 重置搜索相关状态
       setIsFromSearch(false);
       setIsFromLocationJump(false); // 重置跳转状态
+      setNavigationState(prev => ({
+        ...prev,
+        currentState: 'normal',
+        locationJump: {
+          fromSearch: false,
+          originalSearchState: null,
+          currentLocation: {
+            currentFolder: null,
+            folderPath: [],
+            files: []
+          }
+        }
+      }));
       setSearchBackup({
         searchInput: '',
         searchTerm: '',
@@ -2232,26 +2322,47 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         console.log('来自搜索结果:', isFromSearchResults);
       
       if (isFromSearchResults) {
-        // 保存当前搜索状态，用于返回
-        const backupData = {
-          searchInput,
-          searchTerm,
-          searchTags: [...searchTags],
-          globalSearch,
-          files: [...files],
-          currentFolder,
-          folderPath: [...folderPath]
-        };
+        // 更新状态机：从搜索跳转到位置
+        setNavigationState(prev => ({
+          ...prev,
+          currentState: 'search_to_location',
+          locationJump: {
+            fromSearch: true,
+            originalSearchState: {
+              searchInput,
+              searchTerm,
+              searchTags: [...searchTags],
+              globalSearch,
+              files: [...files],
+              currentFolder,
+              folderPath: [...folderPath]
+            },
+            currentLocation: {
+              currentFolder: null,
+              folderPath: [],
+              files: []
+            }
+          }
+        }));
         
-        console.log('=== 保存搜索备份 ===');
-        console.log('备份文件数量:', backupData.files.length);
-        console.log('备份搜索输入:', backupData.searchInput);
-        console.log('备份搜索标签:', backupData.searchTags);
+        console.log('✅ 状态机更新为: search_to_location');
+      } else {
+        // 更新状态机：普通位置跳转
+        setNavigationState(prev => ({
+          ...prev,
+          currentState: 'location_jump',
+          locationJump: {
+            fromSearch: false,
+            originalSearchState: null,
+            currentLocation: {
+              currentFolder: null,
+              folderPath: [],
+              files: []
+            }
+          }
+        }));
         
-        setSearchBackup(backupData);
-        setIsFromSearch(true);
-        
-        console.log('✅ 搜索备份已保存');
+        console.log('✅ 状态机更新为: location_jump');
       }
       
       if (file.parentFolder) {
@@ -2327,6 +2438,19 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           
           setFiles(sortedFiles);
           setLoading(false);
+          
+          // 更新状态机中的当前位置信息
+          setNavigationState(prev => ({
+            ...prev,
+            locationJump: {
+              ...prev.locationJump,
+              currentLocation: {
+                currentFolder: targetFolder._id,
+                folderPath: fullPath,
+                files: sortedFiles
+              }
+            }
+          }));
         } else {
           // 如果无法重建路径，导航到根目录
           onFolderChange(null, []);
@@ -3270,7 +3394,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           className="back-btn"
           style={{ visibility: currentFolder ? 'visible' : 'hidden' }}
         >
-          {isFromSearch ? '返回搜索结果' : '返回上级'}
+          {navigationState.currentState === 'search_to_location' ? '返回搜索结果' : '返回上级'}
         </button>
         <div className="folder-path">
           <span
@@ -4371,8 +4495,42 @@ const Dashboard = () => {
   const [searchTags, setSearchTags] = useState([]);
   const [globalSearch, setGlobalSearch] = useState(false);
   
-  // 导航状态跟踪
-  const [isFromLocationJump, setIsFromLocationJump] = useState(false); // 是否通过跳转到位置功能到达
+  // 导航状态机
+  const [navigationState, setNavigationState] = useState({
+    // 当前状态类型
+    currentState: 'normal', // 'normal' | 'search' | 'location_jump' | 'search_to_location'
+    
+    // 搜索相关状态
+    searchInput: '',
+    searchTerm: '',
+    searchTags: [],
+    globalSearch: false,
+    
+    // 备份状态
+    backup: {
+      searchInput: '',
+      searchTerm: '',
+      searchTags: [],
+      globalSearch: false,
+      files: [],
+      currentFolder: null,
+      folderPath: []
+    },
+    
+    // 位置跳转状态
+    locationJump: {
+      fromSearch: false,
+      originalSearchState: null,
+      currentLocation: {
+        currentFolder: null,
+        folderPath: [],
+        files: []
+      }
+    }
+  });
+  
+  // 兼容性状态（保持现有代码工作）
+  const [isFromLocationJump, setIsFromLocationJump] = useState(false);
   
   // 文件重命名相关状态
   const [newFileName, setNewFileName] = useState('');
@@ -4455,57 +4613,48 @@ const Dashboard = () => {
     setNewTagColor('#007bff');
     setTagModalError('');
     
-    // 检查是否是从搜索结果中编辑标签
-    const hasSearchConditions = searchInput || searchTerm || searchTags.length > 0 || globalSearch;
-    const hasSearchBackup = searchBackup.searchInput || searchBackup.searchTerm || searchBackup.searchTags.length > 0 || searchBackup.globalSearch;
+    console.log('[TAG] 关闭标签弹窗，当前状态机状态:', navigationState.currentState);
     
-    console.log('[TAG] 关闭标签弹窗，检查状态:', {
-      hasSearchConditions,
-      hasSearchBackup,
-      isFromLocationJump,
-      searchInput,
-      searchTerm,
-      searchTags: searchTags.length,
-      globalSearch,
-      searchBackup: {
-        searchInput: searchBackup.searchInput,
-        searchTerm: searchBackup.searchTerm,
-        searchTags: searchBackup.searchTags.length,
-        globalSearch: searchBackup.globalSearch
-      }
-    });
-    
-    // 如果是从跳转位置编辑标签，保持当前位置，不刷新
-    if (isFromLocationJump) {
-      console.log('[TAG] 从跳转位置编辑标签，保持当前位置，不刷新文件列表');
-      // 不调用 refresh，保持当前状态
-      return;
-    }
-    
-    // 如果有搜索条件或搜索备份，说明可能是从搜索结果中编辑标签
-    if (hasSearchConditions || hasSearchBackup) {
-      console.log('[TAG] 检测到搜索条件，保持搜索状态，不刷新文件列表');
-      
-      // 如果有搜索备份且当前没有搜索条件，恢复搜索状态
-      if (hasSearchBackup && !hasSearchConditions) {
-        console.log('[TAG] 恢复搜索备份状态');
-        setSearchInput(searchBackup.searchInput);
-        setSearchTerm(searchBackup.searchTerm);
-        setSearchTags([...searchBackup.searchTags]);
-        setGlobalSearch(searchBackup.globalSearch);
-        setFiles([...searchBackup.files]);
-        setCurrentFolder(searchBackup.currentFolder);
-        setFolderPath([...searchBackup.folderPath]);
-        setIsFromSearch(true);
-      }
-      
-      // 不调用 refresh，保持当前状态
-    } else {
-      console.log('[TAG] 从普通目录中编辑标签，刷新文件列表');
-      // 只有在没有搜索条件的情况下才刷新文件列表
-      if (fileListRef.current) {
-        fileListRef.current.refresh();
-      }
+    // 根据状态机决定行为
+    switch (navigationState.currentState) {
+      case 'search_to_location':
+        console.log('[TAG] 从搜索跳转位置编辑标签，保持当前位置，不刷新');
+        // 保持当前位置，不刷新
+        break;
+        
+      case 'location_jump':
+        console.log('[TAG] 从普通跳转位置编辑标签，保持当前位置，不刷新');
+        // 保持当前位置，不刷新
+        break;
+        
+      case 'search':
+        console.log('[TAG] 从搜索结果编辑标签，保持搜索状态');
+        // 保持搜索状态，不刷新
+        // 确保搜索结果显示最新的文件状态
+        // 更新状态机中的搜索文件列表
+        if (selectedFileForTags) {
+          setNavigationState(prev => ({
+            ...prev,
+            backup: {
+              ...prev.backup,
+              files: prev.backup.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { ...file, tags: selectedFileForTags.tags, tagOrder: selectedFileForTags.tagOrder }
+                  : file
+              )
+            }
+          }));
+        }
+        break;
+        
+      case 'normal':
+      default:
+        console.log('[TAG] 从普通目录编辑标签，刷新文件列表');
+        // 刷新文件列表
+        if (fileListRef.current) {
+          fileListRef.current.refresh();
+        }
+        break;
     }
   };
 
@@ -4592,6 +4741,69 @@ const Dashboard = () => {
        )
      );
       
+      // 更新状态机中的备份状态
+      if (navigationState.currentState === 'search_to_location') {
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            originalSearchState: {
+              ...prev.locationJump.originalSearchState,
+              files: prev.locationJump.originalSearchState.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { 
+                      ...file, 
+                      tags: [...(file.tags || []), newTag],
+                      tagOrder: [...(file.tagOrder || []), newTag.name]
+                    }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的当前位置信息
+      if (navigationState.currentState === 'location_jump') {
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { 
+                      ...file, 
+                      tags: [...(file.tags || []), newTag],
+                      tagOrder: [...(file.tagOrder || []), newTag.name]
+                    }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的搜索备份状态
+      if (navigationState.currentState === 'search') {
+        setNavigationState(prev => ({
+          ...prev,
+          backup: {
+            ...prev.backup,
+            files: prev.backup.files.map(file => 
+              file._id === selectedFileForTags._id 
+                ? { 
+                    ...file, 
+                    tags: [...(file.tags || []), newTag],
+                    tagOrder: [...(file.tagOrder || []), newTag.name]
+                  }
+                : file
+            )
+          }
+        }));
+      }
+      
       setNewTagColor('#007bff');
       setTagModalError('');
     } catch (err) {
@@ -4624,19 +4836,66 @@ const Dashboard = () => {
         )
       );
       
-      // 如果是从搜索结果中编辑，同时更新 searchBackup
-      if (isFromSearch && searchBackup.searchInput) {
-        setSearchBackup(prev => ({
+      // 更新状态机中的备份状态
+      if (navigationState.currentState === 'search_to_location') {
+        setNavigationState(prev => ({
           ...prev,
-          files: prev.files.map(file => 
-            file._id === selectedFileForTags._id 
-              ? { 
-                  ...file, 
-                  tags: file.tags.filter(tag => tag.name !== tagName),
-                  tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-                }
-              : file
-          )
+          locationJump: {
+            ...prev.locationJump,
+            originalSearchState: {
+              ...prev.locationJump.originalSearchState,
+              files: prev.locationJump.originalSearchState.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { 
+                      ...file, 
+                      tags: file.tags.filter(tag => tag.name !== tagName),
+                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+                    }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的当前位置信息
+      if (navigationState.currentState === 'location_jump') {
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { 
+                      ...file, 
+                      tags: file.tags.filter(tag => tag.name !== tagName),
+                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+                    }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的搜索备份状态
+      if (navigationState.currentState === 'search') {
+        setNavigationState(prev => ({
+          ...prev,
+          backup: {
+            ...prev.backup,
+            files: prev.backup.files.map(file => 
+              file._id === selectedFileForTags._id 
+                ? { 
+                    ...file, 
+                    tags: file.tags.filter(tag => tag.name !== tagName),
+                    tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+                  }
+                : file
+            )
+          }
         }));
       }
       
@@ -4694,18 +4953,24 @@ const Dashboard = () => {
       )
     );
     
-    // 如果是从搜索结果中编辑，同时更新 searchBackup
-    if (isFromSearch && searchBackup.searchInput) {
-      setSearchBackup(prev => ({
+    // 更新状态机中的备份状态
+    if (navigationState.currentState === 'search_to_location') {
+      setNavigationState(prev => ({
         ...prev,
-        files: prev.files.map(file => 
-          file._id === selectedFileForTags._id 
-            ? { 
-                ...file, 
-                tagOrder: newOrderedTags.map(tag => tag.name)
-              }
-            : file
-        )
+        locationJump: {
+          ...prev.locationJump,
+          originalSearchState: {
+            ...prev.locationJump.originalSearchState,
+            files: prev.locationJump.originalSearchState.files.map(file => 
+              file._id === selectedFileForTags._id 
+                ? { 
+                    ...file, 
+                    tagOrder: newOrderedTags.map(tag => tag.name)
+                  }
+                : file
+            )
+          }
+        }
       }));
     }
     
@@ -4783,15 +5048,54 @@ const Dashboard = () => {
         )
       );
       
-      // 如果是从搜索结果中编辑，同时更新 searchBackup
-      if (isFromSearch && searchBackup.searchInput) {
-        setSearchBackup(prev => ({
+      // 更新状态机中的备份状态
+      if (navigationState.currentState === 'search_to_location') {
+        setNavigationState(prev => ({
           ...prev,
-          files: prev.files.map(file => 
-            file._id === selectedFileForTags._id 
-              ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-              : file
-          )
+          locationJump: {
+            ...prev.locationJump,
+            originalSearchState: {
+              ...prev.locationJump.originalSearchState,
+              files: prev.locationJump.originalSearchState.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的当前位置信息
+      if (navigationState.currentState === 'location_jump') {
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file => 
+                file._id === selectedFileForTags._id 
+                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+                  : file
+              )
+            }
+          }
+        }));
+      }
+      
+      // 更新状态机中的搜索备份状态
+      if (navigationState.currentState === 'search') {
+        setNavigationState(prev => ({
+          ...prev,
+          backup: {
+            ...prev.backup,
+            files: prev.backup.files.map(file => 
+              file._id === selectedFileForTags._id 
+                ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+                : file
+            )
+          }
         }));
       }
 
@@ -4878,6 +5182,8 @@ const Dashboard = () => {
           files={files}
           setFiles={setFiles}
           setIsFromLocationJump={setIsFromLocationJump}
+          setNavigationState={setNavigationState}
+          navigationState={navigationState}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
