@@ -3075,6 +3075,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   };
 
   const handleDelete = async (id) => {
+    console.log('[DELETE] 开始删除文件:', id);
     const fileToDelete = files.find(file => file._id === id);
     if (!fileToDelete) return;
 
@@ -3092,11 +3093,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         startDeletingProgress(id, fileToDelete.isFolder);
         
         // 执行实际的删除操作
+        console.log('[DELETE] 调用服务器删除API');
         await deleteFile(id);
+        console.log('[DELETE] 服务器删除API完成');
         
         // 删除成功后，设置进度为100%并完成
         setDeletingProgress(prev => ({ ...prev, [id]: 100 }));
-        console.log(`删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
+        console.log(`[DELETE] 删除完成: 100% - ${fileToDelete.isFolder ? '文件夹' : '文件'}已删除`);
         
         // 调用resolve函数完成进度Promise
         if (window.deleteProgressResolvers && window.deleteProgressResolvers[id]) {
@@ -3118,23 +3121,27 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         // 从选中列表中移除被删除的文件
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
         
+        // 如果是文件夹，还需要移除所有子文件
+        if (fileToDelete.isFolder) {
+          setFiles(prevFiles => prevFiles.filter(file => {
+            // 移除所有属于被删除文件夹的文件
+            return !file.path.includes(fileToDelete.path);
+          }));
+        }
+        
         if (fileToDelete.isFolder) {
           const folderIndex = folderPath.findIndex(f => f._id === id);
           if (folderIndex !== -1) {
             if (folderIndex === folderPath.length - 1) {
+              // 如果删除的是当前文件夹，直接返回上级目录
               const parentFolder = folderPath[folderIndex - 1];
               onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
-              const params = {
-                folder: parentFolder ? parentFolder._id : null,
-                sort: sortBy
-              };
-              const data = await getUserFiles(params);
-              const filesArray = Array.isArray(data.files) ? data.files : [];
-              setFiles(filesArray);
-                          } else {
-                const newPath = folderPath.filter(f => f._id !== id);
-                onFolderChange(currentFolder, newPath);
-              }
+              // 不立即刷新文件列表，让 useEffect 处理
+            } else {
+              // 如果删除的是路径中的文件夹，更新路径
+              const newPath = folderPath.filter(f => f._id !== id);
+              onFolderChange(currentFolder, newPath);
+            }
           }
         }
 
@@ -4791,7 +4798,7 @@ const Dashboard = () => {
           userRole={currentUser?.role}
           onDeleteSuccess={() => {
             getCurrentUser().then(setCurrentUser);
-            fileListRef.current?.refresh();
+            // 移除立即刷新，让 useEffect 处理
           }}
           className={currentUser?.role === 'admin' ? 'file-list' : 'file-list user-normal'}
           currentFolder={currentFolder}
