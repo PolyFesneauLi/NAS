@@ -763,6 +763,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     const validFiles = [];
     for (const f of selectedFiles) {
+      // 检查文件名是否为空
+      if (!f.name || f.name.trim() === '') {
+        setError('文件名不能为空');
+        setFiles([]);
+        return;
+      }
+      
       const fileExt = '.' + f.name.split('.').pop().toLowerCase();
       // console.log(`[UPLOAD] 检查文件 ${f.name} (${formatBytes(f.size)}) 的格式: ${fileExt}`);
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
@@ -805,8 +812,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const pathParts = firstFile.webkitRelativePath.split('/');
     const folderName = pathParts[0];
     
-    if (!folderName) {
-      setError('无法获取文件夹名称');
+    if (!folderName || folderName.trim() === '') {
+      setError('无法获取文件夹名称或文件夹名称为空');
       return;
     }
 
@@ -815,6 +822,14 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const pathLengthErrors = [];
     
     for (const file of files) {
+      // 检查文件名是否为空
+      if (!file.name || file.name.trim() === '') {
+        setError('文件名不能为空');
+        setFolderFiles([]);
+        setFolderName('');
+        return;
+      }
+      
       const fileExt = '.' + file.name.split('.').pop().toLowerCase();
       const isValidFile = Object.values(allAcceptedExtensions).flat().includes(fileExt);
       
@@ -936,29 +951,30 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     const currentFiles = await getUserFiles({ folder: selectedFolder });
     const existingFiles = currentFiles.files || [];
     
-    // 检查是否有同名文件夹
-    const hasSameNameFolder = existingFiles.some(file => 
-      file.isFolder && (file.originalName || file.filename) === folderName
-    );
+    console.log('[DUPLICATE CHECK] 当前文件夹中的项目:', existingFiles.map(f => ({ name: f.originalName || f.filename, isFolder: f.isFolder })));
+    console.log('[DUPLICATE CHECK] 要上传的文件夹:', folderName);
     
-    if (hasSameNameFolder) {
-      setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
+    // 检查是否有同名项目
+    const hasSameNameItem = existingFiles.some(item => {
+      const existingName = item.originalName || item.filename;
+      const decodedExistingName = fixEncoding(existingName);
+      
+      console.log(`[DUPLICATE CHECK] 比较项目: "${decodedExistingName}" vs "${folderName}"`);
+      
+      return decodedExistingName === folderName;
+    });
+    
+    console.log(`[DUPLICATE CHECK] 检查文件夹 "${folderName}": ${hasSameNameItem ? '重复' : '不重复'}`);
+    
+    if (hasSameNameItem) {
+      console.log(`[DUPLICATE CHECK] ❌ 发现重复项目: "${folderName}"`);
+      setError(`项目 "${folderName}" 已存在，请重命名后重新上传`);
       setIsUploading(false);
       setUploadButtonPressed(false);
       return;
     }
     
-    // 检查是否有同名文件
-    const hasSameNameFile = existingFiles.some(file => 
-      !file.isFolder && (file.originalName || file.filename) === folderName
-    );
-    
-    if (hasSameNameFile) {
-      setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
-      setIsUploading(false);
-      setUploadButtonPressed(false);
-      return;
-    }
+    console.log('[DUPLICATE CHECK] ✅ 没有重复文件夹，继续上传');
     
     // 计算总文件大小
     const totalSize = folderFiles.reduce((sum, file) => sum + file.size, 0);
@@ -1034,6 +1050,12 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         setArchivingFiles(new Set());
         setUploadComplete(false);
         setSuccessMessage('');
+        
+        // 清除文件输入框的值，防止重复上传
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+          input.value = '';
+        });
       }, 2000);
 
     } catch (error) {
@@ -1077,6 +1099,36 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     // 立即设置上传状态，防止重复点击
     setIsUploading(true);
     setUploadButtonPressed(true);
+    
+    // 检查是否有重复文件名
+    const currentFiles = await getUserFiles({ folder: selectedFolder });
+    const existingFiles = currentFiles.files || [];
+    
+    console.log('[DUPLICATE CHECK] 当前文件夹中的文件:', existingFiles.map(f => f.originalName || f.filename));
+    console.log('[DUPLICATE CHECK] 要上传的文件:', files.map(f => f.name));
+    
+    for (const file of files) {
+      const hasSameNameItem = existingFiles.some(existingItem => {
+        const existingName = existingItem.originalName || existingItem.filename;
+        const decodedExistingName = fixEncoding(existingName);
+        
+        console.log(`[DUPLICATE CHECK] 比较: "${decodedExistingName}" vs "${file.name}"`);
+        
+        return decodedExistingName === file.name;
+      });
+      
+      console.log(`[DUPLICATE CHECK] 检查文件 "${file.name}": ${hasSameNameItem ? '重复' : '不重复'}`);
+      
+      if (hasSameNameItem) {
+        console.log(`[DUPLICATE CHECK] ❌ 发现重复项目: "${file.name}"`);
+        setError(`项目 "${file.name}" 已存在，请重命名后重新上传`);
+        setIsUploading(false);
+        setUploadButtonPressed(false);
+        return;
+      }
+    }
+    
+    console.log('[DUPLICATE CHECK] ✅ 没有重复文件，继续上传');
     
     // 计算总文件大小
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -1157,7 +1209,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setUploadComplete(true);
       setSuccessMessage(`共成功上传${formatBytes(totalSize)}文件`);
       
-      // 2秒后隐藏进度条和成功消息
+      // 2秒后隐藏进度条和成功消息，并清除文件输入
       setTimeout(() => {
         setFiles([]);
         setFolderFiles([]);
@@ -1171,7 +1223,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           window.uploadState.isUploading = false;
         }
         
-        onUploadSuccess();
+        // 清除文件输入框的值，防止重复上传
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+          input.value = '';
+        });
+        
+        // 调用上传成功回调
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
       }, 2000);
       
     } catch (err) {
@@ -1245,7 +1306,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </label>
         </div>
 
-        {files.length > 0 && (
+        {files.length > 0 && files.every(f => f.name && f.name.trim() !== '') && (
           <>
             <div className="file-info">
               {files.map(f => (
@@ -1308,7 +1369,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             </label>
           </div>
 
-          {folderFiles.length > 0 && (
+          {folderFiles.length > 0 && folderName && folderName.trim() !== '' && (
             <>
               <div className="folder-info">
                 <div className="folder-item">
@@ -4417,7 +4478,18 @@ const Dashboard = () => {
 
   const handleUploadSuccess = () => {
     getCurrentUser().then(setCurrentUser);
-    fileListRef.current?.refresh();
+    
+    // 确保文件列表刷新
+    if (fileListRef.current && typeof fileListRef.current.refresh === 'function') {
+      fileListRef.current.refresh();
+    } else {
+      // 如果refresh方法不可用，手动触发文件列表更新
+      console.log('[UPLOAD] 手动触发文件列表刷新');
+      // 这里可以添加手动刷新的逻辑
+    }
+    
+    // 重置加载状态
+    setLoading(false);
   };
 
   // 标签相关函数

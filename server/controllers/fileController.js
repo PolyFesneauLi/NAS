@@ -150,13 +150,37 @@ const processFileUpload = async (req, res, fileType = 'regular') => {
     fs.renameSync(req.file.path, filePath);
 
     // 创建文件记录
+    const originalName = decodeURIComponent(req.file.originalname);
+    const filename = path.basename(filePath);
+    
+    // 确保文件名不为空
+    if (!filename || filename === '') {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: '文件名不能为空' });
+    }
+    
+    // 检查是否有重复项目
+    const existingItems = await File.find({
+      parentFolder: targetFolder._id
+    });
+    
+    for (const existingItem of existingItems) {
+      const existingOriginalName = existingItem.originalName || existingItem.filename;
+      const decodedExistingName = FixEncoding(existingOriginalName);
+      
+      if (decodedExistingName === originalName) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: `项目 "${originalName}" 已存在，请重命名后重新上传` });
+      }
+    }
+    
     const file = new File({
-      filename: path.basename(filePath),
+      filename: filename,
       path: filePath,
       size: fileSize,
       owner: req.user.id,
       fileType,
-      originalName: decodeURIComponent(req.file.originalname),
+      originalName: originalName,
       parentFolder: targetFolder._id
     });
 
@@ -957,6 +981,35 @@ const uploadFolder = async (req, res) => {
     const targetFolderPath = await getFolderFullPath(targetFolder._id);
     const folderPath = storageAccess.getStoragePath(path.join('uploads', targetFolderPath, folderName));
     
+    // 确保文件夹名称不为空
+    if (!folderName || folderName.trim() === '') {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(400).json({ error: '文件夹名称不能为空' });
+    }
+    
+    // 检查是否有重复项目
+    const existingItems = await File.find({
+      parentFolder: targetFolder._id
+    });
+    
+    for (const existingItem of existingItems) {
+      const existingOriginalName = existingItem.originalName || existingItem.filename;
+      const decodedExistingName = FixEncoding(existingOriginalName);
+      
+      if (decodedExistingName === folderName) {
+        req.files.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        return res.status(400).json({ error: `项目 "${folderName}" 已存在，请重命名后重新上传` });
+      }
+    }
+    
     // 创建文件夹记录 - 使用完整的物理路径
     const newFolder = new File({
       filename: folderName,
@@ -1029,6 +1082,12 @@ const uploadFolder = async (req, res) => {
         for (let i = 0; i < folderPathParts.length-1; i++) {
           const subFolderName = folderPathParts[i];
           
+          // 检查子文件夹名称是否为空
+          if (!subFolderName || subFolderName.trim() === '') {
+            console.error('子文件夹名称为空，跳过:', file.originalname);
+            continue;
+          }
+          
           // 检查子文件夹是否已存在
           let subFolder = await File.findOne({
             filename: subFolderName,
@@ -1053,6 +1112,12 @@ const uploadFolder = async (req, res) => {
           }
           
           currentParentFolder = subFolder._id;
+        }
+        
+        // 确保文件名不为空
+        if (!fileName || fileName === '') {
+          console.error('文件名为空，跳过文件:', file.originalname);
+          continue;
         }
         
         // 创建文件记录
