@@ -481,9 +481,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       const foldersList = data.files.filter(f => f.isFolder);
       
       foldersList.sort((a, b) => {
-        const nameA = (a.originalName || a.filename).toLowerCase();
-        const nameB = (b.originalName || b.filename).toLowerCase();
-        return nameA.localeCompare(nameB);
+        const nameA = a.originalName || a.filename;
+        const nameB = b.originalName || b.filename;
+        return charByCharSort(nameA, nameB);
       });
       
       const structure = await Promise.all(foldersList.map(async folder => {
@@ -1994,6 +1994,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         console.log('✅ 搜索状态恢复完成');
         console.log('恢复文件数量:', searchBackup.files.length);
         console.log('恢复搜索输入:', searchBackup.searchInput);
+        
+        // 立即结束加载状态，因为我们已经恢复了搜索结果
+        setLoading(false);
         
         // 延迟重置状态，避免 useEffect 立即触发
         setTimeout(() => {
