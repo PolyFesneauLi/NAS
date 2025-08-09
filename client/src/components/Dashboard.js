@@ -421,8 +421,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [uploadComplete, setUploadComplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [folderFiles, setFolderFiles] = useState([]);
-  const [folderName, setFolderName] = useState('');
+  const [folderName, setFolderName] = useState(null);
   const dropdownRef = useRef(null);
+  const folderInputRef = useRef(null);
+  const fileInputRef = useRef(null);
   
   // 新增：归档进度状态
   const [archivingProgress, setArchivingProgress] = useState({});
@@ -820,6 +822,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setUploadComplete(false);
     setSuccessMessage('');
     setProgress({});
+    // 重置 input 值，避免选择相同文件时不触发 onChange
+    try { e.target.value = null; } catch (_) {}
   };
 
   // 检查路径长度是否超过限制
@@ -846,6 +850,9 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     
     if (!folderName) {
       setError('无法获取文件夹名称');
+      setFolderFiles([]);
+      setFolderName(null);
+      try { e.target.value = null; } catch (_) {}
       return;
     }
 
@@ -860,7 +867,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       if (!isValidFile) {
         setError(`不支持的文件格式: ${fileExt} (${file.name})`);
         setFolderFiles([]);
-        setFolderName('');
+        setFolderName(null);
+        try { e.target.value = null; } catch (_) {}
         return;
       }
       
@@ -877,7 +885,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     if (pathLengthErrors.length > 0) {
       setError(`文件上传错误：文件夹太深，组合出来的文件名过长。请考虑分次上传。\n\n超限文件：\n${pathLengthErrors.slice(0, 5).join('\n')}${pathLengthErrors.length > 5 ? '\n...' : ''}`);
       setFolderFiles([]);
-      setFolderName('');
+      setFolderName(null);
+      try { e.target.value = null; } catch (_) {}
       return;
     }
 
@@ -887,6 +896,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setUploadComplete(false);
     setSuccessMessage('');
     setProgress({});
+    // 重置 input 值，避免选择相同文件夹时不触发 onChange
+    try { e.target.value = null; } catch (_) {}
   };
 
   // 归档进度动画函数
@@ -965,7 +976,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   const handleFolderUpload = async (e) => {
     e.preventDefault();
-    if (!folderFiles.length) return;
+    if (!folderFiles.length || folderName == null) return;
     
     // 立即设置上传状态，防止重复点击
     setIsUploading(true);
@@ -1062,12 +1073,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       // 2秒后清除状态
       setTimeout(() => {
         setFolderFiles([]);
-        setFolderName('');
+        setFolderName(null);
         setProgress({});
         setArchivingProgress({});
         setArchivingFiles(new Set());
         setUploadComplete(false);
         setSuccessMessage('');
+        // 清空文件夹 input 值，允许再次选择同名文件夹触发 onChange
+        if (folderInputRef.current) {
+          try { folderInputRef.current.value = null; } catch (_) {}
+        }
       }, 2000);
 
     } catch (error) {
@@ -1079,6 +1094,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setProgress({});
       setArchivingProgress({});
       setArchivingFiles(new Set());
+      // 兜底清空，防止同名文件夹二次选择不触发 onChange
+      if (folderInputRef.current) {
+        try { folderInputRef.current.value = null; } catch (_) {}
+      }
     }
   };
 
@@ -1266,7 +1285,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       
       <form onSubmit={handleSubmit}>
         <div className="file-input-container">
-          <label className="file-label">
+            <label className="file-label">
             {files.length ? files.map(f => f.name).join(', ') : '选择文件'}
             <input 
               type="file" 
@@ -1275,6 +1294,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               multiple
               disabled={isUploading}
               style={{ display: 'none' }}
+                ref={fileInputRef}
             />
           </label>
         </div>
@@ -1338,6 +1358,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
                 multiple
                 disabled={isUploading}
                 style={{ display: 'none' }}
+                ref={folderInputRef}
               />
             </label>
           </div>
@@ -1382,7 +1403,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               {!uploadComplete && (
                 <button 
                   type="submit" 
-                  disabled={isUploading}
+                  disabled={isUploading || folderName == null}
                   className={`upload-button ${uploadButtonPressed ? 'upload-button-pressed' : ''}`}
                 >
                   {isUploading ? '上传中...' : '开始上传'}
