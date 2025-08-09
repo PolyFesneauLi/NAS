@@ -1066,7 +1066,12 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setSuccessMessage(`文件夹 "${folderName}" 上传成功！包含 ${response.files.length} 个文件`);
       
       if (onUploadSuccess) {
-        onUploadSuccess();
+        onUploadSuccess({
+          type: 'folder',
+          targetFolder: selectedFolder ?? null,
+          folder: response.folder,
+          items: response.files
+        });
       }
 
       // 2秒后清除状态
@@ -1203,12 +1208,27 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       });
       
       // 等待所有文件上传完成
-      await Promise.all(uploadPromises);
+      const results = await Promise.all(uploadPromises);
       
       // console.log('[UPLOAD] 🎉 所有文件上传完成!');
       setUploadComplete(true);
       setSuccessMessage(`共成功上传${formatBytes(totalSize)}文件`);
       
+      // 增量合并当前目录
+      if (onUploadSuccess) {
+        try {
+          const items = (results || []).map(r => r?.file).filter(Boolean).map(f => ({
+            _id: f.id,
+            filename: f.filename,
+            originalName: f.originalName,
+            size: f.size,
+            isFolder: false,
+            parentFolder: f.parentFolder
+          }));
+          onUploadSuccess({ type: 'files', targetFolder: selectedFolder ?? null, items });
+        } catch (_) {}
+      }
+
       // 2秒后隐藏进度条和成功消息
       setTimeout(() => {
         setFiles([]);
@@ -1223,7 +1243,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           window.uploadState.isUploading = false;
         }
         
-        onUploadSuccess();
+        if (onUploadSuccess) onUploadSuccess();
       }, 2000);
       
     } catch (err) {
@@ -1904,8 +1924,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         }
       });
 
-      // 立即从文件列表中移除所有被删除的文件
+      // 立即从文件列表中移除所有被删除的文件，并同步 normalBackup
       setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file._id)));
+      setNavigationState(prev => ({
+        ...prev,
+        normalBackup: {
+          ...prev.normalBackup,
+          files: (Array.isArray(prev.normalBackup.files) ? prev.normalBackup.files : []).filter(file => !selectedIds.includes(file._id))
+        }
+      }));
       
       // 清空选中列表
       setSelectedIds([]);
@@ -1920,14 +1947,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           const parentFolder = folderPath[folderIndex - 1];
           onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
           
-          const params = {
-            folder: parentFolder ? parentFolder._id : null,
-            sort: sortBy
-          };
-          const data = await getUserFiles(params);
-      let filesArray = Array.isArray(data.files) ? data.files : [];
-      filesArray = mergeDuplicateFolders(filesArray);
-          setFiles(filesArray);
+          // 若删除的是当前路径节点，则回到父目录；列表刷新交由 onFolderChange 后的 useEffect 完成
         } else {
           const newPath = folderPath.filter(f => f._id !== deletedPathFolder._id);
           onFolderChange(currentFolder, newPath);
@@ -3281,8 +3301,15 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           delete window.deleteProgressResolvers[id];
         }
         
-        // 立即从文件列表中移除被删除的文件
+        // 立即从文件列表中移除被删除的文件，并同步 normalBackup
         setFiles(prevFiles => prevFiles.filter(file => file._id !== id));
+        setNavigationState(prev => ({
+          ...prev,
+          normalBackup: {
+            ...prev.normalBackup,
+            files: (Array.isArray(prev.normalBackup.files) ? prev.normalBackup.files : []).filter(file => file._id !== id)
+          }
+        }));
         
         // 从选中列表中移除被删除的文件
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
@@ -3293,13 +3320,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             if (folderIndex === folderPath.length - 1) {
               const parentFolder = folderPath[folderIndex - 1];
               onFolderChange(parentFolder ? parentFolder._id : null, folderPath.slice(0, folderIndex));
-              const params = {
-                folder: parentFolder ? parentFolder._id : null,
-                sort: sortBy
-              };
-              const data = await getUserFiles(params);
-              const filesArray = Array.isArray(data.files) ? data.files : [];
-              setFiles(filesArray);
+              // 切回父级，列表刷新交由 onFolderChange 的副作用处理
                           } else {
                 const newPath = folderPath.filter(f => f._id !== id);
                 onFolderChange(currentFolder, newPath);
@@ -4787,9 +4808,58 @@ const Dashboard = () => {
     };
   }, [searchAbortController]);
 
-  const handleUploadSuccess = () => {
+  const handleUploadSuccess = (payload) => {
+    // 不全量刷新：仅刷新用户信息与标签
     getCurrentUser().then(setCurrentUser);
-    fileListRef.current?.refresh();
+    refreshAllTags();
+
+    // 增量合并当前目录的上传结果
+    if (!payload) return;
+    const targetFolder = payload.targetFolder ?? null;
+    if (targetFolder !== (currentFolder ?? null)) return;
+
+    if (payload.type === 'files' && Array.isArray(payload.items) && payload.items.length > 0) {
+      setFiles(prev => {
+        const existingIds = new Set(prev.map(f => f._id));
+        const merged = [...payload.items.filter(it => !existingIds.has(it._id)), ...prev];
+        return merged;
+      });
+      setNavigationState(prev => ({
+        ...prev,
+        normalBackup: {
+          ...prev.normalBackup,
+          files: (() => {
+            const prevFiles = Array.isArray(prev.normalBackup.files) ? prev.normalBackup.files : [];
+            const existingIds = new Set(prevFiles.map(f => f._id));
+            return [...payload.items.filter(it => !existingIds.has(it._id)), ...prevFiles];
+          })()
+        }
+      }));
+    }
+    if (payload.type === 'folder' && payload.folder) {
+      const folderItem = {
+        _id: payload.folder.id,
+        filename: payload.folder.name,
+        originalName: payload.folder.name,
+        size: payload.folder.size ?? 0,
+        isFolder: true,
+        parentFolder: targetFolder
+      };
+      setFiles(prev => {
+        const exists = prev.some(f => f._id === folderItem._id);
+        return exists ? prev : [folderItem, ...prev];
+      });
+      setNavigationState(prev => ({
+        ...prev,
+        normalBackup: {
+          ...prev.normalBackup,
+          files: (() => {
+            const prevFiles = Array.isArray(prev.normalBackup.files) ? prev.normalBackup.files : [];
+            return prevFiles.some(f => f._id === folderItem._id) ? prevFiles : [folderItem, ...prevFiles];
+          })()
+        }
+      }));
+    }
   };
 
   // 标签相关函数
@@ -4883,10 +4953,15 @@ const Dashboard = () => {
       }
       case 'normal':
       default: {
-        console.log('[TAG] 从普通目录编辑，刷新文件列表');
-        if (fileListRef.current) {
-          fileListRef.current.refresh();
-        }
+        console.log('[TAG] 从普通目录编辑，增量更新当前列表与 normalBackup');
+        setFiles(prevFiles => applyEditedToFileList(prevFiles));
+        setNavigationState(prev => ({
+          ...prev,
+          normalBackup: {
+            ...prev.normalBackup,
+            files: applyEditedToFileList(prev.normalBackup.files)
+          }
+        }));
         break;
       }
     }
@@ -5453,8 +5528,8 @@ const Dashboard = () => {
           ref={fileListRef}
           userRole={currentUser?.role}
           onDeleteSuccess={() => {
+            // 删除后不再强制刷新列表，保持增量更新
             getCurrentUser().then(setCurrentUser);
-            fileListRef.current?.refresh();
           }}
           className={currentUser?.role === 'admin' ? 'file-list' : 'file-list user-normal'}
           currentFolder={currentFolder}
