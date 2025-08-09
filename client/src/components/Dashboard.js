@@ -1028,11 +1028,10 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         formData.append('folderId', selectedFolder);
       }
 
-      // 添加所有文件，保持相对路径
+      // 添加所有文件，保持相对路径（使用三划线 ___ 作为唯一分隔符编码整个路径+文件名）
       folderFiles.forEach(file => {
-        // 将路径信息作为文件名前缀传递
-        const pathPrefix = file.webkitRelativePath.replace(/\//g, '_').replace(/\\/g, '_');
-        const fileWithPath = new File([file], `${pathPrefix}_${file.name}`, {
+        const encodedFullPath = file.webkitRelativePath.replace(/[\\/]/g, '___');
+        const fileWithPath = new File([file], encodedFullPath, {
           type: file.type,
           lastModified: file.lastModified
         });
