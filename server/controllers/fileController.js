@@ -1034,13 +1034,10 @@ const uploadFolder = async (req, res) => {
     // 处理每个上传的文件，保持文件夹结构
     for (const file of req.files) {
       try {
-        // 从文件名中提取路径信息
+        // 约定：客户端将整个 webkitRelativePath 中的分隔符 '/' 替换为 '___'
+        // 因此这里直接用 '___' 还原完整相对路径（包含文件名）
         const encodedFileName = file.originalname;
-        const lastUnderscoreIndex = encodedFileName.lastIndexOf('_');
-        const originalFileName = encodedFileName.substring(lastUnderscoreIndex + 1);
-        const pathPrefix = encodedFileName.substring(0, lastUnderscoreIndex);
-        const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') + '/' + originalFileName);
-        // const relativePath = FixEncoding(pathPrefix.replace(/_/g, '/') );
+        const relativePath = FixEncoding(encodedFileName.replace(/___/g, '/'));
         
         // console.log("[DEBUG] file.originalname (full path):", relativePath);
         
@@ -1737,18 +1734,55 @@ const getFileDetails = async (req, res) => {
   }
 };
 
-// 更新文件标签顺序
+// 更新文件标签顺序，或全局热门标签顺序（当 fileId === 'global' 或 global === true 时）
 const updateTagOrder = async (req, res) => {
   try {
-    const { fileId, tagOrder } = req.body;
-    
-    if (!fileId || !tagOrder || !Array.isArray(tagOrder)) {
-      return res.status(400).json({ error: '缺少必要参数' });
+    const { fileId, tagOrder, global } = req.body;
+    if (!tagOrder || !Array.isArray(tagOrder)) {
+      return res.status(400).json({ error: '缺少必要参数: tagOrder' });
     }
 
     const user = await User.findById(req.user.id);
     if (user.role !== 'admin') {
       return res.status(403).json({ error: '只有管理员可以更新标签顺序' });
+    }
+
+    // 全局热门标签排序：允许通过同一接口更新 Tag.order
+    if (fileId === 'global' || global === true || !fileId) {
+      // 全局：将提交的前 N 个标签固定为最小的顺序值 [0..N-1]，
+      // 其他标签按原有顺序（order/usageCount）从 N 开始顺延，确保“热门前10”能稳定生效
+      const allTags = await Tag.find().sort({ order: 1, usageCount: -1, name: 1 }).select('name order');
+      const desiredSet = new Set(tagOrder);
+
+      // 先更新指定的标签顺序到 [0..N-1]
+      for (let i = 0; i < tagOrder.length; i++) {
+        const tagName = tagOrder[i];
+        await Tag.updateMany(
+          { name: tagName },
+          { $set: { order: i }, $currentDate: { updatedAt: true } }
+        );
+      }
+
+      // 其他标签顺延：保持原相对顺序，从 tagOrder.length 开始递增
+      let cursor = tagOrder.length;
+      for (const t of allTags) {
+        if (desiredSet.has(t.name)) continue;
+        await Tag.updateMany(
+          { name: t.name },
+          { $set: { order: cursor++ }, $currentDate: { updatedAt: true } }
+        );
+      }
+
+      return res.json({
+        success: true,
+        message: '全局标签顺序更新成功',
+        tagOrder
+      });
+    }
+
+    // 文件层面的标签排序
+    if (!fileId) {
+      return res.status(400).json({ error: '缺少必要参数: fileId' });
     }
 
     // 使用findOneAndUpdate避免版本冲突

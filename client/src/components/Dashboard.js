@@ -1419,7 +1419,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-  const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState, availableTags }, ref) => {
+  const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState, availableTags, refreshAllTags }, ref) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('time_desc');
@@ -3687,20 +3687,55 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             </button>
           </div>
           
-          {/* 热门标签提示行 - 所有用户都可见 */}
+          {/* 热门标签提示行 - 支持拖动排序（仅管理员显示拖拽手柄），拖动后调用 updateTagOrder('global') */}
           <div className="hot-tags-container">
             <span className="hot-tags-label">热门标签:</span>
-            <div className="hot-tags-list">
+            <div 
+              className="hot-tags-list"
+              onDragOver={(e) => e.preventDefault()}
+            >
               {hotTags.length > 0 ? (
                 hotTags.map((tag, index) => (
-                  <button
-                    key={index}
-                    className="hot-tag-btn"
-                    onClick={() => handleAddSearchTag(tag)}
-                    title={`添加标签: ${tag}`}
+                  <div
+                    key={tag}
+                    className="hot-tag-item"
+                    draggable={userRole === 'admin'}
+                    onDragStart={(e) => {
+                      if (userRole !== 'admin') return;
+                      e.dataTransfer.setData('text/plain', String(index));
+                    }}
+                    onDrop={async (e) => {
+                      if (userRole !== 'admin') return;
+                      e.preventDefault();
+                      const fromIndexStr = e.dataTransfer.getData('text/plain');
+                      const fromIndex = parseInt(fromIndexStr, 10);
+                      const toIndex = index;
+                      if (Number.isNaN(fromIndex) || fromIndex === toIndex) return;
+                      const newOrder = [...hotTags];
+                      const [moved] = newOrder.splice(fromIndex, 1);
+                      newOrder.splice(toIndex, 0, moved);
+                      // 乐观更新
+                      setHotTags(newOrder);
+                      try {
+                        // 使用全局模式更新 order（后端会更新 Tag.order）
+                        await updateTagOrder('global', newOrder);
+                        // 同步刷新全局可选标签，热门标签由 availableTags 联动
+                        if (typeof refreshAllTags === 'function') {
+                          await refreshAllTags();
+                        }
+                      } catch (err) {
+                        console.error('更新热门标签顺序失败:', err);
+                      }
+                    }}
+                    title={userRole === 'admin' ? '拖动以排序（仅管理员）' : ''}
                   >
-                    {tag}
-                  </button>
+                    <button
+                      className="hot-tag-btn"
+                      onClick={() => handleAddSearchTag(tag)}
+                    >
+                      {tag}
+                    </button>
+                  </div>
                 ))
               ) : (
                 <span className="no-hot-tags">暂无热门标签</span>
@@ -5451,6 +5486,7 @@ const Dashboard = () => {
           setNavigationState={setNavigationState}
           navigationState={navigationState}
           availableTags={availableTags}
+          refreshAllTags={refreshAllTags}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
