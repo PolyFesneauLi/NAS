@@ -156,6 +156,19 @@ const sortFilesByTime = (files, ascending = true) => {
   });
 };
 
+// 统一错误信息映射：将常见后端状态码转换为中文友好提示
+const mapApiErrorMessage = (error, fallbackMessage = '操作失败') => {
+  const status = error?.response?.status;
+  if (status === 404) {
+    return '要操作的文件已不存在，请刷新界面';
+  }
+  if (status === 409) {
+    // 主要用于异步同名文件夹/文件冲突
+    return '上传失败：存在同名文件夹，请重命名后再试';
+  }
+  return `${fallbackMessage}: ${error?.response?.data?.error || error?.message || '未知错误'}`;
+};
+
 // 格式化北京时间
 const formatBeijingTime = (isoString) => {
   if (!isoString) return '';
@@ -932,32 +945,27 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     setIsUploading(true);
     setUploadButtonPressed(true);
     
-    // 检测当前目录是否有同名文件夹
-    const currentFiles = await getUserFiles({ folder: selectedFolder });
-    const existingFiles = currentFiles.files || [];
-    
-    // 检查是否有同名文件夹
-    const hasSameNameFolder = existingFiles.some(file => 
-      file.isFolder && (file.originalName || file.filename) === folderName
-    );
-    
-    if (hasSameNameFolder) {
-      setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
-      setIsUploading(false);
-      setUploadButtonPressed(false);
-      return;
-    }
-    
-    // 检查是否有同名文件
-    const hasSameNameFile = existingFiles.some(file => 
-      !file.isFolder && (file.originalName || file.filename) === folderName
-    );
-    
-    if (hasSameNameFile) {
-      setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
-      setIsUploading(false);
-      setUploadButtonPressed(false);
-      return;
+    // 检测当前目录是否有同名（前置检查，异步情况下仍可能冲突，后台再校验409）
+    try {
+      const currentFiles = await getUserFiles({ folder: selectedFolder });
+      const existingFiles = currentFiles.files || [];
+      const hasSameNameFolder = existingFiles.some(file => file.isFolder && (file.originalName || file.filename) === folderName);
+      const hasSameNameFile = existingFiles.some(file => !file.isFolder && (file.originalName || file.filename) === folderName);
+      if (hasSameNameFolder) {
+        setError(`文件夹 "${folderName}" 已存在，请重命名后重新上传`);
+        setIsUploading(false);
+        setUploadButtonPressed(false);
+        return;
+      }
+      if (hasSameNameFile) {
+        setError(`文件 "${folderName}" 已存在，请重命名后重新上传`);
+        setIsUploading(false);
+        setUploadButtonPressed(false);
+        return;
+      }
+    } catch (preCheckErr) {
+      // 如果预检查失败，不阻断上传，交由后端最终判定
+      console.warn('同名预检查失败，继续上传以由后端判定:', preCheckErr);
     }
     
     // 计算总文件大小
@@ -1038,7 +1046,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
     } catch (error) {
       console.error('文件夹上传失败:', error);
-      setError('文件夹上传失败: ' + (error.response?.data?.error || error.message));
+      setError(mapApiErrorMessage(error, '文件夹上传失败'));
     } finally {
       setIsUploading(false);
       setUploadButtonPressed(false);
@@ -2849,7 +2857,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     } catch (err) {
       console.error('下载失败:', err);
-      alert('下载失败: ' + (err.message || '未知错误'));
+      alert(mapApiErrorMessage(err, '下载失败'));
       
       // 清除下载和解析状态
       setDownloadingFiles(prev => {
@@ -3083,7 +3091,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
     } catch (err) {
       console.error('文件夹下载失败:', err);
-      alert('文件夹下载失败: ' + (err.message || '未知错误'));
+      alert(mapApiErrorMessage(err, '文件夹下载失败'));
       
       // 清除下载和解析状态
       setDownloadingFiles(prev => {
@@ -3251,7 +3259,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         }, 1000);
         
       } catch (err) {
-        alert('删除失败: ' + (err.message || '未知错误'));
+        alert(mapApiErrorMessage(err, '删除失败'));
         // 清除删除状态
         setDeletingFiles(prev => {
           const newSet = new Set(prev);
@@ -5259,7 +5267,7 @@ const Dashboard = () => {
 
     } catch (err) {
       console.error('文件重命名流程异常:', err);
-      setTagModalError('文件重命名失败: ' + (err.message || '未知错误'));
+      setTagModalError(mapApiErrorMessage(err, '文件重命名失败'));
       setIsRenaming(false);
     }
   };
