@@ -1365,7 +1365,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState }, ref) => {
+const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState, availableTags }, ref) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('time_desc');
@@ -2614,6 +2614,19 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
     
     fetchHotTags();
   }, []);
+
+  // 根据父组件预取的 availableTags 即时计算热门标签，确保即时显示
+  useEffect(() => {
+    if (!availableTags || !Array.isArray(availableTags)) {
+      return;
+    }
+    const sortedHot = availableTags
+      .filter(t => t && t.name)
+      .sort((a, b) => (a.order !== b.order ? a.order - b.order : (b.usageCount || 0) - (a.usageCount || 0)))
+      .slice(0, 10)
+      .map(t => t.name);
+    setHotTags(sortedHot);
+  }, [availableTags]);
 
   // 监听 files 状态变化
   useEffect(() => {
@@ -4591,6 +4604,22 @@ const Dashboard = () => {
     fetchUserData();
   }, []);
 
+  // 登录后预取所有可用标签，供标签弹窗即时使用
+  useEffect(() => {
+    const preloadAllTags = async () => {
+      if (!currentUser) return;
+      try {
+        const res = await getAllTags();
+        const allTags = Array.isArray(res?.tags) ? res.tags : [];
+        setAvailableTags(allTags);
+      } catch (err) {
+        console.error('预取可用标签失败:', err);
+        setAvailableTags([]);
+      }
+    };
+    preloadAllTags();
+  }, [currentUser]);
+
   // 组件卸载时清理 AbortController
   useEffect(() => {
     return () => {
@@ -4610,16 +4639,19 @@ const Dashboard = () => {
     // 立即显示弹窗，提升响应速度
     setSelectedFileForTags(file);
     setNewFileName(fixEncoding(file.originalName || file.filename));
+    // 直接使用预取的 availableTags，确保“一按下就呈现完整可选标签”
     setShowTagModal(true);
     
-    // 在后台异步加载标签数据
-    try {
-      const response = await getAllTags();
-      setAvailableTags(response.tags || []);
-    } catch (err) {
-      console.error('获取标签失败:', err);
-      setAvailableTags([]);
-    }
+    // 后台轻量刷新（不阻塞UI）
+    (async () => {
+      try {
+        const response = await getAllTags();
+        const allTags = Array.isArray(response?.tags) ? response.tags : [];
+        setAvailableTags(allTags);
+      } catch (err) {
+        console.error('获取标签失败:', err);
+      }
+    })();
   };
 
   const handleCloseTagModal = () => {
@@ -5289,6 +5321,7 @@ const Dashboard = () => {
           setIsFromLocationJump={setIsFromLocationJump}
           setNavigationState={setNavigationState}
           navigationState={navigationState}
+          availableTags={availableTags}
         />
         
         {/* 上传文件组件 - 移到文件列表下方 */}
