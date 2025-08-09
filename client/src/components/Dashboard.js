@@ -169,6 +169,32 @@ const mapApiErrorMessage = (error, fallbackMessage = '操作失败') => {
   return `${fallbackMessage}: ${error?.response?.data?.error || error?.message || '未知错误'}`;
 };
 
+// 合并同目录下同名文件夹（并发上传时避免重复展示）
+const mergeDuplicateFolders = (files) => {
+  if (!Array.isArray(files) || files.length === 0) return files || [];
+  const folderMap = new Map();
+  const others = [];
+  for (const item of files) {
+    if (item && item.isFolder) {
+      const name = (item.originalName || item.filename || '').toLowerCase();
+      const parent = item.parentFolder || 'root';
+      const key = `${parent}::${name}`;
+      if (!folderMap.has(key)) {
+        folderMap.set(key, item);
+      } else {
+        const existing = folderMap.get(key);
+        const timeExisting = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        const timeIncoming = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        // 选择更新时间较新的作为展示项
+        folderMap.set(key, timeIncoming >= timeExisting ? item : existing);
+      }
+    } else if (item) {
+      others.push(item);
+    }
+  }
+  return [...folderMap.values(), ...others];
+};
+
 // 格式化北京时间
 const formatBeijingTime = (isoString) => {
   if (!isoString) return '';
@@ -1373,8 +1399,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 // ------------------------------------------------------------
 // FileList 组件
 // ------------------------------------------------------------
-const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState, availableTags }, ref) => {
-  const [loading, setLoading] = useState(true);
+  const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list', currentFolder, folderPath, onFolderChange, onOpenTagModal, setCurrentFolder, setFolderPath, searchBackup, setSearchBackup, isFromSearch, setIsFromSearch, latestRequestRef, searchInput, setSearchInput, searchTerm, setSearchTerm, searchTags, setSearchTags, globalSearch, setGlobalSearch, files, setFiles, setIsFromLocationJump, setNavigationState, navigationState, availableTags }, ref) => {
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('time_desc');
   const [selectedIds, setSelectedIds] = useState([]);
@@ -1743,7 +1769,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           return;
         }
       
-      const filesArray = Array.isArray(data.files) ? data.files : [];
+      let filesArray = Array.isArray(data.files) ? data.files : [];
+      filesArray = mergeDuplicateFolders(filesArray);
       
       let sortedFiles = filesArray;
       
@@ -1878,7 +1905,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             sort: sortBy
           };
           const data = await getUserFiles(params);
-          const filesArray = Array.isArray(data.files) ? data.files : [];
+      let filesArray = Array.isArray(data.files) ? data.files : [];
+      filesArray = mergeDuplicateFolders(filesArray);
           setFiles(filesArray);
         } else {
           const newPath = folderPath.filter(f => f._id !== deletedPathFolder._id);
@@ -1980,7 +2008,8 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         try {
           const data = await getUserFiles(params);
           if (latestRequestRef.current !== requestId) return;
-          const filesArray = Array.isArray(data.files) ? data.files : [];
+      let filesArray = Array.isArray(data.files) ? data.files : [];
+      filesArray = mergeDuplicateFolders(filesArray);
           let sortedFiles = filesArray;
           if (sortBy === 'name_asc') sortedFiles = sortFilesByName(filesArray, true);
           else if (sortBy === 'name_desc') sortedFiles = sortFilesByName(filesArray, false);
@@ -2538,8 +2567,10 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           return;
         }
         
-        // 后台刷新，不清空当前显示
-        setLoading(true);
+        // 后台刷新：若已有数据，则静默刷新不遮挡；无数据时才显示loading
+        if (!files || files.length === 0) {
+          setLoading(true);
+        }
         setError('');
         
         // 创建请求标识符，用于防止竞态条件
@@ -4642,6 +4673,27 @@ const Dashboard = () => {
     };
 
     fetchUserData();
+
+    // 首次启动：并行静默获取根目录文件，避免初次白屏和长时间“刷新中”
+    (async () => {
+      try {
+        const data = await getUserFiles({ sort: 'time_desc' });
+        let filesArray = Array.isArray(data.files) ? data.files : [];
+        filesArray = mergeDuplicateFolders(filesArray);
+        setFiles(filesArray);
+        setNavigationState(prev => ({
+          ...prev,
+          currentState: 'normal',
+          normalBackup: {
+            currentFolder: null,
+            folderPath: [],
+            files: filesArray
+          }
+        }));
+      } catch (e) {
+        // 忽略静默拉取错误
+      }
+    })();
   }, []);
 
   // 登录后预取所有可用标签，供标签弹窗即时使用
