@@ -689,7 +689,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
 
   // 递归生成文件夹选项
   const FolderOption = ({ folder, level = 0 }) => {
-    const isHovered = hoveredFolder === folder._id;
     const isInHierarchy = hoveredHierarchy.has(folder._id);
     const hasChildren = folder.children && folder.children.length > 0;
     const isSelected = selectedFolder === folder._id;
@@ -1454,10 +1453,6 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [parsingFiles, setParsingFiles] = useState(new Set());
   const [deletingProgress, setDeletingProgress] = useState({});
   const [deletingFiles, setDeletingFiles] = useState(new Set());
-  
-  // 标签相关状态
-  const [selectedFileForTags, setSelectedFileForTags] = useState(null);
-  const [newTagColor, setNewTagColor] = useState('#007bff');
   
   // 标签搜索相关状态
   const [tagInputValue, setTagInputValue] = useState(''); // 标签输入框的值
@@ -4057,7 +4052,6 @@ const TagModal = ({
   const getTagHeight = () => {
     const container = document.querySelector('.tags-list');
     if (container) {
-      const computedStyle = getComputedStyle(container);
       // 获取标签高度，包括padding和margin
       const tagItem = container.querySelector('.tag-item');
       if (tagItem) {
@@ -4066,14 +4060,6 @@ const TagModal = ({
       }
     }
     return 32; // 默认高度
-  };
-
-  const getContainerWidth = () => {
-    const container = document.querySelector('.tags-list');
-    if (container) {
-      return container.offsetWidth;
-    }
-    return 400; // 默认宽度
   };
 
   const getGapValue = () => {
@@ -4197,11 +4183,6 @@ const TagModal = ({
     }
 
     return targetIndex;
-  };
-
-  // 判断移动方向（上升还是下降）
-  const getMoveDirection = (fromIndex, toIndex) => {
-    return toIndex < fromIndex ? 'up' : 'down';
   };
 
   const handleDragStart = (e, index, tag) => {
@@ -4636,7 +4617,6 @@ const Dashboard = () => {
   const [folderPath, setFolderPath] = useState([]);
   
   // 导航历史状态 - 用于智能返回功能
-  const [navigationHistory, setNavigationHistory] = useState([]);
   const [isFromSearch, setIsFromSearch] = useState(false);
   const [searchBackup, setSearchBackup] = useState({
     searchInput: '',
@@ -4714,7 +4694,6 @@ const Dashboard = () => {
   
   // 搜索中断相关状态
   const [searchAbortController, setSearchAbortController] = useState(null);
-  const [lastSearchParams, setLastSearchParams] = useState(null);
   
   // 标签颜色选择器
   const tagColors = [
