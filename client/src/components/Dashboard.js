@@ -2016,18 +2016,27 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         setCurrentFolder(originalState.currentFolder);
         setFolderPath([...originalState.folderPath]);
         
-        // 重置状态机
+        // 将状态机切回 search，并恢复搜索备份，确保后续编辑不触发刷新
         setNavigationState(prev => ({
           ...prev,
-          currentState: 'normal',
+          currentState: 'search',
+          searchInput: originalState.searchInput,
+          searchTerm: originalState.searchTerm,
+          searchTags: [...originalState.searchTags],
+          globalSearch: originalState.globalSearch,
+          backup: {
+            searchInput: originalState.searchInput,
+            searchTerm: originalState.searchTerm,
+            searchTags: [...originalState.searchTags],
+            globalSearch: originalState.globalSearch,
+            files: [...originalState.files],
+            currentFolder: originalState.currentFolder,
+            folderPath: [...originalState.folderPath]
+          },
           locationJump: {
             fromSearch: false,
             originalSearchState: null,
-            currentLocation: {
-              currentFolder: null,
-              folderPath: [],
-              files: []
-            }
+            currentLocation: { currentFolder: null, folderPath: [], files: [] }
           }
         }));
         
@@ -2494,7 +2503,13 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       try {
         console.log('=== useEffect 触发文件列表刷新 ===');
         console.log('触发原因:', { currentFolder, sortBy });
-        console.log('当前状态:', { isFromSearch, searchBackupFiles: searchBackup.files.length });
+        console.log('当前状态:', { isFromSearch, searchBackupFiles: searchBackup.files.length, navState: navigationState.currentState });
+        
+        // 基于状态机：非 normal 状态下交由上层逻辑维护文件列表，阻止自动刷新
+        if (navigationState && navigationState.currentState && navigationState.currentState !== 'normal') {
+          console.log('⚠️ 跳过自动刷新（状态机非 normal）:', navigationState.currentState);
+          return;
+        }
         
         // 如果有搜索条件，跳过自动刷新，让搜索功能处理
         if (searchInput || searchTags.length > 0 || globalSearch || isFromSearch) {
@@ -5091,28 +5106,23 @@ const Dashboard = () => {
         return;
       }
 
-      // 直接使用用户输入的完整文件名（包含扩展名）
       const newFileNameWithExtension = trimmedName;
 
       setIsRenaming(true);
       setTagModalError('');
 
-      console.log('=== 开始重命名文件 ===');
+      console.log('=== 开始重命名文件(乐观更新) ===');
       console.log('文件ID:', selectedFileForTags._id);
       console.log('原文件名:', selectedFileForTags.originalName || selectedFileForTags.filename);
       console.log('新文件名:', newFileNameWithExtension);
 
-      // 调用API重命名文件
-      const result = await renameFile(selectedFileForTags._id, newFileNameWithExtension);
-
-      // 更新本地状态
+      // 先进行乐观更新，立即反映到UI
       setSelectedFileForTags(prev => ({
         ...prev,
         originalName: newFileNameWithExtension,
         filename: newFileNameWithExtension
       }));
 
-      // 更新文件列表中的对应文件
       setFiles(prevFiles => 
         prevFiles.map(file => 
           file._id === selectedFileForTags._id 
@@ -5120,10 +5130,8 @@ const Dashboard = () => {
             : file
         )
       );
-      
-      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
+
       if (navigationState.currentState === 'search_to_location') {
-        // 更新原始搜索结果缓存
         setNavigationState(prev => ({
           ...prev,
           locationJump: {
@@ -5138,7 +5146,6 @@ const Dashboard = () => {
             }
           }
         }));
-        // 同步更新当前位置文件列表
         setNavigationState(prev => ({
           ...prev,
           locationJump: {
@@ -5154,8 +5161,7 @@ const Dashboard = () => {
           }
         }));
       }
-      
-      // 更新状态机中的当前位置信息
+
       if (navigationState.currentState === 'location_jump') {
         setNavigationState(prev => ({
           ...prev,
@@ -5172,8 +5178,7 @@ const Dashboard = () => {
           }
         }));
       }
-      
-      // 更新状态机中的搜索备份状态
+
       if (navigationState.currentState === 'search') {
         setNavigationState(prev => ({
           ...prev,
@@ -5188,13 +5193,24 @@ const Dashboard = () => {
         }));
       }
 
-      console.log('✅ 文件重命名成功');
-      setNewFileName(''); // 清空输入框
+      // 迅速结束“重命名中”按钮状态，提升响应性
+      setTimeout(() => setIsRenaming(false), 150);
+
+      // 后台调用API，同步服务器
+      (async () => {
+        try {
+          await renameFile(selectedFileForTags._id, newFileNameWithExtension);
+        } catch (err) {
+          console.error('文件重命名失败:', err);
+          setTagModalError('文件重命名失败: ' + (err.message || '未知错误'));
+        }
+      })();
+
+      setNewFileName('');
 
     } catch (err) {
-      console.error('文件重命名失败:', err);
+      console.error('文件重命名流程异常:', err);
       setTagModalError('文件重命名失败: ' + (err.message || '未知错误'));
-    } finally {
       setIsRenaming(false);
     }
   };
