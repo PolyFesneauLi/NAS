@@ -4741,8 +4741,9 @@ const Dashboard = () => {
        )
      );
       
-      // 更新状态机中的备份状态
+      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
       if (navigationState.currentState === 'search_to_location') {
+        // 更新原始搜索结果缓存
         setNavigationState(prev => ({
           ...prev,
           locationJump: {
@@ -4753,6 +4754,19 @@ const Dashboard = () => {
                 file._id === selectedFileForTags._id 
                   ? { 
                       ...file, 
+                      tags: [...(file.tags || []), newTag],
+                      tagOrder: [...(file.tagOrder || []), newTag.name]
+                    }
+                  : file
+              )
+            },
+            // 同步更新当前位置的文件列表（当前正在查看的位置）
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file =>
+                file._id === selectedFileForTags._id
+                  ? {
+                      ...file,
                       tags: [...(file.tags || []), newTag],
                       tagOrder: [...(file.tagOrder || []), newTag.name]
                     }
@@ -4836,7 +4850,7 @@ const Dashboard = () => {
         )
       );
       
-      // 更新状态机中的备份状态
+      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
       if (navigationState.currentState === 'search_to_location') {
         setNavigationState(prev => ({
           ...prev,
@@ -4848,6 +4862,18 @@ const Dashboard = () => {
                 file._id === selectedFileForTags._id 
                   ? { 
                       ...file, 
+                      tags: file.tags.filter(tag => tag.name !== tagName),
+                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
+                    }
+                  : file
+              )
+            },
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file =>
+                file._id === selectedFileForTags._id
+                  ? {
+                      ...file,
                       tags: file.tags.filter(tag => tag.name !== tagName),
                       tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
                     }
@@ -4972,6 +4998,21 @@ const Dashboard = () => {
           }
         }
       }));
+      // 同步更新当前位置文件（从搜索跳转位置）
+      setNavigationState(prev => ({
+        ...prev,
+        locationJump: {
+          ...prev.locationJump,
+          currentLocation: {
+            ...prev.locationJump.currentLocation,
+            files: prev.locationJump.currentLocation.files.map(file =>
+              file._id === selectedFileForTags._id
+                ? { ...file, tagOrder: newOrderedTags.map(tag => tag.name) }
+                : file
+            )
+          }
+        }
+      }));
     }
     
     // 立即更新数据库，带重试机制
@@ -5048,8 +5089,9 @@ const Dashboard = () => {
         )
       );
       
-      // 更新状态机中的备份状态
+      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
       if (navigationState.currentState === 'search_to_location') {
+        // 更新原始搜索结果缓存
         setNavigationState(prev => ({
           ...prev,
           locationJump: {
@@ -5058,6 +5100,21 @@ const Dashboard = () => {
               ...prev.locationJump.originalSearchState,
               files: prev.locationJump.originalSearchState.files.map(file => 
                 file._id === selectedFileForTags._id 
+                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
+                  : file
+              )
+            }
+          }
+        }));
+        // 同步更新当前位置文件列表
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: prev.locationJump.currentLocation.files.map(file =>
+                file._id === selectedFileForTags._id
                   ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
                   : file
               )
