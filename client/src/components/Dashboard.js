@@ -1721,10 +1721,9 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const refreshFiles = async () => {
     try {
-      // 立即清空文件列表并设置加载状态
-      setFiles([]);
+      // 后台刷新：不打断前端显示，仅设置轻量状态
       setLoading(true);
-              setError('');
+      setError('');
         
         // 创建请求标识符，用于防止竞态条件
         const requestId = Date.now();
@@ -1763,6 +1762,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
       }
       
       setFiles(sortedFiles);
+      // 备份普通目录文件列表
+      setNavigationState(prev => ({
+        ...prev,
+        normalBackup: {
+          currentFolder: currentFolder || null,
+          folderPath: [...(folderPath || [])],
+          files: sortedFiles
+        }
+      }));
       // 只有在文件列表设置完成后才结束loading状态
       setLoading(false);
     } catch (err) {
@@ -1920,8 +1928,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
   const handleFolderClick = async (folder) => {
     
     try {
-      // 立即清空文件列表并设置加载状态
-      setFiles([]);
+      // 乐观显示：先更新路径并沿用当前前端文件（不清空不闪烁），后台再刷新
       setLoading(true);
 
       const newFolderPath = folderPath.length === 0 ? [folder] : [...folderPath, folder];
@@ -1968,34 +1975,35 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         sort: sortBy
       };
         
-      const data = await getUserFiles(params);
-      
-      // 检查是否是最新的请求
-      if (latestRequestRef.current !== requestId) {
-        console.log('⚠️ 文件夹点击请求已过期，忽略结果');
-        return;
-      }
-      
-      const filesArray = Array.isArray(data.files) ? data.files : [];
-      
-      
-      let sortedFiles = filesArray;
-      if (sortBy === 'name_asc') {
-        sortedFiles = sortFilesByName(filesArray, true);
-      } else if (sortBy === 'name_desc') {
-        sortedFiles = sortFilesByName(filesArray, false);
-      } else if (sortBy === 'extension_asc') {
-        sortedFiles = sortFilesByExtension(filesArray, true);
-      } else if (sortBy === 'extension_desc') {
-        sortedFiles = sortFilesByExtension(filesArray, false);
-      } else if (sortBy === 'size_asc') {
-        sortedFiles = sortFilesBySize(filesArray, true);
-      } else if (sortBy === 'size_desc') {
-        sortedFiles = sortFilesBySize(filesArray, false);
-      }
-      setFiles(sortedFiles);
-      // 只有在文件列表设置完成后才结束loading状态
-      setLoading(false);
+      // 后台刷新当前目录文件，并备份
+      (async () => {
+        try {
+          const data = await getUserFiles(params);
+          if (latestRequestRef.current !== requestId) return;
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          let sortedFiles = filesArray;
+          if (sortBy === 'name_asc') sortedFiles = sortFilesByName(filesArray, true);
+          else if (sortBy === 'name_desc') sortedFiles = sortFilesByName(filesArray, false);
+          else if (sortBy === 'extension_asc') sortedFiles = sortFilesByExtension(filesArray, true);
+          else if (sortBy === 'extension_desc') sortedFiles = sortFilesByExtension(filesArray, false);
+          else if (sortBy === 'size_asc') sortedFiles = sortFilesBySize(filesArray, true);
+          else if (sortBy === 'size_desc') sortedFiles = sortFilesBySize(filesArray, false);
+          setFiles(sortedFiles);
+          setNavigationState(prev => ({
+            ...prev,
+            currentState: 'normal',
+            normalBackup: {
+              currentFolder: folder._id,
+              folderPath: newFolderPath,
+              files: sortedFiles
+            }
+          }));
+        } catch (e) {
+          setError('进入文件夹失败: ' + (e.message || '未知错误'));
+        } finally {
+          setLoading(false);
+        }
+      })();
       
     } catch (err) {
       setError('进入文件夹失败: ' + (err.message || '未知错误'));
@@ -2203,8 +2211,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
 
   const handlePathClick = async (index) => {
     try {
-      // 立即清空文件列表并设置加载状态
-      setFiles([]);
+      // 乐观显示：更新路径即可，后台刷新
       setLoading(true);
       
       let targetFolder = null;
@@ -2258,34 +2265,35 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         sort: sortBy
       };
         
-      const data = await getUserFiles(params);
-      
-      // 检查是否是最新的请求
-      if (latestRequestRef.current !== requestId) {
-        console.log('⚠️ 路径点击请求已过期，忽略结果');
-        return;
-      }
-      
-      const filesArray = Array.isArray(data.files) ? data.files : [];
-      
-      let sortedFiles = filesArray;
-      if (sortBy === 'name_asc') {
-        sortedFiles = sortFilesByName(filesArray, true);
-      } else if (sortBy === 'name_desc') {
-        sortedFiles = sortFilesByName(filesArray, false);
-      } else if (sortBy === 'extension_asc') {
-        sortedFiles = sortFilesByExtension(filesArray, true);
-      } else if (sortBy === 'extension_desc') {
-        sortedFiles = sortFilesByExtension(filesArray, false);
-      } else if (sortBy === 'size_asc') {
-        sortedFiles = sortFilesBySize(filesArray, true);
-      } else if (sortBy === 'size_desc') {
-        sortedFiles = sortFilesBySize(filesArray, false);
-      }
-      
-      setFiles(sortedFiles);
-      // 只有在文件列表设置完成后才结束loading状态
-      setLoading(false);
+      // 后台刷新与备份
+      (async () => {
+        try {
+          const data = await getUserFiles(params);
+          if (latestRequestRef.current !== requestId) return;
+          const filesArray = Array.isArray(data.files) ? data.files : [];
+          let sortedFiles = filesArray;
+          if (sortBy === 'name_asc') sortedFiles = sortFilesByName(filesArray, true);
+          else if (sortBy === 'name_desc') sortedFiles = sortFilesByName(filesArray, false);
+          else if (sortBy === 'extension_asc') sortedFiles = sortFilesByExtension(filesArray, true);
+          else if (sortBy === 'extension_desc') sortedFiles = sortFilesByExtension(filesArray, false);
+          else if (sortBy === 'size_asc') sortedFiles = sortFilesBySize(filesArray, true);
+          else if (sortBy === 'size_desc') sortedFiles = sortFilesBySize(filesArray, false);
+          setFiles(sortedFiles);
+          setNavigationState(prev => ({
+            ...prev,
+            currentState: 'normal',
+            normalBackup: {
+              currentFolder: targetFolder ? targetFolder._id : null,
+              folderPath: newPath,
+              files: sortedFiles
+            }
+          }));
+        } catch (e) {
+          setError('切换文件夹失败: ' + (e.message || '未知错误'));
+        } finally {
+          setLoading(false);
+        }
+      })();
       
     } catch (err) {
       setError('切换文件夹失败: ' + (err.message || '未知错误'));
@@ -2530,8 +2538,7 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
           return;
         }
         
-        // 立即清空文件列表并设置加载状态
-        setFiles([]);
+        // 后台刷新，不清空当前显示
         setLoading(true);
         setError('');
         
@@ -2574,6 +2581,15 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
         
         console.log('设置文件列表，数量:', sortedFiles.length);
         setFiles(sortedFiles);
+        // 更新普通目录备份
+        setNavigationState(prev => ({
+          ...prev,
+          normalBackup: {
+            currentFolder: currentFolder || null,
+            folderPath: [...(folderPath || [])],
+            files: sortedFiles
+          }
+        }));
         // 只有在文件列表设置完成后才结束loading状态
         setLoading(false);
       } catch (err) {
@@ -3457,6 +3473,16 @@ const FileList = forwardRef(({ userRole, onDeleteSuccess, className = 'file-list
             </React.Fragment>
           ))}
         </div>
+        <button
+          className="refresh-btn"
+          onClick={() => {
+            // 在列表内部直接刷新当前目录并备份
+            refreshFiles();
+          }}
+          style={{ marginLeft: '12px' }}
+        >
+          刷新
+        </button>
       </div>
       
       <div className="file-controls">
@@ -4562,6 +4588,12 @@ const Dashboard = () => {
         folderPath: [],
         files: []
       }
+    },
+    // 普通目录浏览备份（仅在 normal 状态下使用）
+    normalBackup: {
+      currentFolder: null,
+      folderPath: [],
+      files: []
     }
   });
   

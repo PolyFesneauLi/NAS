@@ -655,6 +655,21 @@
   flex-shrink: 0; /* 防止导航栏被压缩 */
 }
 
+.refresh-btn {
+  height: 32px;
+  line-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #24292f;
+  cursor: pointer;
+}
+
+.refresh-btn:hover {
+  background: #eef1f4;
+}
+
 .back-btn {
   background-color: #447de9;
   border: 2px solid #e2e8f0;
