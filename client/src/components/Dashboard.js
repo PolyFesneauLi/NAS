@@ -4608,54 +4608,86 @@ const Dashboard = () => {
   };
 
   const handleCloseTagModal = () => {
+    const lastEditedFile = selectedFileForTags;
     setShowTagModal(false);
-    setSelectedFileForTags(null);
     setNewTagColor('#007bff');
     setTagModalError('');
     
     console.log('[TAG] 关闭标签弹窗，当前状态机状态:', navigationState.currentState);
+
+    const applyEditedToFileList = (fileList) => {
+      if (!lastEditedFile || !Array.isArray(fileList)) return fileList;
+      return fileList.map(file =>
+        file._id === lastEditedFile._id
+          ? {
+              ...file,
+              tags: lastEditedFile.tags ?? file.tags,
+              tagOrder: lastEditedFile.tagOrder ?? file.tagOrder,
+              originalName: lastEditedFile.originalName || file.originalName,
+              filename: lastEditedFile.filename || file.filename,
+            }
+          : file
+      );
+    };
     
     // 根据状态机决定行为
     switch (navigationState.currentState) {
-      case 'search_to_location':
-        console.log('[TAG] 从搜索跳转位置编辑标签，保持当前位置，不刷新');
-        // 保持当前位置，不刷新
+      case 'search_to_location': {
+        console.log('[TAG] 从搜索跳转位置编辑，更新当前位置文件，保持当前位置');
+        // 更新状态机当前位置列表
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: applyEditedToFileList(prev.locationJump.currentLocation.files),
+            },
+          },
+        }));
+        // 同步更新当前显示列表
+        setFiles(prevFiles => applyEditedToFileList(prevFiles));
         break;
-        
-      case 'location_jump':
-        console.log('[TAG] 从普通跳转位置编辑标签，保持当前位置，不刷新');
-        // 保持当前位置，不刷新
+      }
+      case 'location_jump': {
+        console.log('[TAG] 从普通跳转位置编辑，更新当前位置文件，保持当前位置');
+        setNavigationState(prev => ({
+          ...prev,
+          locationJump: {
+            ...prev.locationJump,
+            currentLocation: {
+              ...prev.locationJump.currentLocation,
+              files: applyEditedToFileList(prev.locationJump.currentLocation.files),
+            },
+          },
+        }));
+        setFiles(prevFiles => applyEditedToFileList(prevFiles));
         break;
-        
-      case 'search':
-        console.log('[TAG] 从搜索结果编辑标签，保持搜索状态');
-        // 保持搜索状态，不刷新
-        // 确保搜索结果显示最新的文件状态
-        // 更新状态机中的搜索文件列表
-        if (selectedFileForTags) {
-          setNavigationState(prev => ({
-            ...prev,
-            backup: {
-              ...prev.backup,
-              files: prev.backup.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { ...file, tags: selectedFileForTags.tags, tagOrder: selectedFileForTags.tagOrder }
-                  : file
-              )
-            }
-          }));
-        }
+      }
+      case 'search': {
+        console.log('[TAG] 从搜索结果编辑，更新备份与显示列表，保持搜索状态');
+        setNavigationState(prev => ({
+          ...prev,
+          backup: {
+            ...prev.backup,
+            files: applyEditedToFileList(prev.backup.files),
+          },
+        }));
+        setFiles(prevFiles => applyEditedToFileList(prevFiles));
         break;
-        
+      }
       case 'normal':
-      default:
-        console.log('[TAG] 从普通目录编辑标签，刷新文件列表');
-        // 刷新文件列表
+      default: {
+        console.log('[TAG] 从普通目录编辑，刷新文件列表');
         if (fileListRef.current) {
           fileListRef.current.refresh();
         }
         break;
+      }
     }
+
+    // 最后再清空所选文件，避免丢失更新数据
+    setSelectedFileForTags(null);
   };
 
   const handleAddNewTag = useCallback(async () => {
