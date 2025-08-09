@@ -4620,6 +4620,17 @@ const Dashboard = () => {
     preloadAllTags();
   }, [currentUser]);
 
+  // 统一刷新全局可选标签（用于弹窗与热门标签的即时更新）
+  const refreshAllTags = useCallback(async () => {
+    try {
+      const res = await getAllTags();
+      const allTags = Array.isArray(res?.tags) ? res.tags : [];
+      setAvailableTags(allTags);
+    } catch (err) {
+      console.error('刷新可用标签失败:', err);
+    }
+  }, []);
+
   // 组件卸载时清理 AbortController
   useEffect(() => {
     return () => {
@@ -4899,6 +4910,8 @@ const Dashboard = () => {
       
       setNewTagColor('#007bff');
       setTagModalError('');
+      // 变更后即时刷新可选标签与热门标签
+      refreshAllTags();
     } catch (err) {
       console.error('添加新标签失败:', err);
       setTagModalError(`添加标签失败: ${err.message}`);
@@ -5005,6 +5018,8 @@ const Dashboard = () => {
       }
       
       setTagModalError('');
+      // 变更后即时刷新可选标签与热门标签
+      refreshAllTags();
     } catch (err) {
       console.error('移除标签失败:', err);
       setTagModalError(`移除标签失败: ${err.message}`);
@@ -5104,6 +5119,8 @@ const Dashboard = () => {
         if (updatedFile) {
           setSelectedFileForTags(updatedFile);
         }
+        // 排序变更后也刷新可选标签与热门标签（受 order 影响）
+        refreshAllTags();
       } catch (err) {
         console.error(`更新标签顺序失败 (尝试 ${4 - retries}/3):`, err);
         if (retries > 1) {
