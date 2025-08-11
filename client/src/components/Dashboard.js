@@ -3584,52 +3584,56 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               <option value="extension_desc">文件后缀（Z-A）</option>
             </select>
           </div>
-          {userRole === 'admin' && (
           <div className="admin-controls">
             {selectedIds.length > 0 && (
               <>
                 <button className="btn btn-primary" onClick={handleBatchDownload}>
                   批量下载({selectedIds.length})
                 </button>
-                <button className="btn btn-danger" onClick={handleBatchDelete}>
-                  批量删除({selectedIds.length})
-                </button>
+                {userRole === 'admin' && (
+                  <button className="btn btn-danger" onClick={handleBatchDelete}>
+                    批量删除({selectedIds.length})
+                  </button>
+                )}
               </>
             )}
-            {!showFolderInput ? (
-              <button 
-                type="button"
-                onClick={() => setShowFolderInput(true)}
-                className="create-folder-btn"
-              >
-                新建文件夹
-              </button>
-            ) : (
-              <form onSubmit={handleCreateFolder} className="folder-form">
-                <input
-                  type="text"
-                  value={folderName}
-                  onChange={(e) => setFolderName(e.target.value)}
-                  placeholder="输入文件夹名称"
-                  className="folder-input"
-                  autoFocus
-                />
-                <button type="submit" className="confirm-folder-btn">确认</button>
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setShowFolderInput(false);
-                    setFolderName('');
-                    setError('');
-                  }}
-                  className="cancel-folder-btn"
-                >
-                  取消
-                </button>
-              </form>
+            {userRole === 'admin' && (
+              <>
+                {!showFolderInput ? (
+                  <button 
+                    type="button"
+                    onClick={() => setShowFolderInput(true)}
+                    className="create-folder-btn"
+                  >
+                    新建文件夹
+                  </button>
+                ) : (
+                  <form onSubmit={handleCreateFolder} className="folder-form">
+                    <input
+                      type="text"
+                      value={folderName}
+                      onChange={(e) => setFolderName(e.target.value)}
+                      placeholder="输入文件夹名称"
+                      className="folder-input"
+                      autoFocus
+                    />
+                    <button type="submit" className="confirm-folder-btn">确认</button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setShowFolderInput(false);
+                        setFolderName('');
+                        setError('');
+                      }}
+                      className="cancel-folder-btn"
+                    >
+                      取消
+                    </button>
+                  </form>
+                )}
+              </>
             )}
           </div>
-        )}
         </div>
         
         {/* 标签搜索组件 */}
@@ -3757,15 +3761,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             <table>
               <thead>
                 <tr>
-                  {userRole === 'admin' && (
-                    <th>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedIds.length === files.filter(f => !deletingFiles.has(f._id)).length && files.filter(f => !deletingFiles.has(f._id)).length > 0} 
-                        onChange={handleSelectAll}
-                      />
-                    </th>
-                  )}
+                  <th>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === files.filter(f => !deletingFiles.has(f._id)).length && files.filter(f => !deletingFiles.has(f._id)).length > 0} 
+                      onChange={handleSelectAll}
+                    />
+                  </th>
                   <th style={{ textAlign: 'center', width: '100px' }}>标签</th>
                   <th style={{ textAlign: 'center' }}>名称</th>
                   <th style={{ textAlign: 'center' }}>类型</th>
@@ -3778,16 +3780,14 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               <tbody>
                 {files.map(file => (
                   <tr key={file._id} className={file.isFolder ? 'folder-row' : ''}>
-                    {userRole === 'admin' && (
-                      <td>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.includes(file._id)} 
-                          onChange={() => handleSelect(file._id)}
-                          disabled={deletingFiles.has(file._id)}
-                        />
-                      </td>
-                    )}
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(file._id)} 
+                        onChange={() => handleSelect(file._id)}
+                        disabled={deletingFiles.has(file._id)}
+                      />
+                    </td>
                     <td style={{ width: '100px', maxWidth: '100px', overflow: 'hidden' }}>
                       <TagDisplay tags={file.tags} sortedTags={file.sortedTags} />
                     </td>

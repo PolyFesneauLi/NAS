@@ -77,7 +77,7 @@ const AuthForm = ({ type, onSuccess }) => {
       }
     } catch (err) {
       console.error('操作错误:', err); // 添加错误日志
-      setError(err.response?.data?.error || '操作失败');
+      setError(err.response?.data?.error || '操作失败，后端未启动');
     } finally {
       setLoading(false);
     }

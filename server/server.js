@@ -7,7 +7,7 @@ const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const userRoutes = require('./routes/userRoutes');
 const apiRoutes = require('./routes/api');
-const initRootFolder = require('./utils/initRootFolder');
+const { initRootFolder } = require('./utils/initRootFolder');
 const cleanupUploads = require('./utils/cleanupUploads');
 const config = require('./config');
 
