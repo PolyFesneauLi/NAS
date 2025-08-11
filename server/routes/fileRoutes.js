@@ -28,8 +28,8 @@ router.post('/upload-folder',
   fileController.uploadFolder
 );
 
-// 获取用户文件
-router.get('/', auth.authenticate, fileController.getUserFiles);
+// 获取用户文件 用于文件搜索
+router.get('/', auth.authenticate, fileController.searchFiles);
 
 // 获取归档进度
 router.get('/archiving-progress', auth.authenticate, fileController.getArchivingProgress);

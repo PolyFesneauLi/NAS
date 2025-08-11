@@ -518,9 +518,11 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   // 递归构建文件夹树形结构和路径映射
   const buildFolderStructure = useCallback(async (parentId = null, level = 0, parentPath = 'Home') => {
     try {
+      // 获取所有当前目录的一级子文件夹
       const data = await getUserFiles({ folder: parentId });
       const foldersList = data.files.filter(f => f.isFolder);
-      
+
+      // 默认按文件名从大到小排序下拉框选项
       foldersList.sort((a, b) => {
         const nameA = (a.originalName || a.filename).toLowerCase();
         const nameB = (b.originalName || b.filename).toLowerCase();
@@ -532,24 +534,16 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           `${parentPath}/${folder.originalName || folder.filename}` : 
           `${parentPath}/${folder.originalName || folder.filename}`;
         
-        // 确保路径被正确设置（只在开发环境显示日志）
+        // 确保路径被正确设置
         setFolderPaths(prev => {
           const newMap = new Map(prev);
           // 避免重复设置相同的路径
           if (!newMap.has(folder._id) || newMap.get(folder._id) !== currentPath) {
             newMap.set(folder._id, currentPath);
-            if (process.env.NODE_ENV === 'development') {
-              // console.log('[FOLDER] 设置路径映射:', {
-              //   folderId: folder._id,
-              //   folderName: folder.originalName || folder.filename,
-              //   path: currentPath,
-              //   level
-              // });
-            }
           }
           return newMap;
         });
-        
+        //递归构建子树
         const children = await buildFolderStructure(folder._id, level + 1, currentPath);
         return {
           ...folder,
@@ -1468,27 +1462,13 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
   const [locationButtonPressed, setLocationButtonPressed] = useState(new Set());
   const [locationLoading, setLocationLoading] = useState(new Set());
 
-  // 导航历史状态 - 用于智能返回功能（从 Dashboard 组件传递）
-  // const [navigationHistory, setNavigationHistory] = useState([]);
-  // const [isFromSearch, setIsFromSearch] = useState(false);
-  // const [searchBackup, setSearchBackup] = useState({
-  //   searchInput: '',
-  //   searchTerm: '',
-  //   searchTags: [],
-  //   globalSearch: false,
-  //   files: [],
-  //   currentFolder: null,
-  //   folderPath: []
-  // });
-  // const [currentFolder, setCurrentFolder] = useState(null);
-  // const [folderPath, setFolderPath] = useState([]);
-
-  // 通用搜索函数，支持中断功能
+  // 通用搜索函数(enter或者按搜索按钮后触发)，支持中断功能
   const performSearch = async (searchParams, isFromEnter = false) => {
+    // ---------------------
     // 检查搜索参数是否有变化
+    // ---------------------
     const currentParams = JSON.stringify(searchParams);
     const hasParamsChanged = lastSearchParams !== currentParams;
-    
     // 如果正在搜索且参数有变化，中断当前搜索
     if (searchLoading && hasParamsChanged) {
       if (searchAbortController) {
@@ -1499,22 +1479,23 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
       setTimeout(() => setError(''), 600);
     }
     
-    // 创建新的 AbortController
+    // 创建新的 AbortController 用于中断搜索调用
     const abortController = new AbortController();
     setSearchAbortController(abortController);
     setSearchLoading(true);
-    
     // 更新最后搜索参数
     setLastSearchParams(currentParams);
     
+    // ---------------------
+    // 开始搜索
+    // ---------------------
     try {
+      // 调用API搜索文件
       const response = await searchFiles(searchParams, abortController.signal);
-      
       // 检查是否被中断
       if (abortController.signal.aborted) {
         return;
       }
-      
       setFiles(response.files);
       if (isFromEnter) {
         setSearchTerm(searchParams.search);
@@ -1528,6 +1509,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
         searchTerm: searchParams.search,
         searchTags: searchParams.tags,
         globalSearch: searchParams.globalSearch,
+        // 备份搜索状态 用于智能返回smartback功能
         backup: {
           searchInput: searchParams.search,
           searchTerm: searchParams.search,
@@ -1555,6 +1537,7 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     }
   };
 
+  // 按回车键搜索
   const handleSearchSubmit = async (e) => {
     if (e.key === 'Enter') {
       const searchParams = {
@@ -3569,8 +3552,8 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
               type="text"
               placeholder="搜索文件名... (按回车搜索)"
               value={searchInput}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchSubmit}
+              onChange={handleSearchChange}  // 搜索框输入内容变化时调用
+              onKeyDown={handleSearchSubmit} // 按回车键搜索
               className="search-input"
             />
           </div>

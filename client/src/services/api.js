@@ -272,6 +272,7 @@ const fixEncoding = (str) => {
 };
 
 // 搜索文件（支持文件名和标签搜索）
+// signal 是 AbortController的信号，用于中断搜索
 export const searchFiles = async (params = {}, signal = null) => {
   const queryParams = new URLSearchParams();
   
@@ -285,7 +286,7 @@ export const searchFiles = async (params = {}, signal = null) => {
   if (params.folder) queryParams.append('folder', params.folder);
   if (params.globalSearch) queryParams.append('globalSearch', params.globalSearch);
   if (params.tags && params.tags.length > 0) {
-    // 对每个标签应用编码修复
+    // 对每个标签应用中文编码修复
     const fixedTags = params.tags.map(tag => fixEncoding(tag));
     queryParams.append('tags', encodeURIComponent(JSON.stringify(fixedTags)));
   }

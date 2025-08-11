@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 const storageAccess = require('../utils/storageAccess');
+const { ensureRootFolder } = require('../utils/initRootFolder');
 
 const FixEncoding = (str) => {
   try {
@@ -566,20 +567,12 @@ const createFolder = async (req, res) => {
   }
 };
 
-// 获取用户文件列表
-const getUserFiles = async (req, res) => {
+// 从url的信息 搜索文件
+const searchFiles = async (req, res) => {
   try {
     const folderId = req.query.folder;
     const { sort, search, tags, globalSearch } = req.query;
     const query = {};
-
-    // // 普通用户可以看到所有文件，管理员只能看到自己的文件
-    // if (req.user.role === 'admin') {
-    //   query.owner = req.user.id;
-    // }
-    // // 普通用户不限制owner，可以看到所有文件
-
-
 
     // 全局搜索时，搜索当前路径及其所有子文件夹
     if (globalSearch === 'true') {
@@ -1700,8 +1693,6 @@ const getAllTags = async (req, res) => {
   }
 };
 
-
-
 // 获取单个文件详情
 const getFileDetails = async (req, res) => {
   try {
@@ -1911,11 +1902,161 @@ const renameFile = async (req, res) => {
   }
 };
 
+const getUserFiles = async (req, res) => {
+  try {
+    // 确保根目录存在
+    try {
+      await ensureRootFolder();
+    } catch (error) {
+      console.error('Failed to ensure root folder:', error);
+      return res.status(500).json({ error: '系统初始化失败，请联系管理员' });
+    }
+
+    const folderId = req.query.folder;
+    const { sort, search, tags, globalSearch } = req.query;
+    const query = {};
+
+    // 全局搜索时，搜索当前路径及其所有子文件夹
+    if (globalSearch === 'true') {
+      // 全局搜索：搜索当前路径及其所有子文件夹中的文件
+      // 我们需要获取所有在当前路径及其子文件夹中的文件
+      // 首先获取当前路径下的所有文件夹ID
+      const getSubfolderIds = async (parentId) => {
+        const subfolders = await File.find({ 
+          parentFolder: parentId, 
+          isFolder: true 
+        });
+        let allIds = [parentId];
+        for (const subfolder of subfolders) {
+          const subIds = await getSubfolderIds(subfolder._id);
+          allIds = allIds.concat(subIds);
+        }
+        return allIds;
+      };
+
+      let targetFolderId;
+      if (folderId) {
+        targetFolderId = folderId;
+      } else {
+        const homeFolder = await File.findOne({ 
+          isFolder: true, 
+          parentFolder: null,
+          filename: "home"
+        });
+        if (!homeFolder) {
+          return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+        }
+        targetFolderId = homeFolder._id;
+      }
+
+      // 获取所有子文件夹ID
+      const allFolderIds = await getSubfolderIds(targetFolderId);
+      
+      // 查询所有在这些文件夹中的文件
+      query.parentFolder = { $in: allFolderIds };
+    } else {
+      // 普通搜索：只搜索当前文件夹
+      if (folderId) {
+        query.parentFolder = folderId;
+      } else {
+        const homeFolder = await File.findOne({ 
+          isFolder: true, 
+          parentFolder: null,
+          filename: "home"
+        });
+        if (!homeFolder) {
+          return res.status(500).json({ error: 'Home目录不存在，系统配置错误' });
+        }
+        query.parentFolder = homeFolder._id;
+      }
+    }
+
+    // 搜索功能 - 文件名部分匹配（支持文件夹和文件）
+    if (search) {
+      const decodedSearch = FixEncoding(decodeURIComponent(search));
+      query.$or = [
+        { originalName: { $regex: decodedSearch, $options: 'i' } },
+        { filename: { $regex: decodedSearch, $options: 'i' } }
+      ];
+      // console.log('收到搜索参数:', decodedSearch, 'MongoDB 查询:', JSON.stringify(query));
+    }
+
+    // 标签搜索功能
+    if (tags) {
+      try {
+        const tagArray = JSON.parse(decodeURIComponent(tags));
+        if (Array.isArray(tagArray) && tagArray.length > 0) {
+          // 对每个标签应用编码修复
+          const fixedTagArray = tagArray.map(tag => FixEncoding(tag));
+          // 查找包含所有指定标签的文件
+          query['tags.name'] = { $all: fixedTagArray };
+        }
+      } catch (error) {
+        console.error('解析标签参数错误:', error);
+      }
+    }
+
+    // 排序功能
+    let sortOption = { isFolder: -1, filename: 1 }; // 默认文件夹在前，按名称排序
+    if (sort) {
+      switch (sort) {
+        case 'time_asc':
+          sortOption = { isFolder: -1, updatedAt: 1 };
+          break;
+        case 'time_desc':
+          sortOption = { isFolder: -1, updatedAt: -1 };
+          break;
+        case 'size_asc':
+          sortOption = { isFolder: -1, size: 1 };
+          break;
+        case 'size_desc':
+          sortOption = { isFolder: -1, size: -1 };
+          break;
+        case 'name_asc':
+          sortOption = { isFolder: -1, originalName: 1 };
+          break;
+        case 'name_desc':
+          sortOption = { isFolder: -1, originalName: -1 };
+          break;
+        case 'extension_asc':
+          sortOption = { isFolder: -1, originalName: 1 };
+          break;
+        case 'extension_desc':
+          sortOption = { isFolder: -1, originalName: -1 };
+          break;
+        default:
+          sortOption = { isFolder: -1, filename: 1 };
+      }
+    }
+
+    const files = await File.find(query)
+      .collation({ locale: 'zh' })
+      .sort(sortOption)
+      .select('filename originalName path size fileType isFolder parentFolder owner createdAt updatedAt tags');
+    
+    // 获取按 order 排序的标签列表
+    const sortedTags = await Tag.find()
+      .sort({ order: 1, usageCount: -1, name: 1 })
+      .select('name color usageCount createdAt order createdBy');
+    
+    // 为每个文件添加排序后的标签信息
+    const filesWithSortedTags = files.map(file => {
+      const fileObj = file.toObject();
+      fileObj.sortedTags = sortedTags;
+      return fileObj;
+    });
+    
+    res.json({ files: filesWithSortedTags });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
   uploadFolder,
-  getUserFiles,
+  searchFiles,
   getFileDetails,
   downloadFile,
   downloadFolder,
@@ -1931,5 +2072,6 @@ module.exports = {
   createTag,
   getAllTags,
   updateTagOrder,
-  renameFile
+  renameFile,
+  getUserFiles
 };

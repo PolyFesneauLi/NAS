@@ -4,6 +4,7 @@ const User = require('../models/User');
 const fs = require('fs').promises;
 const path = require('path');
 const config = require('../config');
+const { ensureRootFolder } = require('../utils/initRootFolder');
 
 exports.register = async (req, res) => {
   try {
@@ -37,6 +38,17 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+
+    // 如果是第一个admin用户，自动创建根目录
+    if (userRole === 'admin' && userCount === 0) {
+      try {
+        await ensureRootFolder();
+        console.log('✅ Root folder created automatically for first admin user');
+      } catch (error) {
+        console.error('Failed to create root folder for first admin user:', error);
+        // 继续执行，不影响注册流程
+      }
+    }
 
     // 生成 JWT
     const token = jwt.sign({ id: user._id, role: user.role }, config.jwtSecret, {
