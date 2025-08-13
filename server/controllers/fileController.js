@@ -1704,10 +1704,8 @@ const getFileDetails = async (req, res) => {
       return res.status(404).json({ error: '文件不存在' });
     }
 
-    // 检查文件是否属于当前用户
-    if (file.owner.toString() !== user._id.toString()) {
-      return res.status(403).json({ error: '无权访问此文件' });
-    }
+    // 所有认证用户都可以获取文件详情，用于跳转功能
+    // 不再检查文件所有者权限
 
     // 获取按 order 排序的标签列表
     const sortedTags = await Tag.find()
