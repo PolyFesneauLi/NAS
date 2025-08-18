@@ -1540,18 +1540,18 @@ const addTags = async (req, res) => {
       });
     }
 
-    // 同时更新 Tag 模型
+    // 同时更新 Tag 模型 - admin可以管理所有标签，不限制createdBy
     for (const tag of newTagsToAdd) {
-      let tagDoc = await Tag.findOne({ name: tag.name, createdBy: user._id });
+      let tagDoc = await Tag.findOne({ name: tag.name });
       if (!tagDoc) {
         // 获取当前最大的 order 值
-        const maxOrderTag = await Tag.findOne({ createdBy: user._id })
+        const maxOrderTag = await Tag.findOne()
           .sort({ order: -1 })
           .select('order');
         
         const nextOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
         
-        // 创建新标签
+        // 创建新标签，createdBy设置为当前admin用户
         tagDoc = new Tag({
           name: tag.name,
           color: tag.color,
@@ -1606,9 +1606,9 @@ const removeTags = async (req, res) => {
       file.tagOrder = file.tagOrder.filter(tagName => !tagNames.includes(tagName));
     }
     
-    // 更新 Tag 模型的使用次数
+    // 更新 Tag 模型的使用次数 - admin可以管理所有标签
     for (const tagName of tagNames) {
-      const tagDoc = await Tag.findOne({ name: tagName, createdBy: user._id });
+      const tagDoc = await Tag.findOne({ name: tagName });
       if (tagDoc && tagDoc.usageCount > 0) {
         tagDoc.usageCount -= 1;
         await tagDoc.save();
@@ -1642,14 +1642,14 @@ const createTag = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以创建标签' });
     }
 
-    // 检查标签是否已存在
-    const existingTag = await Tag.findOne({ name: name.trim(), createdBy: user._id });
+    // 检查标签是否已存在（全局检查，不限制createdBy）
+    const existingTag = await Tag.findOne({ name: name.trim() });
     if (existingTag) {
       return res.status(400).json({ error: '标签已存在' });
     }
 
     // 获取当前最大的 order 值
-    const maxOrderTag = await Tag.findOne({ createdBy: user._id })
+    const maxOrderTag = await Tag.findOne()
       .sort({ order: -1 })
       .select('order');
     
@@ -1739,7 +1739,7 @@ const updateTagOrder = async (req, res) => {
     // 全局热门标签排序：允许通过同一接口更新 Tag.order
     if (fileId === 'global' || global === true || !fileId) {
       // 全局：将提交的前 N 个标签固定为最小的顺序值 [0..N-1]，
-      // 其他标签按原有顺序（order/usageCount）从 N 开始顺延，确保“热门前10”能稳定生效
+      // 其他标签按原有顺序（order/usageCount）从 N 开始顺延，确保"热门前10"能稳定生效
       const allTags = await Tag.find().sort({ order: 1, usageCount: -1, name: 1 }).select('name order');
       const desiredSet = new Set(tagOrder);
 

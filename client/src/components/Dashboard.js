@@ -4502,30 +4502,44 @@ const TagModal = ({
             <h4>可用标签:</h4>
             <div className="tags-list">
               {availableTags.map((tag, index) => (
-                <span
+                  <span
                   key={index}
                   className="tag"
                   style={{ backgroundColor: tag.color }}
-                  onClick={async () => {
-                    console.log('=== 标签点击调试信息 ===');
-                    console.log('1. 点击的标签:', tag);
-                    console.log('2. selectedFileForTags:', selectedFileForTags);
-                    console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
-                    console.log('4. 准备调用 addTags 函数');
-                    console.log('5. addTags 函数类型:', typeof addTags);
-                    console.log('6. addTags 函数内容:', addTags);
-                    
-                    if (!selectedFileForTags || !selectedFileForTags._id) {
-                      console.error('错误: selectedFileForTags 或 _id 为空');
-                      return;
-                    }
-                    
-                    // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
-                    try {
-                      const fileDetails = await getFileDetails(selectedFileForTags._id);
-                      if (fileDetails && fileDetails.tags) {
-                        // 检查是否已存在相同名称的标签
-                        const existingTag = fileDetails.tags.find(existingTag => 
+                    onClick={async () => {
+                      console.log('=== 标签点击调试信息 ===');
+                      console.log('1. 点击的标签:', tag);
+                      console.log('2. selectedFileForTags:', selectedFileForTags);
+                      console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
+                      console.log('4. 准备调用 addTags 函数');
+                      console.log('5. addTags 函数类型:', typeof addTags);
+                      console.log('6. addTags 函数内容:', addTags);
+                      
+                      if (!selectedFileForTags || !selectedFileForTags._id) {
+                        console.error('错误: selectedFileForTags 或 _id 为空');
+                        return;
+                      }
+                      
+                      // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
+                      try {
+                        const fileDetails = await getFileDetails(selectedFileForTags._id);
+                        if (fileDetails && fileDetails.tags) {
+                          // 检查是否已存在相同名称的标签
+                          const existingTag = fileDetails.tags.find(existingTag => 
+                            existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                          );
+                          
+                          if (existingTag) {
+                            console.log('标签已存在，跳过添加');
+                            setTagModalError(`标签 "${tag.name}" 已存在`);
+                            setTimeout(() => setTagModalError(''), 3000);
+                            return;
+                          }
+                        }
+                      } catch (err) {
+                        console.error('获取文件详情失败:', err);
+                        // 如果获取失败，使用当前内存中的标签进行检查
+                        const existingTag = selectedFileForTags.tags?.find(existingTag => 
                           existingTag.name.toLowerCase() === tag.name.toLowerCase()
                         );
                         
@@ -4536,47 +4550,33 @@ const TagModal = ({
                           return;
                         }
                       }
-                    } catch (err) {
-                      console.error('获取文件详情失败:', err);
-                      // 如果获取失败，使用当前内存中的标签进行检查
-                      const existingTag = selectedFileForTags.tags?.find(existingTag => 
-                        existingTag.name.toLowerCase() === tag.name.toLowerCase()
-                      );
                       
-                      if (existingTag) {
-                        console.log('标签已存在，跳过添加');
-                        setTagModalError(`标签 "${tag.name}" 已存在`);
-                        setTimeout(() => setTagModalError(''), 3000);
-                        return;
+                      try {
+                        console.log('7. 开始调用 addTags...');
+                        const result = await addTags(selectedFileForTags._id, [tag]);
+                        console.log('8. addTags 调用成功，返回结果:', result);
+                        
+                        console.log('9. 开始更新 selectedFileForTags...');
+                        // 立即更新弹窗内的当前标签显示
+                        setSelectedFileForTags(prev => ({
+                          ...prev,
+                          tags: [...(prev.tags || []), tag],
+                          tagOrder: [...(prev.tagOrder || []), tag.name]
+                        }));
+                        
+                        console.log('15. 清除错误信息');
+                        console.log('16. 标签添加完成！');
+                      } catch (err) {
+                        console.error('=== 添加标签失败 ===');
+                        console.error('错误详情:', err);
+                        console.error('错误消息:', err.message);
+                        console.error('错误堆栈:', err.stack);
                       }
-                    }
-                    
-                    try {
-                      console.log('7. 开始调用 addTags...');
-                      const result = await addTags(selectedFileForTags._id, [tag]);
-                      console.log('8. addTags 调用成功，返回结果:', result);
-                      
-                      console.log('9. 开始更新 selectedFileForTags...');
-                                     // 立即更新弹窗内的当前标签显示
-               setSelectedFileForTags(prev => ({
-                 ...prev,
-                 tags: [...(prev.tags || []), tag],
-                 tagOrder: [...(prev.tagOrder || []), tag.name]
-               }));
-                      
-                      console.log('15. 清除错误信息');
-                      console.log('16. 标签添加完成！');
-                    } catch (err) {
-                      console.error('=== 添加标签失败 ===');
-                      console.error('错误详情:', err);
-                      console.error('错误消息:', err.message);
-                      console.error('错误堆栈:', err.stack);
-                    }
-                  }}
-                  title={`点击添加标签: ${tag.name}`}
-                >
-                  {tag.name}
-                </span>
+                    }}
+                    title={`点击添加标签: ${tag.name}`}
+                  >
+                    {tag.name}
+                  </span>
               ))}
             </div>
           </div>
