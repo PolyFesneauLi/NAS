@@ -257,6 +257,11 @@ export const forceDeleteTag = async (tagName) => {
   return response.data;
 };
 
+export const cleanupOrphanedTags = async () => {
+  const response = await api.post('/files/cleanup-orphaned-tags');
+  return response.data;
+};
+
 export const updateTagOrder = async (fileId, tagOrder) => {
   const response = await api.post('/files/update-tag-order', { fileId, tagOrder });
   return response.data;

@@ -56,6 +56,8 @@ router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileCon
 router.post('/update-tag-order', auth.authenticate, auth.requireRole('admin'), fileController.updateTagOrder);
 router.delete('/delete-tag', auth.authenticate, auth.requireRole('admin'), fileController.deleteTag);
 router.post('/force-delete-tag', auth.authenticate, auth.requireRole('admin'), fileController.forceDeleteTag);
+// 清理孤立标签(有usecount>0 但是其实没有文件关联的标签 -> 效果：删除标签)
+router.post('/cleanup-orphaned-tags', auth.authenticate, auth.requireRole('admin'), fileController.cleanupOrphanedTags);
 
 // 重命名文件（仅 admin）
 router.put('/rename/:id', auth.authenticate, auth.requireRole('admin'), fileController.renameFile);

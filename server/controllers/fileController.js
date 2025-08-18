@@ -263,6 +263,22 @@ const recursiveDelete = async (folderId, userStorageMap = {}) => {
       totalFreed += await recursiveDelete(child._id, userStorageMap);
       // 子文件夹的数据库记录已经在recursiveDelete中删除
     } else {
+      // 删除文件前，先更新标签的usageCount
+      if (child.tags && child.tags.length > 0) {
+        for (const tag of child.tags) {
+          try {
+            const tagDoc = await Tag.findOne({ name: tag.name });
+            if (tagDoc && tagDoc.usageCount > 0) {
+              tagDoc.usageCount -= 1;
+              await tagDoc.save();
+              console.log(`[RECURSIVE_DELETE] 更新标签 "${tag.name}" 的usageCount: ${tagDoc.usageCount + 1} -> ${tagDoc.usageCount}`);
+            }
+          } catch (tagUpdateError) {
+            console.error(`[RECURSIVE_DELETE] 更新标签 "${tag.name}" 的usageCount失败:`, tagUpdateError);
+          }
+        }
+      }
+
       // 删除文件
       if (child.path && fs.existsSync(child.path)) {
         try {
@@ -337,6 +353,22 @@ const deleteFile = async (req, res) => {
       // 递归删除文件夹及其内容
       storageFreed = await recursiveDelete(file._id, userStorageMap);
     } else {
+      // 删除单个文件前，先更新标签的usageCount
+      if (file.tags && file.tags.length > 0) {
+        for (const tag of file.tags) {
+          try {
+            const tagDoc = await Tag.findOne({ name: tag.name });
+            if (tagDoc && tagDoc.usageCount > 0) {
+              tagDoc.usageCount -= 1;
+              await tagDoc.save();
+              console.log(`[DELETE_FILE] 更新标签 "${tag.name}" 的usageCount: ${tagDoc.usageCount + 1} -> ${tagDoc.usageCount}`);
+            }
+          } catch (tagUpdateError) {
+            console.error(`[DELETE_FILE] 更新标签 "${tag.name}" 的usageCount失败:`, tagUpdateError);
+          }
+        }
+      }
+
       // 删除单个文件
       if (fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
@@ -383,6 +415,22 @@ const deleteAllFiles = async (req, res) => {
     // 统计每个用户释放的空间
     const userStorageMap = {};
     for (const file of files) {
+      // 删除物理文件前，先更新标签的usageCount
+      if (file.tags && file.tags.length > 0) {
+        for (const tag of file.tags) {
+          try {
+            const tagDoc = await Tag.findOne({ name: tag.name });
+            if (tagDoc && tagDoc.usageCount > 0) {
+              tagDoc.usageCount -= 1;
+              await tagDoc.save();
+              console.log(`[DELETE_ALL_FILES] 更新标签 "${tag.name}" 的usageCount: ${tagDoc.usageCount + 1} -> ${tagDoc.usageCount}`);
+            }
+          } catch (tagUpdateError) {
+            console.error(`[DELETE_ALL_FILES] 更新标签 "${tag.name}" 的usageCount失败:`, tagUpdateError);
+          }
+        }
+      }
+
       // 删除物理文件
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
@@ -436,6 +484,22 @@ const batchDeleteFiles = async (req, res) => {
         // 递归删除文件夹
         totalFreed += await recursiveDelete(file._id, userStorageMap);
       } else {
+        // 删除单个文件前，先更新标签的usageCount
+        if (file.tags && file.tags.length > 0) {
+          for (const tag of file.tags) {
+            try {
+              const tagDoc = await Tag.findOne({ name: tag.name });
+              if (tagDoc && tagDoc.usageCount > 0) {
+                tagDoc.usageCount -= 1;
+                await tagDoc.save();
+                console.log(`[BATCH_DELETE] 更新标签 "${tag.name}" 的usageCount: ${tagDoc.usageCount + 1} -> ${tagDoc.usageCount}`);
+              }
+            } catch (tagUpdateError) {
+              console.error(`[BATCH_DELETE] 更新标签 "${tag.name}" 的usageCount失败:`, tagUpdateError);
+            }
+          }
+        }
+
         // 删除单个文件
         if (file.path && fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
@@ -2337,6 +2401,92 @@ const forceDeleteTag = async (req, res) => {
   }
 };
 
+// 清理孤立的标签（usageCount > 0 但实际没有文件使用）
+const cleanupOrphanedTags = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以清理孤立标签' });
+    }
+
+    console.log(`[CLEANUP_ORPHANED_TAGS] 开始清理孤立标签`);
+
+    // 获取所有标签
+    const allTags = await Tag.find({ usageCount: { $gt: 0 } });
+    console.log(`[CLEANUP_ORPHANED_TAGS] 找到 ${allTags.length} 个usageCount > 0的标签`);
+
+    const cleanedTags = [];
+    const orphanedTags = [];
+
+    for (const tag of allTags) {
+      try {
+        // 检查是否有文件实际使用这个标签
+        const filesWithTag = await File.findOne({ 'tags.name': tag.name });
+        
+        if (!filesWithTag) {
+          // 没有文件使用这个标签，但usageCount > 0，需要清理
+          console.log(`[CLEANUP_ORPHANED_TAGS] 发现孤立标签: "${tag.name}" (usageCount: ${tag.usageCount})`);
+          
+          tag.usageCount = 0;
+          await tag.save();
+          
+          orphanedTags.push({
+            name: tag.name,
+            oldUsageCount: tag.usageCount,
+            newUsageCount: 0
+          });
+          
+          console.log(`[CLEANUP_ORPHANED_TAGS] 已清理孤立标签: "${tag.name}"`);
+        } else {
+          // 有文件使用，检查usageCount是否与实际使用情况一致
+          const actualUsageCount = await File.countDocuments({ 'tags.name': tag.name });
+          
+          if (actualUsageCount !== tag.usageCount) {
+            console.log(`[CLEANUP_ORPHANED_TAGS] 标签 "${tag.name}" usageCount不一致: 数据库=${tag.usageCount}, 实际=${actualUsageCount}`);
+            
+            const oldUsageCount = tag.usageCount;
+            tag.usageCount = actualUsageCount;
+            await tag.save();
+            
+            cleanedTags.push({
+              name: tag.name,
+              oldUsageCount: oldUsageCount,
+              newUsageCount: actualUsageCount
+            });
+            
+            console.log(`[CLEANUP_ORPHANED_TAGS] 已修正标签 "${tag.name}" 的usageCount: ${oldUsageCount} -> ${actualUsageCount}`);
+          }
+        }
+      } catch (tagCheckError) {
+        console.error(`[CLEANUP_ORPHANED_TAGS] 检查标签 "${tag.name}" 时出错:`, tagCheckError);
+      }
+    }
+
+    console.log(`[CLEANUP_ORPHANED_TAGS] 清理完成，修正了 ${cleanedTags.length} 个标签，清理了 ${orphanedTags.length} 个孤立标签`);
+
+    res.json({
+      success: true,
+      message: '孤立标签清理完成',
+      details: {
+        correctedTags: cleanedTags,
+        orphanedTags: orphanedTags,
+        totalProcessed: allTags.length
+      }
+    });
+  } catch (error) {
+    console.error(`[CLEANUP_ORPHANED_TAGS] 清理孤立标签时发生错误:`, {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    return res.status(500).json({ 
+      error: '清理孤立标签时发生服务器错误',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
@@ -2359,5 +2509,6 @@ module.exports = {
   deleteTag,
   renameFile,
   getArchivingProgress,
-  forceDeleteTag
+  forceDeleteTag,
+  cleanupOrphanedTags
 };
