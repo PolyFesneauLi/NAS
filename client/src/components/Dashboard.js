@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles, renameFile, deleteTag } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles, renameFile, deleteTag, forceDeleteTag } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -4015,6 +4015,8 @@ const TagModal = ({
   setSelectedFileForTags,
   handleTagReorder,
   refreshAllTags,
+  setFiles,
+  setNavigationState,
   // 文件重命名相关参数
   newFileName,
   setNewFileName,
@@ -4690,8 +4692,107 @@ const TagModal = ({
                       }
                     } catch (err) {
                       console.error('删除标签失败:', err);
-                      setTagModalError(`删除标签失败: ${err.message}`);
-                      setTimeout(() => setTagModalError(''), 3000);
+                      
+                      // 检查是否是标签正在使用的错误
+                      if (err.response?.status === 400 && err.response?.data?.details?.fileCount) {
+                        const fileCount = err.response.data.details.fileCount;
+                        const confirmForceDelete = window.confirm(
+                          `标签 "${draggedTagName}" 正在被 ${fileCount} 个文件使用，无法直接删除。\n\n` +
+                          `是否要强制删除？这将从所有文件上移除该标签。\n\n` +
+                          `点击"确定"强制删除，点击"取消"放弃操作。`
+                        );
+                        
+                        if (confirmForceDelete) {
+                          try {
+                            await forceDeleteTag(draggedTagName);
+                            setTagModalError(`标签 "${draggedTagName}" 强制删除成功，已从 ${fileCount} 个文件上移除`);
+                            setTimeout(() => setTagModalError(''), 3000);
+                            
+                            // 立即更新弹窗中当前文件的标签列表
+                            if (selectedFileForTags && selectedFileForTags.tags) {
+                              setSelectedFileForTags(prev => ({
+                                ...prev,
+                                tags: prev.tags.filter(tag => tag.name !== draggedTagName),
+                                tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== draggedTagName) : []
+                              }));
+                            }
+                            
+                            // 同步更新文件列表中的标签
+                            setFiles(prevFiles => 
+                              prevFiles.map(file => 
+                                file._id === selectedFileForTags._id
+                                  ? {
+                                      ...file,
+                                      tags: file.tags.filter(tag => tag.name !== draggedTagName),
+                                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== draggedTagName) : []
+                                    }
+                                  : file
+                              )
+                            );
+                            
+                            // 同步更新导航状态中的文件标签
+                            setNavigationState(prev => {
+                              const updateFileTags = (fileList) => 
+                                fileList.map(file => 
+                                  file._id === selectedFileForTags._id
+                                    ? {
+                                        ...file,
+                                        tags: file.tags.filter(tag => tag.name !== draggedTagName),
+                                        tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== draggedTagName) : []
+                                      }
+                                    : file
+                                );
+                              
+                              return {
+                                ...prev,
+                                normalBackup: {
+                                  ...prev.normalBackup,
+                                  files: updateFileTags(prev.normalBackup.files || [])
+                                },
+                                backup: {
+                                  ...prev.backup,
+                                  files: updateFileTags(prev.backup.files || [])
+                                },
+                                locationJump: {
+                                  ...prev.locationJump,
+                                  currentLocation: {
+                                    ...prev.locationJump.currentLocation,
+                                    files: updateFileTags(prev.locationJump.currentLocation.files || [])
+                                  }
+                                }
+                              };
+                            });
+                            
+                            if (typeof refreshAllTags === 'function') {
+                              await refreshAllTags();
+                            }
+                          } catch (forceDeleteErr) {
+                            console.error('强制删除标签失败:', forceDeleteErr);
+                            setTagModalError(`强制删除标签失败: ${forceDeleteErr.response?.data?.error || forceDeleteErr.message}`);
+                            setTimeout(() => setTagModalError(''), 5000);
+                          }
+                        }
+                      } else {
+                        // 显示其他类型的错误信息
+                        let errorMessage = '删除标签失败';
+                        if (err.response?.data) {
+                          const errorData = err.response.data;
+                          if (errorData.details) {
+                            if (errorData.details.message) {
+                              errorMessage = errorData.details.message;
+                            } else if (errorData.details.fileCount) {
+                              errorMessage = `该标签被 ${errorData.details.fileCount} 个文件使用，无法删除`;
+                            }
+                          } else if (errorData.error) {
+                            errorMessage = errorData.error;
+                          }
+                        } else if (err.message) {
+                          errorMessage = err.message;
+                        }
+                        
+                        setTagModalError(errorMessage);
+                        setTimeout(() => setTagModalError(''), 5000); // 显示更长时间
+                      }
                     }
                   }
                 }}
@@ -5691,6 +5792,8 @@ const Dashboard = () => {
         setSelectedFileForTags={setSelectedFileForTags}
         handleTagReorder={handleTagReorder}
         refreshAllTags={refreshAllTags}
+        setFiles={setFiles}
+        setNavigationState={setNavigationState}
         // 文件重命名相关参数
         newFileName={newFileName}
         setNewFileName={setNewFileName}

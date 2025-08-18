@@ -2098,27 +2098,242 @@ const deleteTag = async (req, res) => {
       return res.status(403).json({ error: '只有管理员可以删除标签' });
     }
 
+    console.log(`[DELETE_TAG] 开始删除标签: "${tagName}"`);
+
     // 检查标签是否存在
     const tag = await Tag.findOne({ name: tagName.trim() });
     if (!tag) {
+      console.log(`[DELETE_TAG] 标签不存在: "${tagName}"`);
       return res.status(404).json({ error: '标签不存在' });
     }
 
+    console.log(`[DELETE_TAG] 标签信息:`, {
+      id: tag._id,
+      name: tag.name,
+      usageCount: tag.usageCount,
+      createdBy: tag.createdBy,
+      createdAt: tag.createdAt
+    });
+
     // 检查标签是否正在使用
     if (tag.usageCount > 0) {
-      return res.status(400).json({ error: '标签正在使用中，无法删除' });
+      console.log(`[DELETE_TAG] 标签正在使用中，usageCount: ${tag.usageCount}`);
+      
+      // 尝试查找使用该标签的文件，提供更详细的错误信息
+      try {
+        const filesWithTag = await File.find({ 'tags.name': tagName.trim() });
+        console.log(`[DELETE_TAG] 找到 ${filesWithTag.length} 个文件使用此标签`);
+        
+        if (filesWithTag.length > 0) {
+          const fileDetails = filesWithTag.slice(0, 5).map(file => ({
+            id: file._id,
+            name: file.originalName || file.filename,
+            isFolder: file.isFolder,
+            owner: file.owner
+          }));
+          
+          console.log(`[DELETE_TAG] 使用此标签的文件示例:`, fileDetails);
+          
+          return res.status(400).json({ 
+            error: `标签正在使用中，无法删除`,
+            details: {
+              usageCount: tag.usageCount,
+              fileCount: filesWithTag.length,
+              sampleFiles: fileDetails,
+              message: `该标签被 ${filesWithTag.length} 个文件使用，请先移除所有文件上的此标签后再删除`
+            }
+          });
+        } else {
+          // 如果找不到文件但usageCount > 0，可能是数据不一致
+          console.log(`[DELETE_TAG] 警告: usageCount > 0 但找不到使用该标签的文件，可能存在数据不一致`);
+          return res.status(400).json({ 
+            error: `标签数据不一致，无法删除`,
+            details: {
+              usageCount: tag.usageCount,
+              message: `标签使用计数与实际使用情况不一致，请联系管理员检查数据库`
+            }
+          });
+        }
+      } catch (fileQueryError) {
+        console.error(`[DELETE_TAG] 查询使用该标签的文件时出错:`, fileQueryError);
+        return res.status(400).json({ 
+          error: `标签正在使用中，无法删除`,
+          details: {
+            usageCount: tag.usageCount,
+            message: `无法验证标签使用情况，请稍后重试或联系管理员`
+          }
+        });
+      }
+    }
+
+    // 再次确认标签没有被使用（双重检查）
+    try {
+      const finalCheck = await File.findOne({ 'tags.name': tagName.trim() });
+      if (finalCheck) {
+        console.log(`[DELETE_TAG] 最终检查发现标签仍在使用中，文件:`, {
+          id: finalCheck._id,
+          name: finalCheck.originalName || finalCheck.filename
+        });
+        return res.status(400).json({ 
+          error: `标签仍在使用中，无法删除`,
+          details: {
+            message: `检测到标签仍被文件使用，请刷新页面后重试`
+          }
+        });
+      }
+    } catch (finalCheckError) {
+      console.error(`[DELETE_TAG] 最终检查时出错:`, finalCheckError);
+      return res.status(500).json({ 
+        error: `删除标签时发生错误`,
+        details: {
+          message: `无法完成最终验证，请稍后重试`
+        }
+      });
     }
 
     // 删除标签
+    console.log(`[DELETE_TAG] 开始删除标签: ${tag._id}`);
     await Tag.findByIdAndDelete(tag._id);
+    console.log(`[DELETE_TAG] 标签删除成功: "${tagName}"`);
     
     res.json({ 
       success: true, 
-      message: '标签删除成功'
+      message: '标签删除成功',
+      details: {
+        deletedTag: {
+          name: tag.name,
+          id: tag._id
+        }
+      }
     });
   } catch (error) {
-    console.error('删除标签错误:', error);
-    res.status(500).json({ error: error.message });
+    console.error(`[DELETE_TAG] 删除标签时发生错误:`, {
+      tagName: req.body?.tagName,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 根据错误类型返回不同的状态码
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: '标签数据验证失败',
+        details: error.message
+      });
+    } else if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        error: '标签ID格式错误',
+        details: error.message
+      });
+    } else {
+      return res.status(500).json({ 
+        error: '删除标签时发生服务器错误',
+        details: error.message
+      });
+    }
+  }
+};
+
+// 强制删除标签（仅管理员，会清理所有使用该标签的文件）
+const forceDeleteTag = async (req, res) => {
+  try {
+    const { tagName, force } = req.body;
+    
+    if (!tagName || !tagName.trim()) {
+      return res.status(400).json({ error: '标签名称不能为空' });
+    }
+
+    if (force !== true) {
+      return res.status(400).json({ error: '必须设置 force=true 才能强制删除标签' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以强制删除标签' });
+    }
+
+    console.log(`[FORCE_DELETE_TAG] 开始强制删除标签: "${tagName}"`);
+
+    // 检查标签是否存在
+    const tag = await Tag.findOne({ name: tagName.trim() });
+    if (!tag) {
+      console.log(`[FORCE_DELETE_TAG] 标签不存在: "${tagName}"`);
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    console.log(`[FORCE_DELETE_TAG] 标签信息:`, {
+      id: tag._id,
+      name: tag.name,
+      usageCount: tag.usageCount,
+      createdBy: tag.createdBy,
+      createdAt: tag.createdAt
+    });
+
+    // 查找所有使用该标签的文件
+    const filesWithTag = await File.find({ 'tags.name': tagName.trim() });
+    console.log(`[FORCE_DELETE_TAG] 找到 ${filesWithTag.length} 个文件使用此标签`);
+
+    if (filesWithTag.length > 0) {
+      console.log(`[FORCE_DELETE_TAG] 开始清理文件上的标签`);
+      
+      // 从所有文件上移除该标签
+      for (const file of filesWithTag) {
+        try {
+          // 移除标签
+          file.tags = file.tags.filter(t => t.name !== tagName.trim());
+          
+          // 更新标签顺序数组
+          if (file.tagOrder) {
+            file.tagOrder = file.tagOrder.filter(name => name !== tagName.trim());
+          }
+          
+          await file.save();
+          console.log(`[FORCE_DELETE_TAG] 已从文件移除标签: ${file.originalName || file.filename}`);
+        } catch (fileUpdateError) {
+          console.error(`[FORCE_DELETE_TAG] 更新文件失败:`, fileUpdateError);
+          return res.status(500).json({ 
+            error: `清理文件标签时发生错误`,
+            details: {
+              fileId: file._id,
+              fileName: file.originalName || file.filename,
+              error: fileUpdateError.message
+            }
+          });
+        }
+      }
+      
+      console.log(`[FORCE_DELETE_TAG] 已从 ${filesWithTag.length} 个文件上移除标签`);
+    }
+
+    // 删除标签
+    console.log(`[FORCE_DELETE_TAG] 开始删除标签: ${tag._id}`);
+    await Tag.findByIdAndDelete(tag._id);
+    console.log(`[FORCE_DELETE_TAG] 标签强制删除成功: "${tagName}"`);
+    
+    res.json({ 
+      success: true, 
+      message: '标签强制删除成功',
+      details: {
+        deletedTag: {
+          name: tag.name,
+          id: tag._id
+        },
+        cleanedFiles: filesWithTag.length,
+        warning: '已从所有文件上移除该标签'
+      }
+    });
+  } catch (error) {
+    console.error(`[FORCE_DELETE_TAG] 强制删除标签时发生错误:`, {
+      tagName: req.body?.tagName,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    return res.status(500).json({ 
+      error: '强制删除标签时发生服务器错误',
+      details: error.message
+    });
   }
 };
 
@@ -2143,5 +2358,6 @@ module.exports = {
   updateTagOrder,
   deleteTag,
   renameFile,
-  getArchivingProgress
+  getArchivingProgress,
+  forceDeleteTag
 };
