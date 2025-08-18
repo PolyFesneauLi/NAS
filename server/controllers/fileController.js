@@ -2084,26 +2084,64 @@ const getUserFiles = async (req, res) => {
   }
 };
 
+// 删除标签（仅管理员）
+const deleteTag = async (req, res) => {
+  try {
+    const { tagName } = req.body;
+    
+    if (!tagName || !tagName.trim()) {
+      return res.status(400).json({ error: '标签名称不能为空' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: '只有管理员可以删除标签' });
+    }
+
+    // 检查标签是否存在
+    const tag = await Tag.findOne({ name: tagName.trim() });
+    if (!tag) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    // 检查标签是否正在使用
+    if (tag.usageCount > 0) {
+      return res.status(400).json({ error: '标签正在使用中，无法删除' });
+    }
+
+    // 删除标签
+    await Tag.findByIdAndDelete(tag._id);
+    
+    res.json({ 
+      success: true, 
+      message: '标签删除成功'
+    });
+  } catch (error) {
+    console.error('删除标签错误:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   uploadCadFile,
   uploadFolder,
   searchFiles,
-  getFileDetails,
   downloadFile,
   downloadFolder,
+  checkFolderDownloadStatus,
+  checkFileStatus,
+  getFileDetails,
   deleteFile,
   deleteAllFiles,
   batchDeleteFiles,
   createFolder,
-  checkFileStatus,
-  checkFolderDownloadStatus,
-  getArchivingProgress,
   addTags,
   removeTags,
-  createTag,
   getAllTags,
+  createTag,
   updateTagOrder,
+  deleteTag,
   renameFile,
-  getUserFiles
+  getArchivingProgress
 };

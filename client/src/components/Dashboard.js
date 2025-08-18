@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles, renameFile } from '../services/api';
+import { getCurrentUser, uploadFile, uploadCadFile, uploadFolder, getUserFiles, getFileDetails, downloadFile, downloadFolder, deleteFile, batchDeleteFiles, createFolder, getAdminStorageUsage, checkFolderDownloadStatus, getArchivingProgress, addTags, removeTags, getAllTags, createTag, updateTagOrder, searchFiles, renameFile, deleteTag } from '../services/api';
 import { formatBytes } from '../utils';
 import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
@@ -4014,6 +4014,7 @@ const TagModal = ({
   setTagModalError,
   setSelectedFileForTags,
   handleTagReorder,
+  refreshAllTags,
   // 文件重命名相关参数
   newFileName,
   setNewFileName,
@@ -4030,6 +4031,30 @@ const TagModal = ({
     targetIndex: null,
     draggedTag: null
   });
+
+  // 可用标签拖拽删除/排序状态
+  const [isOverTrash, setIsOverTrash] = useState(false);
+
+  // 处理可用标签全局排序（拖拽到目标标签上）
+  const handleAvailableTagDropOnItem = async (draggedTagName, targetIndex) => {
+    try {
+      const names = availableTags.map(t => t.name);
+      const fromIndex = names.indexOf(draggedTagName);
+      if (fromIndex === -1 || targetIndex === -1 || fromIndex === targetIndex) return;
+      const newOrder = [...names];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      const insertIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      newOrder.splice(insertIndex, 0, moved);
+      await updateTagOrder('global', newOrder);
+      if (typeof refreshAllTags === 'function') {
+        await refreshAllTags();
+      }
+    } catch (err) {
+      console.error('全局标签排序失败:', err);
+      setTagModalError('更新可用标签顺序失败');
+      setTimeout(() => setTagModalError(''), 3000);
+    }
+  };
 
   // 获取CSS变量和计算行数
   const getTagHeight = () => {
@@ -4176,6 +4201,8 @@ const TagModal = ({
       draggedTag: tag
     });
     e.dataTransfer.effectAllowed = 'move';
+    // 设置拖拽数据，用于垃圾桶删除
+    e.dataTransfer.setData('text/plain', tag.name);
   };
 
   const handleDragEnd = () => {
@@ -4512,13 +4539,42 @@ const TagModal = ({
           
           {/* 可用标签 */}
           <div className="available-tags">
-            <h4>可用标签:</h4>
-            <div className="tags-list">
-              {availableTags.map((tag, index) => (
+            <h4>可用标签: (可拖拽排序和删除)</h4>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+              <div 
+                className="tags-list"
+                style={{ flex: '1' }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const draggedTagName = e.dataTransfer.getData('text/plain');
+                  // 放到列表空白处则置于末尾
+                  await handleAvailableTagDropOnItem(draggedTagName, availableTags.length);
+                }}
+              >
+                {availableTags.map((tag, index) => (
                   <span
-                  key={index}
-                  className="tag"
-                  style={{ backgroundColor: tag.color }}
+                    key={index}
+                    className="tag-item draggable-tag"
+                    draggable="true"
+                    data-index={index}
+                    data-tag-name={tag.name}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', tag.name);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      const draggedTagName = e.dataTransfer.getData('text/plain');
+                      await handleAvailableTagDropOnItem(draggedTagName, index);
+                    }}
                     onClick={async () => {
                       console.log('=== 标签点击调试信息 ===');
                       console.log('1. 点击的标签:', tag);
@@ -4600,9 +4656,61 @@ const TagModal = ({
                     }}
                     title={`点击添加标签: ${tag.name}`}
                   >
-                    {tag.name}
+                    <span
+                      className="tag"
+                      style={{ backgroundColor: tag.color }}
+                      title={tag.name}
+                    >
+                      {tag.name}
+                    </span>
                   </span>
-              ))}
+                ))}
+              </div>
+              
+              {/* 垃圾桶区域 */}
+              <div 
+                className="trash-zone"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setIsOverTrash(true);
+                }}
+                onDragLeave={() => setIsOverTrash(false)}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  setIsOverTrash(false);
+                  const draggedTagName = e.dataTransfer.getData('text/plain');
+                  if (draggedTagName) {
+                    try {
+                      await deleteTag(draggedTagName);
+                      setTagModalError(`标签 "${draggedTagName}" 删除成功`);
+                      setTimeout(() => setTagModalError(''), 1500);
+                      if (typeof refreshAllTags === 'function') {
+                        await refreshAllTags();
+                      }
+                    } catch (err) {
+                      console.error('删除标签失败:', err);
+                      setTagModalError(`删除标签失败: ${err.message}`);
+                      setTimeout(() => setTagModalError(''), 3000);
+                    }
+                  }
+                }}
+                style={{
+                  width: isOverTrash ? '96px' : '80px',
+                  height: isOverTrash ? '96px' : '80px',
+                  border: `2px dashed ${isOverTrash ? '#c82333' : '#dc3545'}`,
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isOverTrash ? '#ffe6e6' : '#fff5f5',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0
+                }}
+              >
+                <span style={{ fontSize: '24px', color: '#dc3545' }}>🗑️</span>
+              </div>
             </div>
           </div>
         </div>
@@ -5582,6 +5690,7 @@ const Dashboard = () => {
         setTagModalError={setTagModalError}
         setSelectedFileForTags={setSelectedFileForTags}
         handleTagReorder={handleTagReorder}
+        refreshAllTags={refreshAllTags}
         // 文件重命名相关参数
         newFileName={newFileName}
         setNewFileName={setNewFileName}

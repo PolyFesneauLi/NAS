@@ -54,6 +54,7 @@ router.post('/add-tags', auth.authenticate, auth.requireRole('admin'), fileContr
 router.post('/remove-tags', auth.authenticate, auth.requireRole('admin'), fileController.removeTags);
 router.post('/create-tag', auth.authenticate, auth.requireRole('admin'), fileController.createTag);
 router.post('/update-tag-order', auth.authenticate, auth.requireRole('admin'), fileController.updateTagOrder);
+router.delete('/delete-tag', auth.authenticate, auth.requireRole('admin'), fileController.deleteTag);
 
 // 重命名文件（仅 admin）
 router.put('/rename/:id', auth.authenticate, auth.requireRole('admin'), fileController.renameFile);
