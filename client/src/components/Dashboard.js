@@ -4417,12 +4417,25 @@ const TagModal = ({
                       }
                       return a.name.localeCompare(b.name);
                     })
-                    : selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
-                      ? selectedFileForTags.tagOrder.map(tagName => {
-                          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
-                          return tag;
-                        }).filter(Boolean)
-                      : selectedFileForTags.tags
+                    : selectedFileForTags.tags.sort((a, b) => {
+                        // 根据全局标签的order值进行排序
+                        const aTag = availableTags.find(t => t.name === a.name);
+                        const bTag = availableTags.find(t => t.name === b.name);
+                        
+                        if (aTag && bTag) {
+                          // 如果两个标签都在全局标签列表中，按order排序
+                          return aTag.order - bTag.order;
+                        } else if (aTag) {
+                          // 如果只有a在全局列表中，a排在前面
+                          return -1;
+                        } else if (bTag) {
+                          // 如果只有b在全局列表中，b排在前面
+                          return 1;
+                        } else {
+                          // 如果都不在全局列表中，按名称排序
+                          return a.name.localeCompare(b.name);
+                        }
+                      })
                   ).map((tag, index) => (
                     <span 
                       key={`${tag.name}-${index}`} 
@@ -4557,12 +4570,24 @@ const TagModal = ({
                         console.log('8. addTags 调用成功，返回结果:', result);
                         
                         console.log('9. 开始更新 selectedFileForTags...');
-                        // 立即更新弹窗内的当前标签显示
+                        // 立即更新弹窗内的当前标签显示，不手动设置tagOrder，让标签按照全局order值自动排序
                         setSelectedFileForTags(prev => ({
                           ...prev,
-                          tags: [...(prev.tags || []), tag],
-                          tagOrder: [...(prev.tagOrder || []), tag.name]
+                          tags: [...(prev.tags || []), tag]
+                          // 移除 tagOrder 的手动设置，让标签按照全局 order 值自动排序
                         }));
+                        
+                        // 刷新文件详情以获取正确的标签顺序
+                        setTimeout(async () => {
+                          try {
+                            const updatedFile = await getFileDetails(selectedFileForTags._id);
+                            if (updatedFile) {
+                              setSelectedFileForTags(updatedFile);
+                            }
+                          } catch (err) {
+                            console.error('刷新文件数据失败:', err);
+                          }
+                        }, 100);
                         
                         console.log('15. 清除错误信息');
                         console.log('16. 标签添加完成！');
@@ -4712,7 +4737,7 @@ const Dashboard = () => {
 
     fetchUserData();
 
-    // 首次启动：并行静默获取根目录文件，避免初次白屏和长时间“刷新中”
+    // 首次启动：并行静默获取根目录文件，避免初次白屏和长时间"刷新中"
     (async () => {
       try {
         const data = await getUserFiles({ sort: 'time_desc' });
@@ -4829,7 +4854,7 @@ const Dashboard = () => {
     // 立即显示弹窗，提升响应速度
     setSelectedFileForTags(file);
     setNewFileName(fixEncoding(file.originalName || file.filename));
-    // 直接使用预取的 availableTags，确保“一按下就呈现完整可选标签”
+    // 直接使用预取的 availableTags，确保"一按下就呈现完整可选标签"
     setShowTagModal(true);
     
     // 后台轻量刷新（不阻塞UI）
@@ -5426,7 +5451,7 @@ const Dashboard = () => {
         }));
       }
 
-      // 迅速结束“重命名中”按钮状态，提升响应性
+      // 迅速结束"重命名中"按钮状态，提升响应性
       setTimeout(() => setIsRenaming(false), 150);
 
       // 后台调用API，同步服务器

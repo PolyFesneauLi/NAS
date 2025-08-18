@@ -1544,12 +1544,29 @@ const addTags = async (req, res) => {
     for (const tag of newTagsToAdd) {
       let tagDoc = await Tag.findOne({ name: tag.name });
       if (!tagDoc) {
-        // 获取当前最大的 order 值
-        const maxOrderTag = await Tag.findOne()
+        // 找到使用次数为0且order最高的标签
+        const maxOrderUnusedTag = await Tag.findOne({ usageCount: 0 })
           .sort({ order: -1 })
           .select('order');
         
-        const nextOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+        let newOrder;
+        if (maxOrderUnusedTag) {
+          // 插入到使用次数为0且order最高的标签之前
+          newOrder = Math.max(0, maxOrderUnusedTag.order - 1);
+          
+          // 将order >= newOrder的标签order值都+1，为新标签腾出位置
+          await Tag.updateMany(
+            { order: { $gte: newOrder } },
+            { $inc: { order: 1 } }
+          );
+        } else {
+          // 如果没有使用次数为0的标签，则放在最后
+          const maxOrderTag = await Tag.findOne()
+            .sort({ order: -1 })
+            .select('order');
+          
+          newOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+        }
         
         // 创建新标签，createdBy设置为当前admin用户
         tagDoc = new Tag({
@@ -1557,7 +1574,7 @@ const addTags = async (req, res) => {
           color: tag.color,
           createdBy: user._id,
           usageCount: 1,
-          order: nextOrder
+          order: newOrder
         });
       } else {
         // 增加使用次数
@@ -1648,12 +1665,29 @@ const createTag = async (req, res) => {
       return res.status(400).json({ error: '标签已存在' });
     }
 
-    // 获取当前最大的 order 值
-    const maxOrderTag = await Tag.findOne()
+    // 找到使用次数为0且order最高的标签
+    const maxOrderUnusedTag = await Tag.findOne({ usageCount: 0 })
       .sort({ order: -1 })
       .select('order');
     
-    const nextOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+    let newOrder;
+    if (maxOrderUnusedTag) {
+      // 插入到使用次数为0且order最高的标签之前
+      newOrder = Math.max(0, maxOrderUnusedTag.order - 1);
+      
+      // 将order >= newOrder的标签order值都+1，为新标签腾出位置
+      await Tag.updateMany(
+        { order: { $gte: newOrder } },
+        { $inc: { order: 1 } }
+      );
+    } else {
+      // 如果没有使用次数为0的标签，则放在最后
+      const maxOrderTag = await Tag.findOne()
+        .sort({ order: -1 })
+        .select('order');
+      
+      newOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+    }
     
     // 创建新标签
     const newTag = new Tag({
@@ -1661,7 +1695,7 @@ const createTag = async (req, res) => {
       color: color.trim(),
       createdBy: user._id,
       usageCount: 0,
-      order: nextOrder
+      order: newOrder
     });
 
     await newTag.save();
