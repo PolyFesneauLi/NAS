@@ -1576,21 +1576,22 @@ const addTags = async (req, res) => {
 
     // 添加新标签到文件，避免重复
     const newTagsToAdd = [];
+    const tagsToAddToFile = [];
     validTags.forEach(newTag => {
       const existingTag = file.tags.find(tag => tag.name === newTag.name);
       if (!existingTag) {
-        file.tags.push(newTag);
+        tagsToAddToFile.push(newTag);
         newTagsToAdd.push(newTag);
       }
     });
 
     // 更新标签顺序数组
-    if (newTagsToAdd.length > 0) {
+    if (tagsToAddToFile.length > 0) {
       if (!file.tagOrder) {
         file.tagOrder = [];
       }
       // 将新标签添加到顺序数组的末尾
-      newTagsToAdd.forEach(tag => {
+      tagsToAddToFile.forEach(tag => {
         if (!file.tagOrder.includes(tag.name)) {
           file.tagOrder.push(tag.name);
         }
@@ -1605,47 +1606,72 @@ const addTags = async (req, res) => {
     }
 
     // 同时更新 Tag 模型 - admin可以管理所有标签，不限制createdBy
+    const successfullyProcessedTags = [];
     for (const tag of newTagsToAdd) {
       let tagDoc = await Tag.findOne({ name: tag.name });
       if (!tagDoc) {
-        // 找到使用次数为0且order最高的标签
-        const maxOrderUnusedTag = await Tag.findOne({ usageCount: 0 })
-          .sort({ order: -1 })
-          .select('order');
-        
-        let newOrder;
-        if (maxOrderUnusedTag) {
-          // 插入到使用次数为0且order最高的标签之前
-          newOrder = Math.max(0, maxOrderUnusedTag.order - 1);
-          
-          // 将order >= newOrder的标签order值都+1，为新标签腾出位置
-          await Tag.updateMany(
-            { order: { $gte: newOrder } },
-            { $inc: { order: 1 } }
-          );
-        } else {
-          // 如果没有使用次数为0的标签，则放在最后
-          const maxOrderTag = await Tag.findOne()
+        // 标签不存在，需要创建新标签
+        try {
+          // 找到使用次数为0且order最高的标签
+          const maxOrderUnusedTag = await Tag.findOne({ usageCount: 0 })
             .sort({ order: -1 })
             .select('order');
           
-          newOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+          let newOrder;
+          if (maxOrderUnusedTag) {
+            // 插入到使用次数为0且order最高的标签之前
+            newOrder = Math.max(0, maxOrderUnusedTag.order - 1);
+            
+            // 将order >= newOrder的标签order值都+1，为新标签腾出位置
+            await Tag.updateMany(
+              { order: { $gte: newOrder } },
+              { $inc: { order: 1 } }
+            );
+          } else {
+            // 如果没有使用次数为0的标签，则放在最后
+            const maxOrderTag = await Tag.findOne()
+              .sort({ order: -1 })
+              .select('order');
+            
+            newOrder = maxOrderTag ? maxOrderTag.order + 1 : 0;
+          }
+          
+          // 创建新标签，createdBy设置为当前admin用户
+          tagDoc = new Tag({
+            name: tag.name,
+            color: tag.color,
+            createdBy: user._id,
+            usageCount: 1,
+            order: newOrder
+          });
+          
+          await tagDoc.save();
+          // 使用新创建的标签信息（包括可能生成的_id等）
+          successfullyProcessedTags.push({
+            name: tagDoc.name,
+            color: tagDoc.color,
+            _id: tagDoc._id
+          });
+        } catch (error) {
+          // 如果创建标签失败（比如名称重复），则跳过这个标签
+          console.warn(`创建标签 "${tag.name}" 失败:`, error.message);
+          continue;
         }
-        
-        // 创建新标签，createdBy设置为当前admin用户
-        tagDoc = new Tag({
-          name: tag.name,
-          color: tag.color,
-          createdBy: user._id,
-          usageCount: 1,
-          order: newOrder
-        });
       } else {
-        // 增加使用次数
+        // 标签已存在，增加使用次数，并使用全局标签的属性
         tagDoc.usageCount += 1;
+        await tagDoc.save();
+        // 使用全局标签的属性（颜色、ID等），而不是用户输入的可能不同的属性
+        successfullyProcessedTags.push({
+          name: tagDoc.name,
+          color: tagDoc.color,
+          _id: tagDoc._id
+        });
       }
-      await tagDoc.save();
     }
+    
+    // 只将成功处理的标签添加到文件中
+    file.tags.push(...successfullyProcessedTags);
 
     await file.save();
     

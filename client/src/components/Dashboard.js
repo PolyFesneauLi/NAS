@@ -5210,29 +5210,47 @@ const Dashboard = () => {
       }
     }
     
-    const newTag = {
+    // 先检查全局是否已存在该标签
+    let globalTag = null;
+    try {
+      const allTags = await getAllTags();
+      globalTag = allTags.tags.find(tag => 
+        tag.name.toLowerCase() === tagName.toLowerCase()
+      );
+    } catch (err) {
+      console.warn('获取全局标签失败:', err);
+    }
+    
+    // 如果全局已存在该标签，使用全局标签的属性
+    const tagToAdd = globalTag ? {
+      name: globalTag.name,
+      color: globalTag.color
+    } : {
       name: tagName,
       color: newTagColor
     };
   
     try {
-      try {
-        await createTag(newTag);
-      } catch (err) {
-        if (!err.message.includes('标签已存在')) {
-          throw err;
+      // 只有当标签不存在时才尝试创建
+      if (!globalTag) {
+        try {
+          await createTag(tagToAdd);
+        } catch (err) {
+          if (!err.message.includes('标签已存在')) {
+            throw err;
+          }
         }
       }
       
-      await addTags(selectedFileForTags._id, [newTag]);
+      await addTags(selectedFileForTags._id, [tagToAdd]);
       
       // 安全地更新 selectedFileForTags
       setSelectedFileForTags(prev => {
         if (!prev) return null;
         return {
           ...prev,
-          tags: [...(prev.tags || []), newTag],
-          tagOrder: [...(prev.tagOrder || []), newTag.name]
+          tags: [...(prev.tags || []), tagToAdd],
+          tagOrder: [...(prev.tagOrder || []), tagToAdd.name]
         };
       });
         
@@ -5242,8 +5260,8 @@ const Dashboard = () => {
          file._id === selectedFileForTags._id 
            ? { 
                ...file, 
-               tags: [...(file.tags || []), newTag],
-               tagOrder: [...(file.tagOrder || []), newTag.name]
+               tags: [...(file.tags || []), tagToAdd],
+               tagOrder: [...(file.tagOrder || []), tagToAdd.name]
              }
            : file
        )
@@ -5251,38 +5269,38 @@ const Dashboard = () => {
       
       // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
       if (navigationState.currentState === 'search_to_location') {
-        // 更新原始搜索结果缓存
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            originalSearchState: {
-              ...prev.locationJump.originalSearchState,
-              files: prev.locationJump.originalSearchState.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { 
-                      ...file, 
-                      tags: [...(file.tags || []), newTag],
-                      tagOrder: [...(file.tagOrder || []), newTag.name]
-                    }
-                  : file
-              )
-            },
-            // 同步更新当前位置的文件列表（当前正在查看的位置）
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file =>
-                file._id === selectedFileForTags._id
-                  ? {
-                      ...file,
-                      tags: [...(file.tags || []), newTag],
-                      tagOrder: [...(file.tagOrder || []), newTag.name]
-                    }
-                  : file
-              )
-            }
-          }
-        }));
+                    // 更新原始搜索结果缓存
+            setNavigationState(prev => ({
+              ...prev,
+              locationJump: {
+                ...prev.locationJump,
+                originalSearchState: {
+                  ...prev.locationJump.originalSearchState,
+                  files: prev.locationJump.originalSearchState.files.map(file => 
+                    file._id === selectedFileForTags._id 
+                      ? { 
+                          ...file, 
+                          tags: [...(file.tags || []), tagToAdd],
+                          tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+                        }
+                      : file
+                  )
+                },
+                // 同步更新当前位置的文件列表（当前正在查看的位置）
+                currentLocation: {
+                  ...prev.locationJump.currentLocation,
+                  files: prev.locationJump.currentLocation.files.map(file =>
+                    file._id === selectedFileForTags._id
+                      ? {
+                          ...file,
+                          tags: [...(file.tags || []), tagToAdd],
+                          tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+                        }
+                      : file
+                  )
+                }
+              }
+            }));
       }
       
       // 更新状态机中的当前位置信息
@@ -5297,8 +5315,8 @@ const Dashboard = () => {
                 file._id === selectedFileForTags._id 
                   ? { 
                       ...file, 
-                      tags: [...(file.tags || []), newTag],
-                      tagOrder: [...(file.tagOrder || []), newTag.name]
+                      tags: [...(file.tags || []), tagToAdd],
+                      tagOrder: [...(file.tagOrder || []), tagToAdd.name]
                     }
                   : file
               )
@@ -5317,8 +5335,8 @@ const Dashboard = () => {
               file._id === selectedFileForTags._id 
                 ? { 
                     ...file, 
-                    tags: [...(file.tags || []), newTag],
-                    tagOrder: [...(file.tagOrder || []), newTag.name]
+                    tags: [...(file.tags || []), tagToAdd],
+                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
                   }
                 : file
             )
