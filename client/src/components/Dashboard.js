@@ -4034,6 +4034,14 @@ const TagModal = ({
     draggedTag: null
   });
 
+  // 可用标签独立的拖拽状态
+  const [availableTagDragState, setAvailableTagDragState] = useState({
+    isDragging: false,
+    draggedIndex: null,
+    targetIndex: null,
+    draggedTag: null
+  });
+
   // 可用标签拖拽删除/排序状态
   const [isOverTrash, setIsOverTrash] = useState(false);
 
@@ -4058,6 +4066,290 @@ const TagModal = ({
     }
   };
 
+  // 可用标签拖拽排序相关函数
+  const handleAvailableTagDragStart = (e, index, tag) => {
+    setAvailableTagDragState({
+      isDragging: true,
+      draggedIndex: index,
+      targetIndex: null,
+      draggedTag: tag
+    });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', tag.name);
+  };
+
+  const handleAvailableTagDragEnd = () => {
+    setAvailableTagDragState({
+      isDragging: false,
+      draggedIndex: null,
+      targetIndex: null,
+      draggedTag: null
+    });
+  };
+
+  const handleAvailableTagDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const targetIndex = calculateAvailableTagTargetIndex(e.clientX, e.clientY);
+    
+    setAvailableTagDragState(prev => ({
+      ...prev,
+      targetIndex: targetIndex
+    }));
+  };
+
+  const handleAvailableTagDrop = (e) => {
+    e.preventDefault();
+    
+    const finalToIndex = calculateAvailableTagTargetIndex(e.clientX, e.clientY);
+    const fromIndex = availableTagDragState.draggedIndex;
+    
+    if (fromIndex !== null && finalToIndex !== null && finalToIndex !== fromIndex) {
+      console.log(`可用标签拖拽排序: ${fromIndex} -> ${finalToIndex}`);
+      handleAvailableTagReorder(fromIndex, finalToIndex);
+    }
+    
+    handleAvailableTagDragEnd();
+  };
+
+  // 计算可用标签目标索引
+  const calculateAvailableTagTargetIndex = (mouseX, mouseY) => {
+    const container = document.querySelector('.available-tags .tags-list');
+    if (!container) return 0;
+
+    const containerRect = container.getBoundingClientRect();
+    const relativeX = mouseX - containerRect.left;
+    const relativeY = mouseY - containerRect.top;
+
+    const tags = container.querySelectorAll('.tag-item');
+    const tagHeight = getAvailableTagHeight(); // 使用专用函数
+    const availableTagGap = 8; // 可用标签的CSS gap值
+    
+    // 计算行信息
+    const rows = [];
+    let currentRow = [];
+    let currentRowWidth = 0;
+    let currentY = 0;
+
+    tags.forEach((tag, index) => {
+      const tagWidth = tag.offsetWidth;
+      
+      if (currentRowWidth + tagWidth + availableTagGap > container.offsetWidth && currentRow.length > 0) {
+        rows.push({
+          tags: currentRow,
+          y: currentY,
+          width: currentRowWidth - availableTagGap
+        });
+        currentRow = [];
+        currentRowWidth = 0;
+        currentY += tagHeight + availableTagGap;
+      }
+      
+      currentRow.push({
+        element: tag,
+        index: index,
+        x: currentRowWidth,
+        y: currentY,
+        width: tagWidth
+      });
+      currentRowWidth += tagWidth + availableTagGap;
+    });
+
+    if (currentRow.length > 0) {
+      rows.push({
+        tags: currentRow,
+        y: currentY,
+        width: currentRowWidth - availableTagGap
+      });
+    }
+
+    // 找到鼠标所在的行
+    let targetRowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      
+      // 使用可用标签专用的行判定范围
+      const rowTop = row.y + availableTagGap;  // 整体下移，与已选标签保持一致
+      const rowBottom = row.y + tagHeight + availableTagGap / 2;  // 向下扩展半个间距
+      
+      if (relativeY >= rowTop && relativeY < rowBottom) {
+        targetRowIndex = i;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      return null;
+    }
+
+    const targetRow = rows[targetRowIndex];
+    
+    // 在目标行中找到鼠标位置对应的标签索引
+    let targetIndex = 0;
+    
+    if (relativeX < targetRow.tags[0].x) {
+      targetIndex = targetRow.tags[0].index;
+    } else if (relativeX > targetRow.tags[targetRow.tags.length - 1].x + targetRow.tags[targetRow.tags.length - 1].width) {
+      targetIndex = targetRow.tags[targetRow.tags.length - 1].index + 1;
+    } else {
+      for (let i = 0; i < targetRow.tags.length; i++) {
+        const tag = targetRow.tags[i];
+        const tagRight = tag.x + tag.width;
+        
+        if (relativeX < tagRight) {
+          targetIndex = tag.index;
+          break;
+        }
+        
+        if (i === targetRow.tags.length - 1) {
+          targetIndex = tag.index + 1;
+        }
+      }
+    }
+
+    return targetIndex;
+  };
+
+  // 处理可用标签重新排序
+  const handleAvailableTagReorder = (fromIndex, toIndex) => {
+    const newOrderedTags = [...availableTags];
+    const [movedTag] = newOrderedTags.splice(fromIndex, 1);
+    newOrderedTags.splice(toIndex, 0, movedTag);
+
+    // 立即更新本地状态
+    const newOrder = newOrderedTags.map(tag => tag.name);
+    
+    // 异步更新数据库
+    (async () => {
+      try {
+        await updateTagOrder('global', newOrder);
+        if (typeof refreshAllTags === 'function') {
+          await refreshAllTags();
+        }
+      } catch (err) {
+        console.error('更新可用标签顺序失败:', err);
+        setTagModalError('更新可用标签顺序失败');
+        setTimeout(() => setTagModalError(''), 3000);
+      }
+    })();
+  };
+
+  // 获取可用标签样式
+  const getAvailableTagStyle = (index) => {
+    const style = {};
+    
+    if (availableTagDragState.isDragging && availableTagDragState.draggedIndex !== null && availableTagDragState.targetIndex !== null) {
+      if (index === availableTagDragState.draggedIndex) {
+        // 被拖动的标签
+        style.transform = 'scale(1.1) rotate(5deg)';
+        style.zIndex = 1000;
+        style.opacity = 0.8;
+        style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.3)';
+      } else {
+        const draggedIndex = availableTagDragState.draggedIndex;
+        const targetIndex = availableTagDragState.targetIndex;
+        
+        // 获取被拖动标签的尺寸
+        const draggedElement = document.querySelector(`.available-tags [data-index="${draggedIndex}"]`);
+        let draggedWidth = 0;
+        if (draggedElement) {
+          draggedWidth = draggedElement.offsetWidth;
+        }
+        
+        // 使用可用标签专用的间距值
+        const availableTagGap = 8; // 可用标签的CSS gap值
+        
+        // 计算行信息，确保只有同行内的标签才会移动
+        const container = document.querySelector('.available-tags .tags-list');
+        if (!container) return style;
+        
+        const tags = container.querySelectorAll('.tag-item');
+        const tagHeight = getAvailableTagHeight(); // 使用专用函数
+        
+        // 计算行信息
+        const rows = [];
+        let currentRow = [];
+        let currentRowWidth = 0;
+        let currentY = 0;
+
+        tags.forEach((tag, tagIndex) => {
+          const tagWidth = tag.offsetWidth;
+          
+          if (currentRowWidth + tagWidth + availableTagGap > container.offsetWidth && currentRow.length > 0) {
+            rows.push({
+              tags: currentRow,
+              y: currentY,
+              width: currentRowWidth - availableTagGap
+            });
+            currentRow = [];
+            currentRowWidth = 0;
+            currentY += tagHeight + availableTagGap;
+          }
+          
+          currentRow.push({
+            element: tag,
+            index: tagIndex,
+            x: currentRowWidth,
+            y: currentY,
+            width: tagWidth
+          });
+          currentRowWidth += tagWidth + availableTagGap;
+        });
+
+        if (currentRow.length > 0) {
+          rows.push({
+            tags: currentRow,
+            y: currentY,
+            width: currentRowWidth - availableTagGap
+          });
+        }
+        
+        // 找到当前标签所在的行
+        let currentRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const tagInRow = row.tags.find(t => t.index === index);
+          if (tagInRow) {
+            currentRowIndex = i;
+            break;
+          }
+        }
+        
+        // 找到目标位置所在的行
+        let targetRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const tagInRow = row.tags.find(t => t.index === targetIndex);
+          if (tagInRow) {
+            targetRowIndex = i;
+            break;
+          }
+        }
+        
+        // 只有同行内的标签才会移动
+        if (currentRowIndex !== -1 && targetRowIndex !== -1 && currentRowIndex === targetRowIndex) {
+          // 同行内移动 - 修复逻辑
+          if (draggedIndex < targetIndex) {
+            // 向右拖动：中间标签向左移动
+            if (index > draggedIndex && index <= targetIndex) {
+              style.transform = `translateX(-${draggedWidth + availableTagGap}px)`;
+              style.transition = 'transform 0.2s ease';
+            }
+          } else if (draggedIndex > targetIndex) {
+            // 向左拖动：中间标签向右移动
+            if (index >= targetIndex && index < draggedIndex) {
+              style.transform = `translateX(${draggedWidth + availableTagGap}px)`;
+              style.transition = 'transform 0.2s ease';
+            }
+          }
+        }
+      }
+    }
+    
+    return style;
+  };
+
   // 获取CSS变量和计算行数
   const getTagHeight = () => {
     const container = document.querySelector('.tags-list');
@@ -4078,6 +4370,19 @@ const TagModal = ({
       return parseInt(getComputedStyle(container).gap) || 8;
     }
     return 8;
+  };
+
+  // 获取可用标签专用高度
+  const getAvailableTagHeight = () => {
+    const container = document.querySelector('.available-tags .tags-list');
+    if (container) {
+      const tagItem = container.querySelector('.tag-item');
+      if (tagItem) {
+        const tagRect = tagItem.getBoundingClientRect();
+        return tagRect.height;
+      }
+    }
+    return 32; // 默认高度
   };
 
   // 计算标签在容器中的位置信息
@@ -4149,7 +4454,8 @@ const TagModal = ({
       //if (relativeY >= row.y && relativeY < row.y + tagHeight) {   //不敏感方案 ，第二行后 鼠标悬停较上才会触发悬停
       
       // 方案1：扩大行判定范围，增加容错性
-      const rowTop = row.y - gap / 2;        // 向上扩展半个间距
+      // const rowTop = row.y - gap / 2;        // 向上扩展半个间距
+      const rowTop = row.y + gap ;  // 整体下移
       const rowBottom = row.y + tagHeight + gap / 2;  // 向下扩展半个间距
       
       // 方案2：如果方案1不够，可以进一步扩大范围
@@ -4548,18 +4854,10 @@ const TagModal = ({
             <h4>可用标签: (可拖拽排序和删除)</h4>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
               <div 
-                className="tags-list"
+                className={`tags-list ${availableTagDragState.isDragging ? 'drag-active' : ''}`}
                 style={{ flex: '1' }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  const draggedTagName = e.dataTransfer.getData('text/plain');
-                  // 放到列表空白处则置于末尾
-                  await handleAvailableTagDropOnItem(draggedTagName, availableTags.length);
-                }}
+                onDragOver={handleAvailableTagDragOver}
+                onDrop={handleAvailableTagDrop}
               >
                 {availableTags.map((tag, index) => (
                   <span
@@ -4568,19 +4866,9 @@ const TagModal = ({
                     draggable="true"
                     data-index={index}
                     data-tag-name={tag.name}
-                    onDragStart={(e) => {
-                      e.dataTransfer.effectAllowed = 'move';
-                      e.dataTransfer.setData('text/plain', tag.name);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                    }}
-                    onDrop={async (e) => {
-                      e.preventDefault();
-                      const draggedTagName = e.dataTransfer.getData('text/plain');
-                      await handleAvailableTagDropOnItem(draggedTagName, index);
-                    }}
+                    style={getAvailableTagStyle(index)}
+                    onDragStart={(e) => handleAvailableTagDragStart(e, index, tag)}
+                    onDragEnd={handleAvailableTagDragEnd}
                     onClick={async () => {
                       console.log('=== 标签点击调试信息 ===');
                       console.log('1. 点击的标签:', tag);
