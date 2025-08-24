@@ -4432,40 +4432,31 @@ const TagModal = ({
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                 >
-                  {(selectedFileForTags.sortedTags ? 
-                    selectedFileForTags.tags.sort((a, b) => {
-                      const aIndex = selectedFileForTags.sortedTags.findIndex(t => t.name === a.name);
-                      const bIndex = selectedFileForTags.sortedTags.findIndex(t => t.name === b.name);
-                      // 如果标签在排序列表中，按排序位置排序；否则按名称排序
-                      if (aIndex !== -1 && bIndex !== -1) {
-                        return aIndex - bIndex;
-                      } else if (aIndex !== -1) {
-                        return -1;
-                      } else if (bIndex !== -1) {
-                        return 1;
+                  {selectedFileForTags.tags.sort((a, b) => {
+                    // 第一优先级：按你规定的顺序（order）
+                    const aTag = availableTags.find(t => t.name === a.name);
+                    const bTag = availableTags.find(t => t.name === b.name);
+                    
+                    if (aTag && bTag) {
+                      // 如果两个标签都在全局标签列表中，按order排序
+                      if (aTag.order !== bTag.order) {
+                        return aTag.order - bTag.order;
                       }
-                      return a.name.localeCompare(b.name);
-                    })
-                    : selectedFileForTags.tags.sort((a, b) => {
-                        // 根据全局标签的order值进行排序
-                        const aTag = availableTags.find(t => t.name === a.name);
-                        const bTag = availableTags.find(t => t.name === b.name);
-                        
-                        if (aTag && bTag) {
-                          // 如果两个标签都在全局标签列表中，按order排序
-                          return aTag.order - bTag.order;
-                        } else if (aTag) {
-                          // 如果只有a在全局列表中，a排在前面
-                          return -1;
-                        } else if (bTag) {
-                          // 如果只有b在全局列表中，b排在前面
-                          return 1;
-                        } else {
-                          // 如果都不在全局列表中，按名称排序
-                          return a.name.localeCompare(b.name);
-                        }
-                      })
-                  ).map((tag, index) => (
+                      // 第二优先级：按usageCount递减排序
+                      if (aTag.usageCount !== bTag.usageCount) {
+                        return bTag.usageCount - aTag.usageCount;
+                      }
+                    } else if (aTag) {
+                      // 如果只有a在全局列表中，a排在前面
+                      return -1;
+                    } else if (bTag) {
+                      // 如果只有b在全局列表中，b排在前面
+                      return 1;
+                    }
+                    
+                    // 第三优先级：按名称排序
+                    return a.name.localeCompare(b.name);
+                  }).map((tag, index) => (
                     <span 
                       key={`${tag.name}-${index}`} 
                       className="tag-item draggable-tag"
@@ -5532,20 +5523,36 @@ const Dashboard = () => {
     
     // 立即更新数据库，带重试机制
     const tagOrder = newOrderedTags.map(tag => tag.name);
+    console.log('准备更新标签顺序:', {
+      fileId: selectedFileForTags._id,
+      tagOrder: tagOrder,
+      fromIndex,
+      toIndex
+    });
+    
     const updateWithRetry = async (retries = 3) => {
       try {
-        await updateTagOrder(selectedFileForTags._id, tagOrder);
+        console.log(`尝试更新标签顺序 (第 ${4 - retries}/3 次)...`);
+        const result = await updateTagOrder(selectedFileForTags._id, tagOrder);
+        console.log('标签顺序更新成功:', result);
+        
         // 更新成功后立即刷新弹窗数据
         const updatedFile = await getFileDetails(selectedFileForTags._id);
         if (updatedFile) {
+          console.log('获取到更新后的文件:', updatedFile);
           setSelectedFileForTags(updatedFile);
         }
+        
         // 排序变更后也刷新可选标签与热门标签（受 order 影响）
+        console.log('刷新所有标签...');
         refreshAllTags();
+        
+        console.log('标签排序更新完成！');
       } catch (err) {
         console.error(`更新标签顺序失败 (尝试 ${4 - retries}/3):`, err);
         if (retries > 1) {
           // 等待短暂时间后重试
+          console.log(`等待100ms后重试...`);
           await new Promise(resolve => setTimeout(resolve, 100));
           return updateWithRetry(retries - 1);
         } else {

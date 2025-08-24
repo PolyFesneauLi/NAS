@@ -1851,11 +1851,15 @@ const getFileDetails = async (req, res) => {
 const updateTagOrder = async (req, res) => {
   try {
     const { fileId, tagOrder, global } = req.body;
+    console.log('收到标签顺序更新请求:', { fileId, tagOrder, global });
+    
     if (!tagOrder || !Array.isArray(tagOrder)) {
       return res.status(400).json({ error: '缺少必要参数: tagOrder' });
     }
 
     const user = await User.findById(req.user.id);
+    console.log('用户信息:', { id: user._id, role: user.role });
+    
     if (user.role !== 'admin') {
       return res.status(403).json({ error: '只有管理员可以更新标签顺序' });
     }
@@ -1898,6 +1902,8 @@ const updateTagOrder = async (req, res) => {
       return res.status(400).json({ error: '缺少必要参数: fileId' });
     }
 
+    console.log('开始更新文件标签顺序...');
+    
     // 使用findOneAndUpdate避免版本冲突
     const file = await File.findOneAndUpdate(
       { _id: fileId },
@@ -1924,14 +1930,17 @@ const updateTagOrder = async (req, res) => {
       return res.status(400).json({ error: '标签顺序数组与当前标签不匹配' });
     }
 
-    // 同时更新全局标签顺序（如果标签是全局的）
+    // 同时更新全局标签顺序（管理员可以更新所有标签的order）
+    console.log('开始更新全局标签顺序...');
     for (let i = 0; i < tagOrder.length; i++) {
       const tagName = tagOrder[i];
-      await Tag.findOneAndUpdate(
-        { name: tagName, createdBy: user._id },
+      console.log(`更新标签 "${tagName}" 的 order 为 ${i}`);
+      const result = await Tag.findOneAndUpdate(
+        { name: tagName },  // 移除 createdBy 限制，管理员可以更新所有标签
         { order: i },
         { new: true }
       );
+      console.log(`标签 "${tagName}" 更新结果:`, result);
     }
 
     res.json({ 
