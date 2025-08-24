@@ -4146,7 +4146,20 @@ const TagModal = ({
     let targetRowIndex = -1;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (relativeY >= row.y && relativeY < row.y + tagHeight) {
+      //if (relativeY >= row.y && relativeY < row.y + tagHeight) {   //不敏感方案 ，第二行后 鼠标悬停较上才会触发悬停
+      
+      // 方案1：扩大行判定范围，增加容错性
+      const rowTop = row.y - gap / 2;        // 向上扩展半个间距
+      const rowBottom = row.y + tagHeight + gap / 2;  // 向下扩展半个间距
+      
+      // 方案2：如果方案1不够，可以进一步扩大范围
+      // const rowTop = row.y - gap;           // 向上扩展一个间距
+      // const rowBottom = row.y + tagHeight + gap;  // 向下扩展一个间距
+      
+      // 调试信息（可以注释掉）
+      // console.log(`行 ${i}: row.y=${row.y}, rowTop=${rowTop}, rowBottom=${rowBottom}, relativeY=${relativeY}`);
+      
+      if (relativeY >= rowTop && relativeY < rowBottom) {
         targetRowIndex = i;
         break;
       }
