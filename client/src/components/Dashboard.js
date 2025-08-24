@@ -5181,32 +5181,16 @@ const Dashboard = () => {
       return;
     }
     
-    try {
-      const fileDetails = await getFileDetails(selectedFileForTags._id);
-      if (fileDetails && fileDetails.tags) {
-        const existingTag = fileDetails.tags.find(tag => 
-          tag.name.toLowerCase() === tagName.toLowerCase()
-        );
-        
-        if (existingTag) {
-          setTagModalError(`标签 "${tagName}" 已存在`);
-          setTimeout(() => setTagModalError(''), 3000);
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('获取文件详情失败:', err);
-      // 检查当前文件的标签
-      if (selectedFileForTags.tags && selectedFileForTags.tags.length > 0) {
-        const existingTag = selectedFileForTags.tags.find(tag => 
-          tag.name.toLowerCase() === tagName.toLowerCase()
-        );
-        
-        if (existingTag) {
-          setTagModalError(`标签 "${tagName}" 已存在`);
-          setTimeout(() => setTagModalError(''), 3000);
-          return;
-        }
+    // 检查当前文件的标签（乐观检查）
+    if (selectedFileForTags.tags && selectedFileForTags.tags.length > 0) {
+      const existingTag = selectedFileForTags.tags.find(tag => 
+        tag.name.toLowerCase() === tagName.toLowerCase()
+      );
+      
+      if (existingTag) {
+        setTagModalError(`标签 "${tagName}" 已存在`);
+        setTimeout(() => setTagModalError(''), 3000);
+        return;
       }
     }
     
@@ -5229,109 +5213,38 @@ const Dashboard = () => {
       name: tagName,
       color: newTagColor
     };
-  
-    try {
-      // 只有当标签不存在时才尝试创建
-      if (!globalTag) {
-        try {
-          await createTag(tagToAdd);
-        } catch (err) {
-          if (!err.message.includes('标签已存在')) {
-            throw err;
-          }
-        }
-      }
-      
-      await addTags(selectedFileForTags._id, [tagToAdd]);
-      
-      // 安全地更新 selectedFileForTags
-      setSelectedFileForTags(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          tags: [...(prev.tags || []), tagToAdd],
-          tagOrder: [...(prev.tagOrder || []), tagToAdd.name]
-        };
-      });
-        
-      // 安全地更新 files 状态
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-         file._id === selectedFileForTags._id 
-           ? { 
-               ...file, 
-               tags: [...(file.tags || []), tagToAdd],
-               tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-             }
-           : file
-       )
-     );
-      
-      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
-      if (navigationState.currentState === 'search_to_location') {
-                    // 更新原始搜索结果缓存
-            setNavigationState(prev => ({
-              ...prev,
-              locationJump: {
-                ...prev.locationJump,
-                originalSearchState: {
-                  ...prev.locationJump.originalSearchState,
-                  files: prev.locationJump.originalSearchState.files.map(file => 
-                    file._id === selectedFileForTags._id 
-                      ? { 
-                          ...file, 
-                          tags: [...(file.tags || []), tagToAdd],
-                          tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                        }
-                      : file
-                  )
-                },
-                // 同步更新当前位置的文件列表（当前正在查看的位置）
-                currentLocation: {
-                  ...prev.locationJump.currentLocation,
-                  files: prev.locationJump.currentLocation.files.map(file =>
-                    file._id === selectedFileForTags._id
-                      ? {
-                          ...file,
-                          tags: [...(file.tags || []), tagToAdd],
-                          tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                        }
-                      : file
-                  )
-                }
-              }
-            }));
-      }
-      
-      // 更新状态机中的当前位置信息
-      if (navigationState.currentState === 'location_jump') {
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { 
-                      ...file, 
-                      tags: [...(file.tags || []), tagToAdd],
-                      tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                    }
-                  : file
-              )
-            }
-          }
-        }));
-      }
-      
-      // 更新状态机中的搜索备份状态
-      if (navigationState.currentState === 'search') {
-        setNavigationState(prev => ({
-          ...prev,
-          backup: {
-            ...prev.backup,
-            files: prev.backup.files.map(file => 
+    
+    // 乐观更新：立即更新UI
+    setSelectedFileForTags(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        tags: [...(prev.tags || []), tagToAdd],
+        tagOrder: [...(prev.tagOrder || []), tagToAdd.name]
+      };
+    });
+    
+    setFiles(prevFiles => 
+      prevFiles.map(file => 
+       file._id === selectedFileForTags._id 
+         ? { 
+             ...file, 
+             tags: [...(file.tags || []), tagToAdd],
+             tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+           }
+         : file
+     )
+   );
+    
+    // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
+    if (navigationState.currentState === 'search_to_location') {
+      setNavigationState(prev => ({
+        ...prev,
+        locationJump: {
+          ...prev.locationJump,
+          originalSearchState: {
+            ...prev.locationJump.originalSearchState,
+            files: prev.locationJump.originalSearchState.files.map(file => 
               file._id === selectedFileForTags._id 
                 ? { 
                     ...file, 
@@ -5340,19 +5253,91 @@ const Dashboard = () => {
                   }
                 : file
             )
+          },
+          currentLocation: {
+            ...prev.locationJump.currentLocation,
+            files: prev.locationJump.currentLocation.files.map(file =>
+              file._id === selectedFileForTags._id
+                ? {
+                    ...file,
+                    tags: [...(file.tags || []), tagToAdd],
+                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+                  }
+                : file
+            )
           }
-        }));
-      }
-      
-      setNewTagColor('#007bff');
-      setTagModalError('');
-      // 变更后即时刷新可选标签与热门标签
-      refreshAllTags();
-    } catch (err) {
-      console.error('添加新标签失败:', err);
-      setTagModalError(`添加标签失败: ${err.message}`);
-      setTimeout(() => setTagModalError(''), 3000);
+        }
+      }));
     }
+    
+    // 更新状态机中的当前位置信息
+    if (navigationState.currentState === 'location_jump') {
+      setNavigationState(prev => ({
+        ...prev,
+        locationJump: {
+          ...prev.locationJump,
+          currentLocation: {
+            ...prev.locationJump.currentLocation,
+            files: prev.locationJump.currentLocation.files.map(file => 
+              file._id === selectedFileForTags._id 
+                ? { 
+                    ...file, 
+                    tags: [...(file.tags || []), tagToAdd],
+                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+                  }
+                : file
+              )
+            }
+          }
+        }
+      ));
+    }
+    
+    // 更新状态机中的搜索备份状态
+    if (navigationState.currentState === 'search') {
+      setNavigationState(prev => ({
+        ...prev,
+        backup: {
+          ...prev.backup,
+          files: prev.backup.files.map(file => 
+            file._id === selectedFileForTags._id 
+              ? { 
+                  ...file, 
+                  tags: [...(file.tags || []), tagToAdd],
+                  tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+                }
+              : file
+          )
+        }
+      }));
+    }
+    
+    // 立即更新UI状态
+    setNewTagColor('#007bff');
+    setTagModalError('');
+    refreshAllTags();
+    
+    // 异步处理后端操作（不阻塞UI）
+    (async () => {
+      try {
+        // 只有当标签不存在时才尝试创建
+        if (!globalTag) {
+          try {
+            await createTag(tagToAdd);
+          } catch (err) {
+            if (!err.message.includes('标签已存在')) {
+              console.error('创建标签失败:', err);
+              return;
+            }
+          }
+        }
+        
+        await addTags(selectedFileForTags._id, [tagToAdd]);
+      } catch (err) {
+        console.error('后端标签操作失败:', err);
+        // 如果后端失败，可以考虑回滚UI状态
+      }
+    })();
   }, [selectedFileForTags, newTagColor]);
 
   const handleRemoveTag = async (tagName) => {
