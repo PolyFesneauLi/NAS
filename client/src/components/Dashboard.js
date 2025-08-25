@@ -4833,11 +4833,6 @@ const TagModal = ({
                     onDragStart={(e) => handleAvailableTagDragStart(e, index, tag)}
                     onDragEnd={handleAvailableTagDragEnd}
                     onClick={async () => {
-                      console.log('=== 标签点击调试信息 ===');
-                      console.log('1. 点击的标签:', tag);
-                      console.log('2. selectedFileForTags:', selectedFileForTags);
-                      console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
-                      
                       if (!selectedFileForTags || !selectedFileForTags._id) {
                         console.error('错误: selectedFileForTags 或 _id 为空');
                         return;
@@ -4848,14 +4843,11 @@ const TagModal = ({
                             existingTag.name.toLowerCase() === tag.name.toLowerCase()
                           );
                           
-                          if (existingTag) {
-                            console.log('标签已存在，跳过添加');
-                            setTagModalError(`标签 "${tag.name}" 已存在`);
-                            setTimeout(() => setTagModalError(''), 3000);
-                            return;
-                          }
-                      
-                      console.log('4. 开始前端乐观更新...');
+                      if (existingTag) {
+                        setTagModalError(`标签 "${tag.name}" 已存在`);
+                        setTimeout(() => setTagModalError(''), 3000);
+                        return;
+                      }
                       
                       // 前端乐观更新：立即更新UI状态，让用户看到即时反馈
                       const updatedFile = {
@@ -4911,12 +4903,10 @@ const TagModal = ({
                       console.log('5. 前端乐观更新完成！');
                       
                       // 后端异步处理：不阻塞UI，让用户继续操作
-                      console.log('6. 开始后端异步处理...');
                       (async () => {
                         try {
                           // 调用后端API添加标签
-                        const result = await addTags(selectedFileForTags._id, [tag]);
-                          console.log('7. 后端添加标签成功:', result);
+                          const result = await addTags(selectedFileForTags._id, [tag]);
                           
                           // 后端成功后，刷新文件详情以获取正确的标签顺序
                           try {

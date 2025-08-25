@@ -6,6 +6,7 @@ const path = require('path');
 const config = require('../config');
 const storageAccess = require('../utils/storageAccess');
 const { ensureRootFolder } = require('../utils/initRootFolder');
+const mongoose = require('mongoose');
 
 const FixEncoding = (str) => {
   try {
@@ -1671,7 +1672,7 @@ const addTags = async (req, res) => {
     }
     
     // 只将成功处理的标签添加到文件中
-    file.tags.push(...successfullyProcessedTags);
+    file.tags.push(...tagsToAddToFile);
 
     await file.save();
     
@@ -2368,46 +2369,77 @@ const forceDeleteTag = async (req, res) => {
       createdAt: tag.createdAt
     });
 
-    // 查找所有使用该标签的文件
-    const filesWithTag = await File.find({ 'tags.name': tagName.trim() });
-    console.log(`[FORCE_DELETE_TAG] 找到 ${filesWithTag.length} 个文件使用此标签`);
+    // 使用事务确保数据一致性
+    const session = await mongoose.startSession();
+    let cleanedFilesCount = 0;
+    
+    try {
+      await session.withTransaction(async () => {
+        // 查找所有使用该标签的文件（包括可能遗漏的文件）
+        const filesWithTag = await File.find({ 
+          $or: [
+            { 'tags.name': tagName.trim() },
+            { 'tagOrder': tagName.trim() }
+          ]
+        }).session(session);
+        
+        console.log(`[FORCE_DELETE_TAG] 找到 ${filesWithTag.length} 个文件使用此标签`);
 
-    if (filesWithTag.length > 0) {
-      console.log(`[FORCE_DELETE_TAG] 开始清理文件上的标签`);
-      
-      // 从所有文件上移除该标签
-      for (const file of filesWithTag) {
-        try {
-          // 移除标签
-          file.tags = file.tags.filter(t => t.name !== tagName.trim());
+        if (filesWithTag.length > 0) {
+          console.log(`[FORCE_DELETE_TAG] 开始清理文件上的标签`);
           
-          // 更新标签顺序数组
-          if (file.tagOrder) {
-            file.tagOrder = file.tagOrder.filter(name => name !== tagName.trim());
+          // 从所有文件上移除该标签
+          for (const file of filesWithTag) {
+            try {
+              // 移除标签数组中的标签
+              const originalTagsLength = file.tags.length;
+              file.tags = file.tags.filter(t => t.name !== tagName.trim());
+              
+              // 移除标签顺序数组中的标签
+              if (file.tagOrder && Array.isArray(file.tagOrder)) {
+                const originalTagOrderLength = file.tagOrder.length;
+                file.tagOrder = file.tagOrder.filter(name => name !== tagName.trim());
+                console.log(`[FORCE_DELETE_TAG] 文件 ${file.originalName || file.filename}: 标签数组 ${originalTagsLength}->${file.tags.length}, 顺序数组 ${originalTagOrderLength}->${file.tagOrder.length}`);
+              }
+              
+              await file.save({ session });
+              cleanedFilesCount++;
+              console.log(`[FORCE_DELETE_TAG] 已从文件移除标签: ${file.originalName || file.filename}`);
+            } catch (fileUpdateError) {
+              console.error(`[FORCE_DELETE_TAG] 更新文件失败:`, fileUpdateError);
+              throw new Error(`清理文件标签时发生错误: ${fileUpdateError.message}`);
+            }
           }
           
-          await file.save();
-          console.log(`[FORCE_DELETE_TAG] 已从文件移除标签: ${file.originalName || file.filename}`);
-        } catch (fileUpdateError) {
-          console.error(`[FORCE_DELETE_TAG] 更新文件失败:`, fileUpdateError);
-          return res.status(500).json({ 
-            error: `清理文件标签时发生错误`,
-            details: {
-              fileId: file._id,
-              fileName: file.originalName || file.filename,
-              error: fileUpdateError.message
-            }
-          });
+          console.log(`[FORCE_DELETE_TAG] 已从 ${cleanedFilesCount} 个文件上移除标签`);
         }
-      }
-      
-      console.log(`[FORCE_DELETE_TAG] 已从 ${filesWithTag.length} 个文件上移除标签`);
-    }
 
-    // 删除标签
-    console.log(`[FORCE_DELETE_TAG] 开始删除标签: ${tag._id}`);
-    await Tag.findByIdAndDelete(tag._id);
-    console.log(`[FORCE_DELETE_TAG] 标签强制删除成功: "${tagName}"`);
+        // 再次验证所有文件都已清理（双重检查）
+        const remainingFilesWithTag = await File.findOne({ 
+          $or: [
+            { 'tags.name': tagName.trim() },
+            { 'tagOrder': tagName.trim() }
+          ]
+        }).session(session);
+        
+        if (remainingFilesWithTag) {
+          throw new Error(`标签清理不完整，仍有文件包含此标签: ${remainingFilesWithTag.originalName || remainingFilesWithTag.filename}`);
+        }
+
+        // 删除标签
+        console.log(`[FORCE_DELETE_TAG] 开始删除标签: ${tag._id}`);
+        await Tag.findByIdAndDelete(tag._id).session(session);
+        console.log(`[FORCE_DELETE_TAG] 标签强制删除成功: "${tagName}"`);
+      });
+      
+      console.log(`[FORCE_DELETE_TAG] 事务完成，成功清理 ${cleanedFilesCount} 个文件`);
+      
+    } catch (transactionError) {
+      console.error(`[FORCE_DELETE_TAG] 事务执行失败:`, transactionError);
+      throw transactionError;
+    } finally {
+      await session.endSession();
+    }
     
     res.json({ 
       success: true, 
@@ -2417,8 +2449,8 @@ const forceDeleteTag = async (req, res) => {
           name: tag.name,
           id: tag._id
         },
-        cleanedFiles: filesWithTag.length,
-        warning: '已从所有文件上移除该标签'
+        cleanedFiles: cleanedFilesCount,
+        warning: '已从所有文件上移除该标签，标签已完全删除'
       }
     });
   } catch (error) {
@@ -2498,29 +2530,26 @@ const cleanupOrphanedTags = async (req, res) => {
     }
 
     console.log(`[CLEANUP_ORPHANED_TAGS] 清理完成，修正了 ${cleanedTags.length} 个标签，清理了 ${orphanedTags.length} 个孤立标签`);
-
+    
     res.json({
       success: true,
       message: '孤立标签清理完成',
       details: {
-        correctedTags: cleanedTags,
-        orphanedTags: orphanedTags,
-        totalProcessed: allTags.length
+        cleanedTags,
+        orphanedTags,
+        summary: `修正了 ${cleanedTags.length} 个标签的usageCount，清理了 ${orphanedTags.length} 个孤立标签`
       }
     });
   } catch (error) {
-    console.error(`[CLEANUP_ORPHANED_TAGS] 清理孤立标签时发生错误:`, {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-    
-    return res.status(500).json({ 
+    console.error(`[CLEANUP_ORPHANED_TAGS] 清理孤立标签时发生错误:`, error);
+    res.status(500).json({ 
       error: '清理孤立标签时发生服务器错误',
       details: error.message
     });
   }
 };
+
+
 
 module.exports = {
   uploadFile,
