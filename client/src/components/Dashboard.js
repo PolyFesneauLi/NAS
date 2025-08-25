@@ -4902,6 +4902,11 @@ const TagModal = ({
                       setTagModalError('');
                       console.log('5. 前端乐观更新完成！');
                       
+                      // 添加一个小延迟，确保数据完全同步后再允许拖拽排序
+                      setTimeout(() => {
+                        console.log('6. 数据同步延迟完成，现在可以拖拽排序');
+                      }, 100);
+                      
                       // 后端异步处理：不阻塞UI，让用户继续操作
                       (async () => {
                         try {
@@ -5606,6 +5611,11 @@ const Dashboard = () => {
     setTagModalError('');
     refreshAllTags();
     
+    // 添加一个小延迟，确保数据完全同步后再允许拖拽排序
+    setTimeout(() => {
+      console.log('数据同步延迟完成，现在可以拖拽排序');
+    }, 100);
+    
     // 异步处理后端操作（不阻塞UI）
     (async () => {
       try {
@@ -5673,20 +5683,80 @@ const Dashboard = () => {
 
   // 处理标签重新排序 - 优化版本，快速乐观更新
   const handleTagReorder = (fromIndex, toIndex) => {
-    // 获取当前按顺序排列的标签
-    const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
-      ? selectedFileForTags.tagOrder.map(tagName => {
-          const tag = selectedFileForTags.tags.find(t => t.name === tagName);
+    // 安全检查：确保数据完整性
+    if (!selectedFileForTags || !selectedFileForTags.tags || !Array.isArray(selectedFileForTags.tags)) {
+      console.error('标签数据不完整，无法进行排序');
+      setTagModalError('标签数据不完整，请刷新后重试');
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
+    
+    // 获取当前按顺序排列的标签，确保数据一致性
+    let currentOrderedTags;
+    if (selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0) {
+      // 从 tagOrder 构建有序标签数组，过滤掉不存在的标签
+      currentOrderedTags = selectedFileForTags.tagOrder
+        .map(tagName => {
+          const tag = selectedFileForTags.tags.find(t => t && t.name === tagName);
+          if (!tag) {
+            console.warn(`标签 "${tagName}" 在 tags 数组中不存在，将被过滤`);
+            return null;
+          }
           return tag;
-        }).filter(Boolean)
-      : selectedFileForTags.tags;
+        })
+        .filter(Boolean); // 过滤掉 null 值
+      
+      // 如果过滤后有标签丢失，补充缺失的标签到末尾
+      const missingTags = selectedFileForTags.tags.filter(tag => 
+        tag && !currentOrderedTags.some(orderedTag => orderedTag.name === tag.name)
+      );
+      if (missingTags.length > 0) {
+        console.warn('发现缺失的标签，补充到末尾:', missingTags.map(t => t.name));
+        currentOrderedTags.push(...missingTags);
+      }
+    } else {
+      // 如果没有 tagOrder，直接使用 tags 数组
+      currentOrderedTags = [...selectedFileForTags.tags];
+    }
+    
+    // 再次安全检查
+    if (!currentOrderedTags || currentOrderedTags.length === 0) {
+      console.error('没有可排序的标签');
+      setTagModalError('没有可排序的标签');
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
+    
+    // 验证索引的有效性
+    if (fromIndex < 0 || fromIndex >= currentOrderedTags.length || 
+        toIndex < 0 || toIndex >= currentOrderedTags.length) {
+      console.error('索引超出范围:', { fromIndex, toIndex, length: currentOrderedTags.length });
+      setTagModalError('排序索引无效，请重试');
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
     
     const newOrderedTags = [...currentOrderedTags];
     // 删除原标签
     const [movedTag] = newOrderedTags.splice(fromIndex, 1);
+    
+    // 安全检查：确保移动的标签存在
+    if (!movedTag || !movedTag.name) {
+      console.error('移动的标签无效:', movedTag);
+      setTagModalError('标签数据无效，请刷新后重试');
+      setTimeout(() => setTagModalError(''), 3000);
+      return;
+    }
+    
     newOrderedTags.splice(toIndex, 0, movedTag);
     
-    const newTagOrder = newOrderedTags.map(tag => tag.name);
+    const newTagOrder = newOrderedTags.map(tag => {
+      if (!tag || !tag.name) {
+        console.error('发现无效标签:', tag);
+        return null;
+      }
+      return tag.name;
+    }).filter(Boolean); // 过滤掉 null 值
     
     // 立即乐观更新：更新弹窗内的标签顺序
     setSelectedFileForTags(prev => ({
