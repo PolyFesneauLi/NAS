@@ -59,7 +59,7 @@ router.post('/force-delete-tag', auth.authenticate, auth.requireRole('admin'), f
 // 清理孤立标签(有usecount>0 但是其实没有文件关联的标签 -> 效果：删除标签)
 router.post('/cleanup-orphaned-tags', auth.authenticate, auth.requireRole('admin'), fileController.cleanupOrphanedTags);
 
-// 重命名文件（仅 admin）
+// 重命名文件（仅 admin）- 必须放在 /:id 路由之前
 router.put('/rename/:id', auth.authenticate, auth.requireRole('admin'), fileController.renameFile);
 
 // 获取单个文件详情（放在最后，避免与其他路由冲突）

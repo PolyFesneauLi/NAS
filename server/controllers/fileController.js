@@ -1957,56 +1957,165 @@ const updateTagOrder = async (req, res) => {
 
 // 重命名文件
 const renameFile = async (req, res) => {
+  console.log('=== RENAME FILE API CALLED ===');
+  console.log('Request params:', req.params);
+  console.log('Request body:', req.body);
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  
   try {
     const { id } = req.params;
     const { newFilename } = req.body;
 
     if (!newFilename || newFilename.trim() === '') {
+      console.log('ERROR: 新文件名不能为空');
       return res.status(400).json({ error: '新文件名不能为空' });
     }
 
+    console.log('开始查找用户...');
     const user = await User.findById(req.user.id);
+    console.log('用户信息:', user ? { id: user._id, role: user.role } : 'null');
     if (user.role !== 'admin') {
+      console.log('权限检查失败: 非管理员用户');
       return res.status(403).json({ error: '只有管理员可以重命名文件' });
     }
 
     // 查找文件
+    console.log('开始查找文件, ID:', id);
     const file = await File.findById(id);
+    console.log('文件信息:', file ? { id: file._id, filename: file.filename, isFolder: file.isFolder, path: file.path } : 'null');
     if (!file) {
+      console.log('错误: 文件不存在');
       return res.status(404).json({ error: '文件不存在' });
     }
 
     // 检查新文件名是否已存在
+    console.log('检查文件名是否已存在...');
     const existingFile = await File.findOne({
       filename: newFilename,
       parentFolder: file.parentFolder,
       _id: { $ne: id }
     });
+    console.log('现有文件检查结果:', existingFile ? '文件名已存在' : '文件名可用');
 
     if (existingFile) {
+      console.log('错误: 文件名已存在');
       return res.status(400).json({ error: '文件名已存在' });
     }
 
     // 构建旧文件路径和新文件路径
-    const oldFilePath = file.path ? file.path : storageAccess.getStoragePath(path.join('uploads', file.filename));
-    const newFilePath = file.path ? 
-      path.join(path.dirname(file.path), newFilename) : 
-      storageAccess.getStoragePath(path.join('uploads', newFilename));
+    console.log('构建文件路径...');
+    // 如果文件路径是相对路径（以..开头），需要转换为绝对路径
+    let oldFilePath, newFilePath;
+    
+    if (file.path && file.path.startsWith('..')) {
+      // 数据库中的路径是相对路径，需要转换
+      console.log('原始路径:', file.path);
+      // 去掉开头的 ..\ 或 ../ 然后去掉 storage\，因为 getStoragePath 会自动添加
+      let relativePath = file.path.replace(/^\.\.[\\/]/, '');
+      console.log('去掉..后的路径:', relativePath);
+      // 如果路径以 storage\ 开头，也要去掉，避免重复
+      if (relativePath.startsWith('storage\\') || relativePath.startsWith('storage/')) {
+        relativePath = relativePath.replace(/^storage[\\/]/, '');
+        console.log('去掉storage后的路径:', relativePath);
+      }
+      oldFilePath = storageAccess.getStoragePath(relativePath);
+      
+      // 计算新的相对路径
+      const newRelativePath = path.join(path.dirname(relativePath), newFilename);
+      console.log('新的相对路径:', newRelativePath);
+      newFilePath = storageAccess.getStoragePath(newRelativePath);
+    } else if (file.path) {
+      // 已经是绝对路径
+      oldFilePath = file.path;
+      newFilePath = path.join(path.dirname(file.path), newFilename);
+    } else {
+      // 没有路径，使用默认路径
+      oldFilePath = storageAccess.getStoragePath(path.join('uploads', file.filename));
+      newFilePath = storageAccess.getStoragePath(path.join('uploads', newFilename));
+    }
+    
+    console.log('旧文件路径:', oldFilePath);
+    console.log('新文件路径:', newFilePath);
 
     // 检查旧文件是否存在
+    console.log('检查旧文件是否存在...');
     if (!fs.existsSync(oldFilePath)) {
+      console.log('错误: 文件在存储中不存在');
       return res.status(404).json({ error: '文件在存储中不存在' });
     }
+    console.log('旧文件存在，继续执行...');
 
     // 重命名文件或文件夹
-    fs.renameSync(oldFilePath, newFilePath);
+    console.log('开始重命名物理文件/文件夹...');
+    try {
+      fs.renameSync(oldFilePath, newFilePath);
+      console.log('物理文件/文件夹重命名成功');
+    } catch (renameError) {
+      console.error('物理文件重命名失败:', renameError);
+      return res.status(500).json({ error: '文件系统重命名失败: ' + renameError.message });
+    }
+
+    // 如果是文件夹，需要更新所有子文件和子文件夹的路径
+    console.log('检查是否为文件夹...');
+    if (file.isFolder) {
+      console.log('这是文件夹，开始更新子文件路径...');
+      const oldPath = file.path;
+      const newPath = path.join(path.dirname(file.path), newFilename);
+      
+      console.log(`重命名文件夹: ${oldPath} -> ${newPath}`);
+      
+      // 查找所有路径以旧路径开头的文件和文件夹
+      // 使用简单的字符串匹配，避免正则表达式的复杂性
+      const filesToUpdate = await File.find({
+        path: { $regex: `^${oldPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` }
+      });
+      
+      console.log(`找到 ${filesToUpdate.length} 个需要更新路径的文件/文件夹`);
+      
+      // 批量更新路径
+      const bulkOps = filesToUpdate.map(childFile => {
+        // 只替换路径开头的部分，确保精确匹配
+        let updatedPath = childFile.path;
+        if (childFile.path.startsWith(oldPath)) {
+          updatedPath = newPath + childFile.path.substring(oldPath.length);
+        }
+        
+        return {
+          updateOne: {
+            filter: { _id: childFile._id },
+            update: {
+              $set: {
+                path: updatedPath,
+                updatedAt: new Date()
+              }
+            }
+          }
+        };
+      });
+      
+      if (bulkOps.length > 0) {
+        await File.bulkWrite(bulkOps);
+        console.log(`已更新 ${bulkOps.length} 个子文件/文件夹的路径`);
+      }
+    }
 
     // 更新数据库中的文件名和路径
+    console.log('更新数据库记录...');
     file.filename = newFilename;
     file.originalName = newFilename;
     if (file.path) {
-      file.path = path.join(path.dirname(file.path), newFilename);
+      // 保持相对路径格式 (..\\storage\\...)
+      if (file.path.startsWith('..')) {
+        file.path = path.join(path.dirname(file.path), newFilename);
+      } else {
+        // 如果是绝对路径，转换回相对路径格式
+        const relativePath = file.path.replace(/^\.\.[\\/]/, '');
+        const newRelativePath = path.join(path.dirname(relativePath), newFilename);
+        file.path = '..' + path.sep + newRelativePath;
+      }
     }
+    console.log('新的数据库路径:', file.path);
     file.updatedAt = new Date();
     await file.save();
 
