@@ -5,6 +5,52 @@ import StorageMeter from './StorageMeter';
 import '../components/Dashboard.css';
 import response from '../services/api';
 
+// 统一的乐观更新工具函数
+const optimisticUpdate = {
+  // 更新文件列表中的特定文件
+  updateFileInList: (fileList, fileId, updates) => {
+    if (!Array.isArray(fileList)) return fileList;
+    return fileList.map(file => 
+      file._id === fileId 
+        ? { ...file, ...updates }
+        : file
+    );
+  },
+
+  // 更新所有相关状态的函数
+  updateAllRelatedStates: (fileId, updates, setFiles, setNavigationState) => {
+    // 1. 更新当前显示的文件列表
+    setFiles(prevFiles => optimisticUpdate.updateFileInList(prevFiles, fileId, updates));
+    
+    // 2. 更新状态机中的所有相关备份
+    setNavigationState(prev => {
+      const newState = { ...prev };
+      
+      // 更新 normalBackup
+      if (newState.normalBackup && newState.normalBackup.files) {
+        newState.normalBackup.files = optimisticUpdate.updateFileInList(newState.normalBackup.files, fileId, updates);
+      }
+      
+      // 更新 search backup
+      if (newState.backup && newState.backup.files) {
+        newState.backup.files = optimisticUpdate.updateFileInList(newState.backup.files, fileId, updates);
+      }
+      
+      // 更新 locationJump 相关状态
+      if (newState.locationJump) {
+        if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+          newState.locationJump.currentLocation.files = optimisticUpdate.updateFileInList(newState.locationJump.currentLocation.files, fileId, updates);
+        }
+        if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+          newState.locationJump.originalSearchState.files = optimisticUpdate.updateFileInList(newState.locationJump.originalSearchState.files, fileId, updates);
+        }
+      }
+      
+      return newState;
+    });
+  }
+};
+
 // 修复编码问题的工具函数
 const fixEncoding = (str) => {
   try {
@@ -3654,25 +3700,25 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
           </div>
           
                      {/* 热门标签提示行 - 仅显示，不支持拖动排序 */}
-           <div className="hot-tags-container">
-             <span className="hot-tags-label">热门标签:</span>
+          <div className="hot-tags-container">
+            <span className="hot-tags-label">热门标签:</span>
              <div className="hot-tags-list">
-               {hotTags.length > 0 ? (
+              {hotTags.length > 0 ? (
                  hotTags.map((tag) => (
                    <div key={tag} className="hot-tag-item">
-                     <button
-                       className="hot-tag-btn"
-                       onClick={() => handleAddSearchTag(tag)}
-                     >
-                       {tag}
-                     </button>
-                   </div>
-                 ))
-               ) : (
-                 <span className="no-hot-tags">暂无热门标签</span>
-               )}
-             </div>
-           </div>
+                    <button
+                      className="hot-tag-btn"
+                      onClick={() => handleAddSearchTag(tag)}
+                    >
+                      {tag}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <span className="no-hot-tags">暂无热门标签</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4485,19 +4531,8 @@ const TagModal = ({
       console.log(`拖拽排序: ${fromIndex} -> ${finalToIndex}`);
       handleTagReorder(fromIndex, finalToIndex);
       
-      // 拖动后立即刷新弹窗数据
-      setTimeout(async () => {
-        if (selectedFileForTags && selectedFileForTags._id) {
-          try {
-            const updatedFile = await getFileDetails(selectedFileForTags._id);
-            if (updatedFile) {
-              setSelectedFileForTags(updatedFile);
-            }
-          } catch (err) {
-            console.error('刷新文件数据失败:', err);
-          }
-        }
-      }, 100);
+      // 不需要延迟刷新，乐观更新已经立即生效
+      // 后端异步处理完成后会自动同步数据
     }
     
     handleDragEnd();
@@ -5563,49 +5598,18 @@ const Dashboard = () => {
       };
     });
     
-    // 使用统一的增量更新函数
-    const updateFileWithNewTag = (fileList) => {
-      if (!Array.isArray(fileList)) return fileList;
-      return fileList.map(file => 
-       file._id === selectedFileForTags._id 
-         ? { 
-             ...file, 
-             tags: [...(file.tags || []), tagToAdd],
-             tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-           }
-         : file
-      );
+    // 使用统一的乐观更新工具更新所有相关状态
+    const updates = {
+      tags: [...(selectedFileForTags.tags || []), tagToAdd],
+      tagOrder: [...(selectedFileForTags.tagOrder || []), tagToAdd.name]
     };
-
-    // 更新当前显示的文件列表
-    setFiles(prevFiles => updateFileWithNewTag(prevFiles));
     
-    // 更新状态机中的所有相关备份
-    setNavigationState(prev => {
-      const newState = { ...prev };
-      
-      // 更新 normalBackup
-      if (newState.normalBackup && newState.normalBackup.files) {
-        newState.normalBackup.files = updateFileWithNewTag(newState.normalBackup.files);
-      }
-      
-      // 更新 search backup
-      if (newState.backup && newState.backup.files) {
-        newState.backup.files = updateFileWithNewTag(newState.backup.files);
-      }
-      
-      // 更新 locationJump 相关状态
-      if (newState.locationJump) {
-        if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
-          newState.locationJump.currentLocation.files = updateFileWithNewTag(newState.locationJump.currentLocation.files);
-        }
-        if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
-          newState.locationJump.originalSearchState.files = updateFileWithNewTag(newState.locationJump.originalSearchState.files);
-        }
-      }
-      
-      return newState;
-    });
+    optimisticUpdate.updateAllRelatedStates(
+      selectedFileForTags._id, 
+      updates, 
+      setFiles, 
+      setNavigationState
+    );
     
     // 立即更新UI状态
     setNewTagColor('#007bff');
@@ -5645,49 +5649,18 @@ const Dashboard = () => {
         tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
       }));
       
-      // 使用统一的增量更新函数
-      const updateFileWithRemovedTag = (fileList) => {
-        if (!Array.isArray(fileList)) return fileList;
-        return fileList.map(file => 
-          file._id === selectedFileForTags._id 
-            ? { 
-                ...file, 
-                tags: file.tags.filter(tag => tag.name !== tagName),
-                tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-              }
-            : file
-        );
+      // 使用统一的乐观更新工具更新所有相关状态
+      const updates = {
+        tags: selectedFileForTags.tags.filter(tag => tag.name !== tagName),
+        tagOrder: selectedFileForTags.tagOrder ? selectedFileForTags.tagOrder.filter(name => name !== tagName) : []
       };
-
-      // 更新当前显示的文件列表
-      setFiles(prevFiles => updateFileWithRemovedTag(prevFiles));
       
-      // 更新状态机中的所有相关备份
-      setNavigationState(prev => {
-        const newState = { ...prev };
-        
-        // 更新 normalBackup
-        if (newState.normalBackup && newState.normalBackup.files) {
-          newState.normalBackup.files = updateFileWithRemovedTag(newState.normalBackup.files);
-        }
-        
-        // 更新 search backup
-        if (newState.backup && newState.backup.files) {
-          newState.backup.files = updateFileWithRemovedTag(newState.backup.files);
-        }
-        
-        // 更新 locationJump 相关状态
-        if (newState.locationJump) {
-          if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
-            newState.locationJump.currentLocation.files = updateFileWithRemovedTag(newState.locationJump.currentLocation.files);
-          }
-          if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
-            newState.locationJump.originalSearchState.files = updateFileWithRemovedTag(newState.locationJump.originalSearchState.files);
-          }
-        }
-        
-        return newState;
-      });
+      optimisticUpdate.updateAllRelatedStates(
+        selectedFileForTags._id, 
+        updates, 
+        setFiles, 
+        setNavigationState
+      );
       
       setTagModalError('');
       // 变更后即时刷新可选标签与热门标签
@@ -5708,7 +5681,7 @@ const Dashboard = () => {
 
 
 
-  // 处理标签重新排序
+  // 处理标签重新排序 - 优化版本，快速乐观更新
   const handleTagReorder = (fromIndex, toIndex) => {
     // 获取当前按顺序排列的标签
     const currentOrderedTags = selectedFileForTags.tagOrder && selectedFileForTags.tagOrder.length > 0 
@@ -5721,104 +5694,70 @@ const Dashboard = () => {
     const newOrderedTags = [...currentOrderedTags];
     // 删除原标签
     const [movedTag] = newOrderedTags.splice(fromIndex, 1);
-    // // 从左到右移动，需要将toIndex改为toIndex-1
-    // if (fromIndex < toIndex) {
-    //   toIndex = toIndex - 1;
-    // }
     newOrderedTags.splice(toIndex, 0, movedTag);
     
-    // 更新本地状态
+    const newTagOrder = newOrderedTags.map(tag => tag.name);
+    
+    // 立即乐观更新：更新弹窗内的标签顺序
     setSelectedFileForTags(prev => ({
       ...prev,
-      tagOrder: newOrderedTags.map(tag => tag.name)
+      tagOrder: newTagOrder
     }));
     
-    // 使用统一的增量更新函数
-    const updateFileWithNewTagOrder = (fileList) => {
-      if (!Array.isArray(fileList)) return fileList;
-      return fileList.map(file => 
-        file._id === selectedFileForTags._id 
-          ? { ...file, tagOrder: newOrderedTags.map(tag => tag.name) }
-          : file
-      );
-    };
-
-    // 更新当前显示的文件列表
-    setFiles(prevFiles => updateFileWithNewTagOrder(prevFiles));
+    // 立即乐观更新：更新所有相关状态
+    const updates = { tagOrder: newTagOrder };
+    optimisticUpdate.updateAllRelatedStates(
+      selectedFileForTags._id, 
+      updates, 
+      setFiles, 
+      setNavigationState
+    );
     
-    // 更新状态机中的所有相关备份
-    setNavigationState(prev => {
-      const newState = { ...prev };
-      
-      // 更新 normalBackup
-      if (newState.normalBackup && newState.normalBackup.files) {
-        newState.normalBackup.files = updateFileWithNewTagOrder(newState.normalBackup.files);
-      }
-      
-      // 更新 search backup
-      if (newState.backup && newState.backup.files) {
-        newState.backup.files = updateFileWithNewTagOrder(newState.backup.files);
-      }
-      
-      // 更新 locationJump 相关状态
-      if (newState.locationJump) {
-        if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
-          newState.locationJump.currentLocation.files = updateFileWithNewTagOrder(newState.locationJump.currentLocation.files);
-        }
-        if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
-          newState.locationJump.originalSearchState.files = updateFileWithNewTagOrder(newState.locationJump.originalSearchState.files);
-        }
-      }
-      
-      return newState;
-    });
-    
-    // 立即更新数据库，带重试机制
-    const tagOrder = newOrderedTags.map(tag => tag.name);
-    console.log('准备更新标签顺序:', {
+    console.log('乐观更新完成，标签顺序已立即生效:', {
       fileId: selectedFileForTags._id,
-      tagOrder: tagOrder,
+      tagOrder: newTagOrder,
       fromIndex,
       toIndex
     });
     
-    const updateWithRetry = async (retries = 3) => {
+    // 后端异步处理：不阻塞UI，让用户继续操作
+    (async () => {
       try {
-        console.log(`尝试更新标签顺序 (第 ${4 - retries}/3 次)...`);
-        const result = await updateTagOrder(selectedFileForTags._id, tagOrder);
-        console.log('标签顺序更新成功:', result);
+        console.log('开始后端异步更新标签顺序...');
+        const result = await updateTagOrder(selectedFileForTags._id, newTagOrder);
+        console.log('后端标签顺序更新成功:', result);
         
-        // 更新成功后立即刷新弹窗数据
-        const updatedFile = await getFileDetails(selectedFileForTags._id);
-        if (updatedFile) {
-          console.log('获取到更新后的文件:', updatedFile);
-          setSelectedFileForTags(updatedFile);
-        }
-        
-        // 排序变更后也刷新可选标签与热门标签（受 order 影响）
+        // 后端成功后，刷新可选标签与热门标签（受 order 影响）
         console.log('刷新所有标签...');
         refreshAllTags();
         
-        console.log('标签排序更新完成！');
+        console.log('标签排序完全更新完成！');
       } catch (err) {
-        console.error(`更新标签顺序失败 (尝试 ${4 - retries}/3):`, err);
-        if (retries > 1) {
-          // 等待短暂时间后重试
-          console.log(`等待100ms后重试...`);
-          await new Promise(resolve => setTimeout(resolve, 100));
-          return updateWithRetry(retries - 1);
-        } else {
-          setTagModalError('更新标签顺序失败，请重试');
-          // 恢复原始状态
-          setSelectedFileForTags(prev => ({
-            ...prev,
-            tagOrder: currentOrderedTags.map(tag => tag.name)
-          }));
-        }
+        console.error('后端标签顺序更新失败:', err);
+        
+        // 后端失败时，回滚前端状态
+        console.log('开始回滚前端状态...');
+        setSelectedFileForTags(prev => ({
+          ...prev,
+          tagOrder: currentOrderedTags.map(tag => tag.name)
+        }));
+        
+        // 回滚其他状态
+        const rollbackUpdates = { tagOrder: currentOrderedTags.map(tag => tag.name) };
+        optimisticUpdate.updateAllRelatedStates(
+          selectedFileForTags._id, 
+          rollbackUpdates, 
+          setFiles, 
+          setNavigationState
+        );
+        
+        // 显示错误信息
+        setTagModalError('更新标签顺序失败，请重试');
+        setTimeout(() => setTagModalError(''), 5000);
+        
+        console.log('前端状态回滚完成！');
       }
-    };
-    
-    updateWithRetry();
+    })();
   };
 
   // 文件重命名处理函数
@@ -5852,75 +5791,18 @@ const Dashboard = () => {
         filename: newFileNameWithExtension
       }));
 
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file._id === selectedFileForTags._id 
-            ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-            : file
-        )
+      // 使用统一的乐观更新工具更新所有相关状态
+      const updates = { 
+        originalName: newFileNameWithExtension, 
+        filename: newFileNameWithExtension 
+      };
+      
+      optimisticUpdate.updateAllRelatedStates(
+        selectedFileForTags._id, 
+        updates, 
+        setFiles, 
+        setNavigationState
       );
-
-      if (navigationState.currentState === 'search_to_location') {
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            originalSearchState: {
-              ...prev.locationJump.originalSearchState,
-              files: prev.locationJump.originalSearchState.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-                  : file
-              )
-            }
-          }
-        }));
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file =>
-                file._id === selectedFileForTags._id
-                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-                  : file
-              )
-            }
-          }
-        }));
-      }
-
-      if (navigationState.currentState === 'location_jump') {
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-                  : file
-              )
-            }
-          }
-        }));
-      }
-
-      if (navigationState.currentState === 'search') {
-        setNavigationState(prev => ({
-          ...prev,
-          backup: {
-            ...prev.backup,
-            files: prev.backup.files.map(file => 
-              file._id === selectedFileForTags._id 
-                ? { ...file, originalName: newFileNameWithExtension, filename: newFileNameWithExtension }
-                : file
-            )
-          }
-        }));
-      }
 
       // 迅速结束"重命名中"按钮状态，提升响应性
       setTimeout(() => setIsRenaming(false), 150);
