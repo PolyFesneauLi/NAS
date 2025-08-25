@@ -2651,54 +2651,17 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
     fetchFilesData();
   }, [currentFolder, sortBy]); // 移除搜索相关的依赖项，避免在搜索状态下触发刷新
 
-  // 获取热门标签
-  useEffect(() => {
-    const fetchHotTags = async () => {
-      try {
-        // 使用和编辑标签模态框相同的方式获取所有标签
-        const response = await getAllTags();
-        const allTags = response.tags || [];
-        
-        // 确保 allTags 是数组且不为空
-        if (!Array.isArray(allTags)) {
-          console.warn('获取到的标签不是数组格式:', allTags);
-          setHotTags([]);
-          return;
-        }
-        
-        // 按order升序，order相同时按usageCount降序，取前10个
-        const sortedTags = allTags
-          .filter(tag => tag && tag.name) // 过滤掉无效的标签
-          .sort((a, b) => {
-            if (a.order !== b.order) {
-              return a.order - b.order; // order升序
-            }
-            return b.usageCount - a.usageCount; // usageCount降序
-          })
-          .slice(0, 10)
-          .map(tag => tag.name);
-        
-        setHotTags(sortedTags);
-      } catch (error) {
-        console.error('获取热门标签失败:', error);
-        setHotTags([]);
-      }
-    };
-    
-    fetchHotTags();
-  }, []);
-
-  // 根据父组件预取的 availableTags 即时计算热门标签，确保即时显示
+  // 获取热门标签 - 简化版本，仅显示前10个可用标签
   useEffect(() => {
     if (!availableTags || !Array.isArray(availableTags)) {
       return;
     }
-    const sortedHot = availableTags
+    // 简单取前10个标签名称
+    const hotTagsList = availableTags
       .filter(t => t && t.name)
-      .sort((a, b) => (a.order !== b.order ? a.order - b.order : (b.usageCount || 0) - (a.usageCount || 0)))
       .slice(0, 10)
       .map(t => t.name);
-    setHotTags(sortedHot);
+    setHotTags(hotTagsList);
   }, [availableTags]);
 
   // 监听 files 状态变化
@@ -3690,61 +3653,26 @@ const FileUpload = ({ onUploadSuccess, fileType = 'regular', userRole, currentFo
             </button>
           </div>
           
-          {/* 热门标签提示行 - 支持拖动排序（仅管理员显示拖拽手柄），拖动后调用 updateTagOrder('global') */}
-          <div className="hot-tags-container">
-            <span className="hot-tags-label">热门标签:</span>
-            <div 
-              className="hot-tags-list"
-              onDragOver={(e) => e.preventDefault()}
-            >
-              {hotTags.length > 0 ? (
-                hotTags.map((tag, index) => (
-                  <div
-                    key={tag}
-                    className="hot-tag-item"
-                    draggable={userRole === 'admin'}
-                    onDragStart={(e) => {
-                      if (userRole !== 'admin') return;
-                      e.dataTransfer.setData('text/plain', String(index));
-                    }}
-                    onDrop={async (e) => {
-                      if (userRole !== 'admin') return;
-                      e.preventDefault();
-                      const fromIndexStr = e.dataTransfer.getData('text/plain');
-                      const fromIndex = parseInt(fromIndexStr, 10);
-                      const toIndex = index;
-                      if (Number.isNaN(fromIndex) || fromIndex === toIndex) return;
-                      const newOrder = [...hotTags];
-                      const [moved] = newOrder.splice(fromIndex, 1);
-                      newOrder.splice(toIndex, 0, moved);
-                      // 乐观更新
-                      setHotTags(newOrder);
-                      try {
-                        // 使用全局模式更新 order（后端会更新 Tag.order）
-                        await updateTagOrder('global', newOrder);
-                        // 同步刷新全局可选标签，热门标签由 availableTags 联动
-                        if (typeof refreshAllTags === 'function') {
-                          await refreshAllTags();
-                        }
-                      } catch (err) {
-                        console.error('更新热门标签顺序失败:', err);
-                      }
-                    }}
-                    title={userRole === 'admin' ? '拖动以排序（仅管理员）' : ''}
-                  >
-                    <button
-                      className="hot-tag-btn"
-                      onClick={() => handleAddSearchTag(tag)}
-                    >
-                      {tag}
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <span className="no-hot-tags">暂无热门标签</span>
-              )}
-            </div>
-          </div>
+                     {/* 热门标签提示行 - 仅显示，不支持拖动排序 */}
+           <div className="hot-tags-container">
+             <span className="hot-tags-label">热门标签:</span>
+             <div className="hot-tags-list">
+               {hotTags.length > 0 ? (
+                 hotTags.map((tag) => (
+                   <div key={tag} className="hot-tag-item">
+                     <button
+                       className="hot-tag-btn"
+                       onClick={() => handleAddSearchTag(tag)}
+                     >
+                       {tag}
+                     </button>
+                   </div>
+                 ))
+               ) : (
+                 <span className="no-hot-tags">暂无热门标签</span>
+               )}
+             </div>
+           </div>
         </div>
       </div>
 
@@ -4882,15 +4810,15 @@ const TagModal = ({
                       
                       // 前端乐观检查：快速检查内存中是否已存在该标签
                       const existingTag = selectedFileForTags.tags?.find(existingTag => 
-                        existingTag.name.toLowerCase() === tag.name.toLowerCase()
-                      );
-                      
-                      if (existingTag) {
-                        console.log('标签已存在，跳过添加');
-                        setTagModalError(`标签 "${tag.name}" 已存在`);
-                        setTimeout(() => setTagModalError(''), 3000);
-                        return;
-                      }
+                            existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                          );
+                          
+                          if (existingTag) {
+                            console.log('标签已存在，跳过添加');
+                            setTagModalError(`标签 "${tag.name}" 已存在`);
+                            setTimeout(() => setTagModalError(''), 3000);
+                            return;
+                          }
                       
                       console.log('4. 开始前端乐观更新...');
                       
@@ -4952,7 +4880,7 @@ const TagModal = ({
                       (async () => {
                         try {
                           // 调用后端API添加标签
-                          const result = await addTags(selectedFileForTags._id, [tag]);
+                        const result = await addTags(selectedFileForTags._id, [tag]);
                           console.log('7. 后端添加标签成功:', result);
                           
                           // 后端成功后，刷新文件详情以获取正确的标签顺序
@@ -4998,10 +4926,10 @@ const TagModal = ({
                           }
                           
                           console.log('9. 后端处理完成！');
-                        } catch (err) {
+                      } catch (err) {
                           console.error('=== 后端添加标签失败 ===');
-                          console.error('错误详情:', err);
-                          console.error('错误消息:', err.message);
+                        console.error('错误详情:', err);
+                        console.error('错误消息:', err.message);
                           
                           // 后端失败时，回滚前端状态
                           console.log('10. 开始回滚前端状态...');
@@ -5540,7 +5468,7 @@ const Dashboard = () => {
         return newState;
       });
     };
-
+    
     // 根据状态机决定行为
     switch (navigationState.currentState) {
       case 'search_to_location': {
@@ -5639,13 +5567,13 @@ const Dashboard = () => {
     const updateFileWithNewTag = (fileList) => {
       if (!Array.isArray(fileList)) return fileList;
       return fileList.map(file => 
-        file._id === selectedFileForTags._id 
-          ? { 
-              ...file, 
-              tags: [...(file.tags || []), tagToAdd],
-              tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-            }
-          : file
+       file._id === selectedFileForTags._id 
+         ? { 
+             ...file, 
+             tags: [...(file.tags || []), tagToAdd],
+             tagOrder: [...(file.tagOrder || []), tagToAdd.name]
+           }
+         : file
       );
     };
 
