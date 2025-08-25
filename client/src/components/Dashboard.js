@@ -4874,79 +4874,181 @@ const TagModal = ({
                       console.log('1. 点击的标签:', tag);
                       console.log('2. selectedFileForTags:', selectedFileForTags);
                       console.log('3. selectedFileForTags._id:', selectedFileForTags?._id);
-                      console.log('4. 准备调用 addTags 函数');
-                      console.log('5. addTags 函数类型:', typeof addTags);
-                      console.log('6. addTags 函数内容:', addTags);
                       
                       if (!selectedFileForTags || !selectedFileForTags._id) {
                         console.error('错误: selectedFileForTags 或 _id 为空');
                         return;
                       }
                       
-                      // 重新获取文件的最新标签数据，确保重复检查基于数据库中的实际标签
-                      try {
-                        const fileDetails = await getFileDetails(selectedFileForTags._id);
-                        if (fileDetails && fileDetails.tags) {
-                          // 检查是否已存在相同名称的标签
-                          const existingTag = fileDetails.tags.find(existingTag => 
-                            existingTag.name.toLowerCase() === tag.name.toLowerCase()
-                          );
-                          
-                          if (existingTag) {
-                            console.log('标签已存在，跳过添加');
-                            setTagModalError(`标签 "${tag.name}" 已存在`);
-                            setTimeout(() => setTagModalError(''), 3000);
-                            return;
-                          }
-                        }
-                      } catch (err) {
-                        console.error('获取文件详情失败:', err);
-                        // 如果获取失败，使用当前内存中的标签进行检查
-                        const existingTag = selectedFileForTags.tags?.find(existingTag => 
-                          existingTag.name.toLowerCase() === tag.name.toLowerCase()
-                        );
-                        
-                        if (existingTag) {
-                          console.log('标签已存在，跳过添加');
-                          setTagModalError(`标签 "${tag.name}" 已存在`);
-                          setTimeout(() => setTagModalError(''), 3000);
-                          return;
-                        }
+                      // 前端乐观检查：快速检查内存中是否已存在该标签
+                      const existingTag = selectedFileForTags.tags?.find(existingTag => 
+                        existingTag.name.toLowerCase() === tag.name.toLowerCase()
+                      );
+                      
+                      if (existingTag) {
+                        console.log('标签已存在，跳过添加');
+                        setTagModalError(`标签 "${tag.name}" 已存在`);
+                        setTimeout(() => setTagModalError(''), 3000);
+                        return;
                       }
                       
-                      try {
-                        console.log('7. 开始调用 addTags...');
-                        const result = await addTags(selectedFileForTags._id, [tag]);
-                        console.log('8. addTags 调用成功，返回结果:', result);
+                      console.log('4. 开始前端乐观更新...');
+                      
+                      // 前端乐观更新：立即更新UI状态，让用户看到即时反馈
+                      const updatedFile = {
+                        ...selectedFileForTags,
+                        tags: [...(selectedFileForTags.tags || []), tag]
+                      };
+                      
+                      // 1. 立即更新弹窗内的文件状态
+                      setSelectedFileForTags(updatedFile);
+                      
+                      // 2. 使用统一的增量更新函数更新所有相关状态
+                      const updateFileWithNewTag = (fileList) => {
+                        if (!Array.isArray(fileList)) return fileList;
+                        return fileList.map(file => 
+                          file._id === selectedFileForTags._id 
+                            ? { ...file, tags: [...(file.tags || []), tag] }
+                            : file
+                        );
+                      };
+
+                      // 更新当前显示的文件列表
+                      setFiles(prevFiles => updateFileWithNewTag(prevFiles));
+                      
+                      // 更新状态机中的所有相关备份
+                      setNavigationState(prev => {
+                        const newState = { ...prev };
                         
-                        console.log('9. 开始更新 selectedFileForTags...');
-                        // 立即更新弹窗内的当前标签显示，不手动设置tagOrder，让标签按照全局order值自动排序
-                        setSelectedFileForTags(prev => ({
-                          ...prev,
-                          tags: [...(prev.tags || []), tag]
-                          // 移除 tagOrder 的手动设置，让标签按照全局 order 值自动排序
-                        }));
+                        // 更新 normalBackup
+                        if (newState.normalBackup && newState.normalBackup.files) {
+                          newState.normalBackup.files = updateFileWithNewTag(newState.normalBackup.files);
+                        }
                         
-                        // 刷新文件详情以获取正确的标签顺序
-                        setTimeout(async () => {
-                          try {
-                            const updatedFile = await getFileDetails(selectedFileForTags._id);
-                            if (updatedFile) {
-                              setSelectedFileForTags(updatedFile);
-                            }
-                          } catch (err) {
-                            console.error('刷新文件数据失败:', err);
+                        // 更新 search backup
+                        if (newState.backup && newState.backup.files) {
+                          newState.backup.files = updateFileWithNewTag(newState.backup.files);
+                        }
+                        
+                        // 更新 locationJump 相关状态
+                        if (newState.locationJump) {
+                          if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+                            newState.locationJump.currentLocation.files = updateFileWithNewTag(newState.locationJump.currentLocation.files);
                           }
-                        }, 100);
+                          if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+                            newState.locationJump.originalSearchState.files = updateFileWithNewTag(newState.locationJump.originalSearchState.files);
+                          }
+                        }
                         
-                        console.log('15. 清除错误信息');
-                        console.log('16. 标签添加完成！');
-                      } catch (err) {
-                        console.error('=== 添加标签失败 ===');
-                        console.error('错误详情:', err);
-                        console.error('错误消息:', err.message);
-                        console.error('错误堆栈:', err.stack);
-                      }
+                        return newState;
+                      });
+                      
+                      // 清除错误信息
+                      setTagModalError('');
+                      console.log('5. 前端乐观更新完成！');
+                      
+                      // 后端异步处理：不阻塞UI，让用户继续操作
+                      console.log('6. 开始后端异步处理...');
+                      (async () => {
+                        try {
+                          // 调用后端API添加标签
+                          const result = await addTags(selectedFileForTags._id, [tag]);
+                          console.log('7. 后端添加标签成功:', result);
+                          
+                          // 后端成功后，刷新文件详情以获取正确的标签顺序
+                          try {
+                            const updatedFileFromServer = await getFileDetails(selectedFileForTags._id);
+                            if (updatedFileFromServer) {
+                              console.log('8. 获取到服务器最新数据:', updatedFileFromServer);
+                              // 更新为服务器的最新数据，确保数据一致性
+                              setSelectedFileForTags(updatedFileFromServer);
+                              
+                              // 同步更新其他状态
+                              const updateFileWithServerData = (fileList) => {
+                                if (!Array.isArray(fileList)) return fileList;
+                                return fileList.map(file => 
+                                  file._id === selectedFileForTags._id 
+                                    ? updatedFileFromServer
+                                    : file
+                                );
+                              };
+                              
+                              setFiles(prevFiles => updateFileWithServerData(prevFiles));
+                              setNavigationState(prev => {
+                                const newState = { ...prev };
+                                if (newState.normalBackup && newState.normalBackup.files) {
+                                  newState.normalBackup.files = updateFileWithServerData(newState.normalBackup.files);
+                                }
+                                if (newState.backup && newState.backup.files) {
+                                  newState.backup.files = updateFileWithServerData(newState.backup.files);
+                                }
+                                if (newState.locationJump) {
+                                  if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+                                    newState.locationJump.currentLocation.files = updateFileWithServerData(newState.locationJump.currentLocation.files);
+                                  }
+                                  if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+                                    newState.locationJump.originalSearchState.files = updateFileWithServerData(newState.locationJump.originalSearchState.files);
+                                  }
+                                }
+                                return newState;
+                              });
+                            }
+                          } catch (refreshErr) {
+                            console.error('刷新文件数据失败:', refreshErr);
+                          }
+                          
+                          console.log('9. 后端处理完成！');
+                        } catch (err) {
+                          console.error('=== 后端添加标签失败 ===');
+                          console.error('错误详情:', err);
+                          console.error('错误消息:', err.message);
+                          
+                          // 后端失败时，回滚前端状态
+                          console.log('10. 开始回滚前端状态...');
+                          setSelectedFileForTags(prev => ({
+                            ...prev,
+                            tags: prev.tags.filter(t => t.name !== tag.name)
+                          }));
+                          
+                          // 回滚其他状态
+                          const rollbackFileUpdate = (fileList) => {
+                            if (!Array.isArray(fileList)) return fileList;
+                            return fileList.map(file => 
+                              file._id === selectedFileForTags._id 
+                                ? { ...file, tags: file.tags.filter(t => t.name !== tag.name) }
+                                : file
+                            );
+                          };
+                          
+                          setFiles(prevFiles => rollbackFileUpdate(prevFiles));
+                          setNavigationState(prev => {
+                            const newState = { ...prev };
+                            if (newState.normalBackup && newState.normalBackup.files) {
+                              newState.normalBackup.files = rollbackFileUpdate(newState.normalBackup.files);
+                            }
+                            if (newState.backup && newState.backup.files) {
+                              newState.backup.files = rollbackFileUpdate(newState.backup.files);
+                            }
+                            if (newState.locationJump) {
+                              if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+                                newState.locationJump.currentLocation.files = rollbackFileUpdate(newState.locationJump.currentLocation.files);
+                              }
+                              if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+                                newState.locationJump.originalSearchState.files = rollbackFileUpdate(newState.locationJump.originalSearchState.files);
+                              }
+                            }
+                            return newState;
+                          });
+                          
+                          // 显示错误信息
+                          setTagModalError(`添加标签失败: ${err.message || '未知错误'}`);
+                          setTimeout(() => setTagModalError(''), 5000);
+                          
+                          console.log('11. 前端状态回滚完成！');
+                        }
+                      })();
+                      
+                      console.log('12. 标签添加流程启动完成！');
                     }}
                     title={`点击添加标签: ${tag.name}`}
                   >
