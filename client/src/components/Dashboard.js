@@ -5377,6 +5377,14 @@ const Dashboard = () => {
     setTagModalError('');
     
     console.log('[TAG] 关闭标签弹窗，当前状态机状态:', navigationState.currentState);
+    console.log('[TAG] 最后编辑的文件:', lastEditedFile);
+
+    // 如果没有编辑的文件，直接返回
+    if (!lastEditedFile) {
+      console.log('[TAG] 没有编辑的文件，直接关闭弹窗');
+      setSelectedFileForTags(null);
+      return;
+    }
 
     const applyEditedToFileList = (fileList) => {
       if (!lastEditedFile || !Array.isArray(fileList)) return fileList;
@@ -5392,70 +5400,79 @@ const Dashboard = () => {
           : file
       );
     };
-    
+
+    // 通用更新函数：更新所有相关的状态
+    const updateAllRelatedStates = () => {
+      // 1. 更新当前显示的文件列表
+      setFiles(prevFiles => {
+        const updatedFiles = applyEditedToFileList(prevFiles);
+        console.log('[TAG] 更新当前显示列表，文件数量:', updatedFiles.length);
+        return updatedFiles;
+      });
+
+      // 2. 更新状态机中的所有相关备份
+      setNavigationState(prev => {
+        const newState = { ...prev };
+        
+        // 更新 normalBackup
+        if (newState.normalBackup && newState.normalBackup.files) {
+          newState.normalBackup.files = applyEditedToFileList(newState.normalBackup.files);
+        }
+        
+        // 更新 search backup
+        if (newState.backup && newState.backup.files) {
+          newState.backup.files = applyEditedToFileList(newState.backup.files);
+        }
+        
+        // 更新 locationJump 相关状态
+        if (newState.locationJump) {
+          if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+            newState.locationJump.currentLocation.files = applyEditedToFileList(newState.locationJump.currentLocation.files);
+          }
+          if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+            newState.locationJump.originalSearchState.files = applyEditedToFileList(newState.locationJump.originalSearchState.files);
+          }
+        }
+        
+        console.log('[TAG] 更新状态机完成');
+        return newState;
+      });
+    };
+
     // 根据状态机决定行为
     switch (navigationState.currentState) {
       case 'search_to_location': {
         console.log('[TAG] 从搜索跳转位置编辑，更新当前位置文件，保持当前位置');
-        // 更新状态机当前位置列表
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: applyEditedToFileList(prev.locationJump.currentLocation.files),
-            },
-          },
-        }));
-        // 同步更新当前显示列表
-        setFiles(prevFiles => applyEditedToFileList(prevFiles));
+        updateAllRelatedStates();
         break;
       }
       case 'location_jump': {
         console.log('[TAG] 从普通跳转位置编辑，更新当前位置文件，保持当前位置');
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: applyEditedToFileList(prev.locationJump.currentLocation.files),
-            },
-          },
-        }));
-        setFiles(prevFiles => applyEditedToFileList(prevFiles));
+        updateAllRelatedStates();
         break;
       }
       case 'search': {
         console.log('[TAG] 从搜索结果编辑，更新备份与显示列表，保持搜索状态');
-        setNavigationState(prev => ({
-          ...prev,
-          backup: {
-            ...prev.backup,
-            files: applyEditedToFileList(prev.backup.files),
-          },
-        }));
-        setFiles(prevFiles => applyEditedToFileList(prevFiles));
+        updateAllRelatedStates();
         break;
       }
       case 'normal':
       default: {
         console.log('[TAG] 从普通目录编辑，增量更新当前列表与 normalBackup');
-        setFiles(prevFiles => applyEditedToFileList(prevFiles));
-        setNavigationState(prev => ({
-          ...prev,
-          normalBackup: {
-            ...prev.normalBackup,
-            files: applyEditedToFileList(prev.normalBackup.files)
-          }
-        }));
+        updateAllRelatedStates();
         break;
       }
     }
 
+    // 强制触发一次重新渲染，确保UI更新
+    setTimeout(() => {
+      setFiles(prevFiles => [...prevFiles]);
+    }, 0);
+
     // 最后再清空所选文件，避免丢失更新数据
     setSelectedFileForTags(null);
+    
+    console.log('[TAG] 标签弹窗关闭，增量更新完成');
   };
 
   const handleAddNewTag = useCallback(async () => {
@@ -5516,93 +5533,49 @@ const Dashboard = () => {
       };
     });
     
-    setFiles(prevFiles => 
-      prevFiles.map(file => 
-       file._id === selectedFileForTags._id 
-         ? { 
-             ...file, 
-             tags: [...(file.tags || []), tagToAdd],
-             tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-           }
-         : file
-     )
-   );
-    
-    // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
-    if (navigationState.currentState === 'search_to_location') {
-      setNavigationState(prev => ({
-        ...prev,
-        locationJump: {
-          ...prev.locationJump,
-          originalSearchState: {
-            ...prev.locationJump.originalSearchState,
-            files: prev.locationJump.originalSearchState.files.map(file => 
-              file._id === selectedFileForTags._id 
-                ? { 
-                    ...file, 
-                    tags: [...(file.tags || []), tagToAdd],
-                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                  }
-                : file
-            )
-          },
-          currentLocation: {
-            ...prev.locationJump.currentLocation,
-            files: prev.locationJump.currentLocation.files.map(file =>
-              file._id === selectedFileForTags._id
-                ? {
-                    ...file,
-                    tags: [...(file.tags || []), tagToAdd],
-                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                  }
-                : file
-            )
-          }
-        }
-      }));
-    }
-    
-    // 更新状态机中的当前位置信息
-    if (navigationState.currentState === 'location_jump') {
-      setNavigationState(prev => ({
-        ...prev,
-        locationJump: {
-          ...prev.locationJump,
-          currentLocation: {
-            ...prev.locationJump.currentLocation,
-            files: prev.locationJump.currentLocation.files.map(file => 
-              file._id === selectedFileForTags._id 
-                ? { 
-                    ...file, 
-                    tags: [...(file.tags || []), tagToAdd],
-                    tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                  }
-                : file
-              )
+    // 使用统一的增量更新函数
+    const updateFileWithNewTag = (fileList) => {
+      if (!Array.isArray(fileList)) return fileList;
+      return fileList.map(file => 
+        file._id === selectedFileForTags._id 
+          ? { 
+              ...file, 
+              tags: [...(file.tags || []), tagToAdd],
+              tagOrder: [...(file.tagOrder || []), tagToAdd.name]
             }
-          }
-        }
-      ));
-    }
+          : file
+      );
+    };
+
+    // 更新当前显示的文件列表
+    setFiles(prevFiles => updateFileWithNewTag(prevFiles));
     
-    // 更新状态机中的搜索备份状态
-    if (navigationState.currentState === 'search') {
-      setNavigationState(prev => ({
-        ...prev,
-        backup: {
-          ...prev.backup,
-          files: prev.backup.files.map(file => 
-            file._id === selectedFileForTags._id 
-              ? { 
-                  ...file, 
-                  tags: [...(file.tags || []), tagToAdd],
-                  tagOrder: [...(file.tagOrder || []), tagToAdd.name]
-                }
-              : file
-          )
+    // 更新状态机中的所有相关备份
+    setNavigationState(prev => {
+      const newState = { ...prev };
+      
+      // 更新 normalBackup
+      if (newState.normalBackup && newState.normalBackup.files) {
+        newState.normalBackup.files = updateFileWithNewTag(newState.normalBackup.files);
+      }
+      
+      // 更新 search backup
+      if (newState.backup && newState.backup.files) {
+        newState.backup.files = updateFileWithNewTag(newState.backup.files);
+      }
+      
+      // 更新 locationJump 相关状态
+      if (newState.locationJump) {
+        if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+          newState.locationJump.currentLocation.files = updateFileWithNewTag(newState.locationJump.currentLocation.files);
         }
-      }));
-    }
+        if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+          newState.locationJump.originalSearchState.files = updateFileWithNewTag(newState.locationJump.originalSearchState.files);
+        }
+      }
+      
+      return newState;
+    });
     
     // 立即更新UI状态
     setNewTagColor('#007bff');
@@ -5642,9 +5615,10 @@ const Dashboard = () => {
         tagOrder: prev.tagOrder ? prev.tagOrder.filter(name => name !== tagName) : []
       }));
       
-      // 安全地更新 files 状态
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
+      // 使用统一的增量更新函数
+      const updateFileWithRemovedTag = (fileList) => {
+        if (!Array.isArray(fileList)) return fileList;
+        return fileList.map(file => 
           file._id === selectedFileForTags._id 
             ? { 
                 ...file, 
@@ -5652,83 +5626,38 @@ const Dashboard = () => {
                 tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
               }
             : file
-        )
-      );
+        );
+      };
+
+      // 更新当前显示的文件列表
+      setFiles(prevFiles => updateFileWithRemovedTag(prevFiles));
       
-      // 更新状态机中的备份状态与当前位置文件（从搜索跳转位置）
-      if (navigationState.currentState === 'search_to_location') {
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            originalSearchState: {
-              ...prev.locationJump.originalSearchState,
-              files: prev.locationJump.originalSearchState.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { 
-                      ...file, 
-                      tags: file.tags.filter(tag => tag.name !== tagName),
-                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-                    }
-                  : file
-              )
-            },
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file =>
-                file._id === selectedFileForTags._id
-                  ? {
-                      ...file,
-                      tags: file.tags.filter(tag => tag.name !== tagName),
-                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-                    }
-                  : file
-              )
-            }
+      // 更新状态机中的所有相关备份
+      setNavigationState(prev => {
+        const newState = { ...prev };
+        
+        // 更新 normalBackup
+        if (newState.normalBackup && newState.normalBackup.files) {
+          newState.normalBackup.files = updateFileWithRemovedTag(newState.normalBackup.files);
+        }
+        
+        // 更新 search backup
+        if (newState.backup && newState.backup.files) {
+          newState.backup.files = updateFileWithRemovedTag(newState.backup.files);
+        }
+        
+        // 更新 locationJump 相关状态
+        if (newState.locationJump) {
+          if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+            newState.locationJump.currentLocation.files = updateFileWithRemovedTag(newState.locationJump.currentLocation.files);
           }
-        }));
-      }
-      
-      // 更新状态机中的当前位置信息
-      if (navigationState.currentState === 'location_jump') {
-        setNavigationState(prev => ({
-          ...prev,
-          locationJump: {
-            ...prev.locationJump,
-            currentLocation: {
-              ...prev.locationJump.currentLocation,
-              files: prev.locationJump.currentLocation.files.map(file => 
-                file._id === selectedFileForTags._id 
-                  ? { 
-                      ...file, 
-                      tags: file.tags.filter(tag => tag.name !== tagName),
-                      tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-                    }
-                  : file
-              )
-            }
+          if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+            newState.locationJump.originalSearchState.files = updateFileWithRemovedTag(newState.locationJump.originalSearchState.files);
           }
-        }));
-      }
-      
-      // 更新状态机中的搜索备份状态
-      if (navigationState.currentState === 'search') {
-        setNavigationState(prev => ({
-          ...prev,
-          backup: {
-            ...prev.backup,
-            files: prev.backup.files.map(file => 
-              file._id === selectedFileForTags._id 
-                ? { 
-                    ...file, 
-                    tags: file.tags.filter(tag => tag.name !== tagName),
-                    tagOrder: file.tagOrder ? file.tagOrder.filter(name => name !== tagName) : []
-                  }
-                : file
-            )
-          }
-        }));
-      }
+        }
+        
+        return newState;
+      });
       
       setTagModalError('');
       // 变更后即时刷新可选标签与热门标签
@@ -5774,53 +5703,45 @@ const Dashboard = () => {
       tagOrder: newOrderedTags.map(tag => tag.name)
     }));
     
-    // 安全地更新 files 状态
-    setFiles(prevFiles => 
-      prevFiles.map(file => 
+    // 使用统一的增量更新函数
+    const updateFileWithNewTagOrder = (fileList) => {
+      if (!Array.isArray(fileList)) return fileList;
+      return fileList.map(file => 
         file._id === selectedFileForTags._id 
-          ? { 
-              ...file, 
-              tagOrder: newOrderedTags.map(tag => tag.name)
-            }
+          ? { ...file, tagOrder: newOrderedTags.map(tag => tag.name) }
           : file
-      )
-    );
+      );
+    };
+
+    // 更新当前显示的文件列表
+    setFiles(prevFiles => updateFileWithNewTagOrder(prevFiles));
     
-    // 更新状态机中的备份状态
-    if (navigationState.currentState === 'search_to_location') {
-      setNavigationState(prev => ({
-        ...prev,
-        locationJump: {
-          ...prev.locationJump,
-          originalSearchState: {
-            ...prev.locationJump.originalSearchState,
-            files: prev.locationJump.originalSearchState.files.map(file => 
-              file._id === selectedFileForTags._id 
-                ? { 
-                    ...file, 
-                    tagOrder: newOrderedTags.map(tag => tag.name)
-                  }
-                : file
-            )
-          }
+    // 更新状态机中的所有相关备份
+    setNavigationState(prev => {
+      const newState = { ...prev };
+      
+      // 更新 normalBackup
+      if (newState.normalBackup && newState.normalBackup.files) {
+        newState.normalBackup.files = updateFileWithNewTagOrder(newState.normalBackup.files);
+      }
+      
+      // 更新 search backup
+      if (newState.backup && newState.backup.files) {
+        newState.backup.files = updateFileWithNewTagOrder(newState.backup.files);
+      }
+      
+      // 更新 locationJump 相关状态
+      if (newState.locationJump) {
+        if (newState.locationJump.currentLocation && newState.locationJump.currentLocation.files) {
+          newState.locationJump.currentLocation.files = updateFileWithNewTagOrder(newState.locationJump.currentLocation.files);
         }
-      }));
-      // 同步更新当前位置文件（从搜索跳转位置）
-      setNavigationState(prev => ({
-        ...prev,
-        locationJump: {
-          ...prev.locationJump,
-          currentLocation: {
-            ...prev.locationJump.currentLocation,
-            files: prev.locationJump.currentLocation.files.map(file =>
-              file._id === selectedFileForTags._id
-                ? { ...file, tagOrder: newOrderedTags.map(tag => tag.name) }
-                : file
-            )
-          }
+        if (newState.locationJump.originalSearchState && newState.locationJump.originalSearchState.files) {
+          newState.locationJump.originalSearchState.files = updateFileWithNewTagOrder(newState.locationJump.originalSearchState.files);
         }
-      }));
-    }
+      }
+      
+      return newState;
+    });
     
     // 立即更新数据库，带重试机制
     const tagOrder = newOrderedTags.map(tag => tag.name);
